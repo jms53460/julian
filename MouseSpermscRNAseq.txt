@@ -1,0 +1,687 @@
+#To load fastq files on Ubuntu: 
+fasterq-dump -e 4 SRR12790358
+conda install -c bioconda snpsplit
+
+#To load fastq files in the cluster:
+#first time only, you need to do this:
+module load SRA-Toolkit/2.11.1-centos_linux64
+vdb-config --interactive
+#hit x to exit out of that, and then you will be able to run the following script
+
+##make sure I don't have hundred fa files
+##hisat2-build --help use the required parts only
+##ignore splice sites
+
+
+#The mice used for the scRNA-seq were C57BL/6J x PWK/PhJ
+#####BioProject PRJNA667172, BioSample SAMN16357051
+#####SAMN16357051 data:https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN16357051&o=acc_s%3Aa
+#####C57BL/6J v39 genome: https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/
+#####C57BL/6J v39 GTF: https://ftp.ensembl.org/pub/release-109/gtf/mus_musculus/
+#####C57BL/6J v39 VCF: https://ftp.ebi.ac.uk/pub/databases/mousegenomes/REL-2112-v8-SNPs_Indels/
+
+
+mkdir mousesperm
+cd mousesperm
+nano scrna
+
+#in nano, add in this script:
+#!/bin/bash
+#SBATCH --job-name=get_mouse_fastq
+#SBATCH --partition=batch
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=24:00:00
+#SBATCH --mem=60gb
+#SBATCH --output=fastq-dump.out
+#SBATCH --error=fastq-dump.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+module load SRA-Toolkit/2.11.1-centos_linux64
+fastq-dump --split-files --outdir mousefq --gzip SRR12790358
+fastq-dump --split-files --outdir mousefq --gzip SRR12790357
+fastq-dump --split-files --outdir mousefq --gzip SRR12790356
+fastq-dump --split-files --outdir mousefq --gzip SRR12790354
+fastq-dump --split-files --outdir mousefq --gzip SRR12790353
+fastq-dump --split-files --outdir mousefq --gzip SRR12790352
+fastq-dump --split-files --outdir mousefq --gzip SRR12790351
+fastq-dump --split-files --outdir mousefq --gzip SRR12790350
+fastq-dump --split-files --outdir mousefq --gzip SRR12790349
+fastq-dump --split-files --outdir mousefq --gzip SRR12790347
+
+
+#### Trim and filter sequences based on quality scores and repeat content
+mkdir trimmed
+nano trimmingnano
+
+#!/bin/bash
+#SBATCH --job-name=trim_fastq
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=1:00:00
+#SBATCH --mem=10gb
+#SBATCH --output=trimmed_fastq.out
+#SBATCH --error=trimmed_fastq.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml fastp/0.23.2-GCC-10.2.0
+
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790347_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790347_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790347_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790347_2.fastq.gz -y -x -3
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790349_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790349_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790349_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790349_2.fastq.gz -y -x -3
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790350_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790350_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790350_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790350_2.fastq.gz -y -x -3
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790354_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790354_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790354_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790354_2.fastq.gz -y -x -3
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790356_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790356_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790356_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790356_2.fastq.gz -y -x -3
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790357_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790357_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790357_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790357_2.fastq.gz -y -x -3
+fastp -w 4 -i /scratch/jms53460/mousesperm/mousefq/SRR12790358_1.fastq.gz -I /scratch/jms53460/mousesperm/mousefq/SRR12790358_2.fastq.gz -o /scratch/jms53460/mousesperm/trimmed/trim.SRR12790358_1.fastq.gz -O /scratch/jms53460/mousesperm/trimmed/trim.SRR12790358_2.fastq.gz -y -x -3
+
+#####1 min runtime
+
+
+#The vcf file is too big (22GB), so I will download it using the cluster.
+
+#!/bin/bash
+#SBATCH --job-name=download
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=12:00:00
+#SBATCH --mem=50gb
+#SBATCH --output=download.out
+#SBATCH --error=download.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml wget/1.21.1-GCCcore-10.2.0
+
+cd /scratch/jms53460/mousesperm
+
+wget --no-check-certificate https://ftp.ebi.ac.uk/pub/databases/mousegenomes/REL-2112-v8-SNPs_Indels/mgp_REL2021_snps.vcf.gz
+
+#####11 hour runtime! Must be because the file was 22GB...
+
+
+#!/bin/bash
+#SBATCH --job-name=download_genome
+#SBATCH --partition=batch
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=12:00:00
+#SBATCH --mem=50gb
+#SBATCH --output=download_genome.out
+#SBATCH --error=download_genome.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml wget/1.21.1-GCCcore-10.2.0
+
+cd /scratch/jms53460/mousesperm/GRCm39_genome
+
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.2.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.3.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.4.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.5.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.6.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.7.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.8.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.9.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.10.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.11.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.12.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.13.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.14.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.15.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.16.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.17.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.18.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.19.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.MT.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.X.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.chromosome.Y.fa.gz
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.nonchromosomal.fa.gz
+
+#####1 hr runtime
+
+
+##The gtf isn't too big, so I'm downloading without submitting sbatch
+
+wget --no-check-certificate https://ftp.ensembl.org/pub/release-109/gtf/mus_musculus/Mus_musculus.GRCm39.109.gtf.gz
+
+#SNPsplit_genome_preparation
+
+######
+#This step were for when I used different files. Skip.
+#Untar
+tar -xvf genome_assemblies_genome2_fasta.tar
+######
+
+#Un-gzip
+gzip -d GRCm39_genome/Mus_musculus.GRCm39.dna.chromosome.1.fa.gz
+#I went through and did this for all of the files
+
+#The following code did not work with .fna when I first tried it with the other files. I had to change the file extension to .fa to make it work that time.
+
+nano snpsplitgenomeprepnano
+
+#!/bin/bash
+#SBATCH --job-name=snpsplitgenomeprepsingle
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=12:00:00
+#SBATCH --mem=100gb
+#SBATCH --output=nmasked_GRCm39.out
+#SBATCH --error=nmasked_GRCm39.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SNPsplit/0.6.0-GCC-10.2.0-Perl-5.32.0
+
+SNPsplit_genome_preparation --vcf_file /scratch/jms53460/mousesperm/mgp_REL2021_snps.vcf.gz --reference_genome /scratch/jms53460/mousesperm/GRCm39_genome --strain PWK_PhJ
+
+#####35 min (run failed due to gzipped genome) + 38 min runtime
+
+
+#To merge the files, Brad showed me how to use cat (concatenate) with *.fa
+
+cat PWK_PhJ_N-masked/*.fa >> PWK_PhJ_N-masked/merged.fa
+
+#We used grep and head to make sure the chromosomes are on separate lines (all the chromosome names start with > so he used '>' to grab the names. It worked!
+
+grep '>' PWK_PhJ_N-masked/merged.fa | head
+
+#hisat2_build_nano
+
+#!/bin/bash
+#SBATCH --job-name=hisat2build
+#SBATCH --partition=batch
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=3:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=hisat2build.out
+#SBATCH --error=hisat2build.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml HISAT2/2.2.1-foss-2019b
+
+hisat2-build  PWK_PhJ_N-masked/merged.fa hisat2_index/hs2_index
+
+#####30 min runtime
+
+
+#Next step is to use hisat2
+
+#!/bin/bash
+#SBATCH --job-name=hisat2
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=2:00:00
+#SBATCH --mem=100gb
+#SBATCH --output=hisat2.out
+#SBATCH --error=hisat2.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+cd /scratch/jms53460/mousesperm
+
+ml HISAT2/2.2.1-foss-2019b
+ml SAMtools/1.16.1-GCC-11.3.0
+
+###I tried this one first to see if it merges the files, which it did.
+hisat2 -p 4 --dta -x hisat2_index/hs2_index -1 trimmed/trim.SRR12790347_1.fastq.gz,trimmed/trim.SRR12790349_1.fastq.gz -2 trimmed/trim.SRR12790347_2.fastq.gz,trimmed/trim.SRR12790349_2.fastq.gz | samtools view -bS -> mapped/mergetest.bam
+
+###This is the full length script I used to do all the files together.
+hisat2 -p 4 --dta -x hisat2_index/hs2_index -1 trimmed/trim.SRR12790347_1.fastq.gz,trimmed/trim.SRR12790349_1.fastq.gz,trimmed/trim.SRR12790350_1.fastq.gz,trimmed/trim.SRR12790354_1.fastq.gz,trimmed/trim.SRR12790356_1.fastq.gz,trimmed/trim.SRR12790357_1.fastq.gz,trimmed/trim.SRR12790358_1.fastq.gz -2 trimmed/trim.SRR12790347_2.fastq.gz,trimmed/trim.SRR12790349_2.fastq.gz,trimmed/trim.SRR12790350_2.fastq.gz,trimmed/trim.SRR12790354_2.fastq.gz,trimmed/trim.SRR12790356_2.fastq.gz,trimmed/trim.SRR12790357_2.fastq.gz,trimmed/trim.SRR12790358_2.fastq.gz | samtools view -bS -> mapped/mapped_merged.bam
+
+#####15 min runtime
+
+
+###Now to sort and index
+
+#!/bin/bash
+#SBATCH --job-name=sort_index
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=1:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=sort_index.out
+#SBATCH --error=sort_index.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SAMtools/1.16.1-GCC-11.3.0
+
+cd /scratch/jms53460/mousesperm
+
+samtools sort mapped/mapped_merged.bam -o sort_index/merged_sorted.bam
+
+samtools index sort_index/merged_sorted.bam
+
+#####6 min runtime
+
+
+###Now to use SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=SNPsplit
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=1:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=SNPsplit.out
+#SBATCH --error=SNPsplit.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SNPsplit/0.6.0-GCC-10.2.0-Perl-5.32.0
+
+SNPsplit --conflicting -o /scratch/jms53460/mousesperm/SNPsplit --snp_file /scratch/jms53460/mousesperm/all_SNPs_PWK_PhJ_GRCm39.txt.gz /scratch/jms53460/mousesperm/sort_index/merged_sorted.bam
+
+#####17 min runtime
+
+
+###Sort the SNPsplit file
+
+#!/bin/bash
+#SBATCH --job-name=SNPsplit_sort
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=1:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=SNPsplit_sort.out
+#SBATCH --error=SNPsplit_sort.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SAMtools/1.16.1-GCC-11.3.0
+
+cd /scratch/jms53460/mousesperm
+
+samtools sort SNPsplit/merged_sorted.allele_flagged.bam -o SNPsplit_sort/sorted_SNPsplit.bam
+
+#####3 min runtime
+
+
+###Next we annotate the reads
+
+#!/bin/bash
+#SBATCH --job-name=annotate
+#SBATCH --partition=batch
+#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=2:00:00
+#SBATCH --mem=50gb
+#SBATCH --output=annotate.out
+#SBATCH --error=annotate.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml Drop-seq/2.5.1-Java-13.0.2
+
+cd /scratch/jms53460/mousesperm
+
+TagReadWithGeneFunction --ANNOTATIONS_FILE  Mus_musculus.GRCm39.109.gtf.gz -I SNPsplit_sort/sorted_SNPsplit.bam -O annotated/annotated_sorted_SNPsplit.bam
+
+#####3 min runtime
+
+
+###To check if everything worked okay, I'm running these:
+
+samtools flagstat annotated/annotated_sorted_SNPsplit.bam
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | head -n 20
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o UA
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o CF
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o G1
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o G2
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o INTERGENIC
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | wc -l
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep G1 | head
+
+samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o XX:Z:G1
+
+
+###For checking the vcf file:
+zcat PWK_PhJ.mgp.v5.snps.dbSNP142.vcf.gz | head -n 20
+
+
+
+
+#Outputs from my second try:
+
+jms53460@c4-16 mousesperm$ samtools flagstat annotated/annotated_sorted_SNPsplit.bam
+17516146 + 0 in total (QC-passed reads + QC-failed reads)
+15797570 + 0 primary
+1718576 + 0 secondary
+0 + 0 supplementary
+0 + 0 duplicates
+0 + 0 primary duplicates
+17516146 + 0 mapped (100.00% : N/A)
+15797570 + 0 primary mapped (100.00% : N/A)
+15797570 + 0 paired in sequencing
+7981071 + 0 read1
+7816499 + 0 read2
+14868500 + 0 properly paired (94.12% : N/A)
+14990062 + 0 with itself and mate mapped
+807508 + 0 singletons (5.11% : N/A)
+93178 + 0 with mate mapped to a different chr
+75627 + 0 with mate mapped to a different chr (mapQ>=5)
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | head -n 20
+SRR12790356.472790      329     10      3085739 1       1S75M   =       3085739 0       GCCAAAGGCTGCTAGTGGAAGACTGACTTCCAGGCAACTAGGGTGAGGATCTTATGCCCACACCCACAGTGACACA   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE     MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:-1 ZS:i:-1YT:Z:UP  XX:Z:UA
+SRR12790347.911151      99      10      3094181 60      7S67M   =       3096933 2835    ATTAGGAGCCCTGTGTTCCATATTATAGATGACTGTGAGCATCCACTTCTGTATTTGCCAGGCACTGGCATAGC     AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE       MD:Z:60T6       XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0  AS:i:-12YS:i:0  ZS:i:-12        YT:Z:CP XX:Z:UA
+SRR12790347.911151      147     10      3096933 60      76M     =       3094181 -2835   CCAGGTGGGGTAGTCTCTGGATAGTCCATCCTTTCGTCTTAGCTCCAAACTTTGTCTCTGTAACTCCTTTCATGGG   EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE/EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:-12ZS:i:0  YT:Z:CP XX:Z:UA
+SRR12790354.68898       73      10      3113923 0       76M     =       3113923 0       TATAAAGGCAGACCTATCAGAATTACACCAGACTTCTCAACAGAGACTATGAAAGCTAGAATATCCTAGGCAGATG   AAAAAEEEEEEEEAEEEE/EEAEEEEEE<EEEEEEEEEAAEEEEEEEEEEAEEEEEEEEEEEEEEEEAEAEEEEEE     MD:Z:61G5G8     XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:2  XM:i:2  XN:i:0  XO:i:0  AS:i:-10ZS:i:-10        YT:Z:UP XX:Z:UA
+SRR12790354.1182870     385     10      3113923 0       76M     13      58395229        0       TATAAAGGCAGACCTATCAGAATTACACCAGACTTCTCAACAGAGACTATGAAAGCTAGAATATCCTAGGCAGATG    AAAAA/EEAAA6EAE/EEAEEEEEEEE/AEEAAEEEEE/EEEEEE/EAEEEEEEEEEEEE<EEE<A6AEEEEEEEA    MD:Z:61G5G8     XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:2  XM:i:2  XN:i:0  XO:i:0 AS:i:-10 ZS:i:-10        YT:Z:UP XX:Z:UA
+SRR12790358.1097049     393     10      3126305 1       75M     =       3126305 0       GGGTTTCTCTGTATAGCCCTGGCTGTCCTGGAGCTCACTTTGTAGACCAGGCTGGCCTCGAACTCAGAAATCCGC    /AAAAAEEEE/EAEEEEE<EEEE6E/EEAAEAEAEE/E/EE/<EEEA</E<E<6/E/A/<E////EEEEAEEEA<      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  ZS:i:0 YT:Z:UP  XX:Z:UA
+SRR12790356.1469933     153     10      3126347 1       76M     =       3126347 0       TAGACCAGGCTGGCCTCGAACTCAGAAATCCGCCTGCCTCTGCCTCCCGAGTGCTGGGATTAAAGGCGTGCGCCAC   EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  ZS:i:0 YT:Z:UP  XX:Z:UA
+SRR12790358.603429      385     10      3188764 0       76M     6       91432632        0       GATCCTGACAGAATGTAAGAGGTCACAGAAGCCCTGAAATTGGCAAAATAGATTTCATTGTTAGCAGAACTAGCTT    AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEAEEEEEAEEEEEAEEEEE    MD:Z:18A57      XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:-5  ZS:i:-5 YT:Z:UP XX:Z:UA
+SRR12790358.1230461     393     10      3189777 1       33M     =       3189777 0       GTGTGTGTGTGTGTGTGTGTGTTTGTGTGTGAG       AAAAAEAEEEEEEEEEEEEEEA/EEEAE/A<A/      MD:Z:33  XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  ZS:i:0  YT:Z:UP XX:Z:UA
+SRR12790354.1058782     163     10      3192027 60      76M     =       3192127 176     AAGGGGGAGGGGACCCGATTCCCGCCGAATAATCTCTGGTCCAGTAGAAAGGTGCACGTGTGTGGCTCCGCAGGTT   AAAA/EEEEAEEEEA<AEEEAE/EEEEEEEEEEE<EEEEEEAEEEEEEAEEEA<//EEAEAAAEEEEEEE/EE/EE     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790354.1058782     83      10      3192127 60      76M     =       3192027 -176    ATGAGCAGGAAGCTCCACCCCTGAGCAAGCAGGTTTCAGGCTGGGGGAGGGGAGACTACATCTCCTCCCTTTTATT   E/E</AAAE/EE/EE/<</EE</EA6<EAAEEAE/EE/EEE/EEAAEEAEAAEEEEEEEEEEEEEEEEEAEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790347.1396532     355     10      3192964 1       75M     =       3193062 174     CCTCTGCACCAAGCGATGCCCATACTGAATTTGTACAATCACAAACCAGTATGCACAGTTCTGAGTGCTGTGCAG    AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEE      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790347.1396532     403     10      3193062 1       76M     =       3192964 -174    TCAGAATTAGCAAAGCCTAAGCAAGAATTATGTCGTTAGTAACACCACGATTTGTGGCTAAAATAGGAGCTGGAAG   EEEAEEAEEAEEEEAEEEEEAEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790356.1643140     355     10      3193769 1       74M     =       3193868 175     TTCCATTTGTTAGTCAGGGGGTCCTTCTATTTTACCAATGTATTAAGTGACCAATTGCTCTTTAATAGCTTTTT     AAAAAEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE       MD:Z:74 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790356.885501      355     10      3193800 1       76M     =       3193906 182     TTACCAATGTATTAAGTGACCAATTGCTCTTTAATAGCTTTTTCCACTAGCTGTAAGGCCAGCAATCCTTCTGAGG   AAAAAEEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA<EEAEEEEE     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790356.1643140     403     10      3193868 1       76M     =       3193769 -175    TTCTGAGGTTAGGGATCTAGGGGAAGTGGGGGATGTGCTCTGAATTAACTTTGCTAGGTAATTTAGAATATAGGAA   EEEE6<EEEEAEAAAEAEAEAE<E/EAEA<AE<EEEEEEEAEAEEEEAEEEEEEEEEEEEEEEEEA<AEAEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790356.885501      403     10      3193906 1       76M     =       3193800 -182    TCTGAATTAACTTTGCTAGGTAATTTAGAATATAGGAATCTCTAACATTGGACTGAATATTAGACCAGTCTGAGAT   /E/6EA/6EEEEAEAAEA</AEEEAEEEEEAEAEAAEAEEEEEEEEE</<AEEAEEEEEEEEEEEEEEEEEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790356.496108      99      10      3193945 1       76M     =       3193965 96      CTCTAACATTGGACTGAATATTAGACCAGTCTGAGATTGAGTTAGAATGGCTGGTCACACTGAAGAAAAGAGAAAA   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790356.496108      147     10      3193965 1       76M     =       3193945 -96     TTAGACCAGTCTGAGATTGAGTTAGAATGGCTGGTCACACTGAAGAAAAGAGAAAAATCATTATGACTCTATTAAA   <<EEEEEEEEEEEEEEEEEEAEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE/EAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790358.1055963     329     10      3197905 0       76M     =       3197905 0       GCATACAGGTAAGGTATACAAGCTTTTACAGCTATAGGGGAGTTGGCCTGAATGGCCAAAAACAGTCTCTGATGAA   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE     MD:Z:16C59      XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:1  XM:i:1  XN:i:0  XO:i:0  AS:i:-5ZS:i:-5  YT:Z:UP XX:Z:UA
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o UA
+14534513
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o CF
+8543
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o G1
+1688856
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o G2
+1550706
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o INTERGENIC
+8928386
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | wc -l
+17516146
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep G1 | head
+SRR12790356.473103      147     10      3201220 0       75M     =       3201171 -124    CTTATTTGCCTTAGAACTAAGAGGTTGCAGATTCCTTTTCTTTAAAAACAGTTTCTAGCAGGACCTCTCTTGCAG    E/EEE/EEEEAEEEEEEEEEAEEEAEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA      MD:Z:62G12      XF:Z:INTERGENIC XG:i:0  NH:i:2  NM:i:1  XM:i:1  XN:i:0  XO:i:0  AS:i:-5YS:i:-5  ZS:i:-5 YT:Z:CP XX:Z:UA
+SRR12790347.1735283     153     10      3883684 60      64M4102N12M     =       3883684 0       ACCCCTAGGGTCCTACCTCCTAAAACCAGTCCAGCGGATTCTCAAACATCATCTCCTTCTTCATGAAATAGAGAAC    EEEEEEEEEEEEAAEEEEEEEEEEE/EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA    MD:Z:46T16N12   XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:2  XM:i:2  XN:i:0  XO:i:0 AS:i:-5  XS:A:+  YT:Z:UP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.1774457     163     10      3883691 60      57M4102N19M     =       3890222 317     GGGTCCTACCTCCTAAAACCAGTCCAGCGGATTCTCAAATATCATCTCCTTCTTCATGAAATAGAGAACCACCTTG    AAAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEEAEAAEEEE/EEEEEAEAA    MD:Z:56N19      XF:Z:CODING     XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:0   XS:A:+  YS:i:0  YT:Z:CP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.1468354     83      10      3883694 60      54M4102N22M     =       3869136 -294    TCCTACCTCCTAAAACCAGTCCAGCGGATTCTCAAATATCATCTCCTTCTTCATGAAATAGAGAACCACCTTGATA    AAEEEEEEEEEEAE/E</EAEEEEE/EAEEEAEEEEEEEEEEAEEEEEAAEAEEEEEEEEEEEEEEAE6EAAAAAA    MD:Z:53N22      XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:0   XS:A:+  YS:i:-7 YT:Z:CP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.1299289     163     10      3887853 60      76M     =       3890303 339     ATAGAGAACCACCTTGATAAGGCCACGGAAGGCTACGATGTTGTGCTGGATGCCATAGACACGATCCAGCGAGTGG   AAAAAE//EEEE/EE6EEEEEEEEAEEEEAEAEEEEEEAEE6EEEA/EEEEEA/EEEEEAEE/E</AE/EAEEEEE     MD:Z:65G10      XF:Z:CODING     XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0  AS:i:-3YS:i:0   ZS:i:-11        YT:Z:CP XX:Z:UA gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.935448      163     10      3897554 60      50M2063N26M     =       3906605 7064    GATGAAGACACCATGTGGTTCTGCACCCCATCGGCTGAGACGGAAGTCAGAACCTTCCTCGAGATCACACAAAGTG    AAAAAEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA    MD:Z:75N0       XF:Z:CODING     XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:0   XS:A:+  YS:i:0  ZS:i:-1 YT:Z:CP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.879095      99      10      3897562 60      42M2063N33M     =       3906577 7028    CACCATGTGGTTCTGCACCCCATCGGCTGAGACGGAAGTCAGAACCTTCCTCGAGATCACACAAAGTGTTGAAGA     AAAAAEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEE<EEEAEEA     MD:Z:67N7       XF:Z:CODING     XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:0   XS:A:+  YS:i:0  ZS:i:-8 YT:Z:CP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.660282      83      10      3899663 60      12S43M2605N21M  =       3890509 -9118   CTGAGACGGAAGTCAGAACCTTCCTCGAGATCACACAAAGTGTTGAAGACCAGCGAAACTTCACAAGATATCCAGA    AEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA    MD:Z:29N34      XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:-12 XS:A:+  YS:i:0  YT:Z:CP XX:Z:G1 gf:Z:CODING,INTRONIC    gn:Z:Plekhg1,Plekhg1    gs:Z:+,+
+SRR12790347.561550      147     10      3906698 60      76M     =       3906577 -197    TCACCACATCCGGCAGCCCTTGTTTCCAAGCCGCCGGTCTCCACAGGAGAATGAGGACGATGACGACGATTACCAG   AEAEE<E/AEEEAEAEEEEEEEEA/AEEEEEE/EEEE/EEEEEEEEAEEEEEAEE/AEEEEAAEEEEEEEEAAAAA     MD:Z:63N12      XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:1  XM:i:1  XN:i:0  XO:i:0  AS:i:0 YS:i:0   ZS:i:-13        YT:Z:CP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+SRR12790347.436071      163     10      3906746 60      76M     =       3907215 545     GAATGAGGACGATGACGACGATTACCAGATGTTCGTCCCGTCCTTTTCTTCCTCGAATCTCAACTCCACCAGGTTG   AAAAA/EEEAAEEEEEEEAEA//E/AEE///EE/E//E//EE/E/E/E///6////EEA//AE//</AE6AE/E/A     MD:Z:15N39G20   XF:Z:CODING     XG:i:0  NH:i:1  NM:i:2  XM:i:2  XN:i:0  XO:i:0  AS:i:-3YS:i:0   YT:Z:CP XX:Z:G1 gf:Z:CODING     gn:Z:Plekhg1    gs:Z:+
+
+jms53460@c4-16 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit.bam | grep -c -o XX:Z:G1
+1546715
+
+
+
+
+###Now I'm running the same code but with all the SRA files from Mouse 1 (BioSample SAMN16357051)
+
+
+###The fastq-dump code is in a separate document because it's so long (SRR_Acc_List_fastq-dump.txt). Runtime was almost 9 hours. 
+
+
+#Brad provided the following R script to write the fastp and hisat2 code for all the files. To load R, put in the command prompt "ml R" and then "R" (no "")
+directory1 = 'mousefq'
+directory2 = 'trimmed'
+f = dir(directory1)
+runs = unique(sub('_.+', '', f[grepl('fastq.gz', f)]))
+out = NULL
+for (runI in runs) {
+	out = c(out, paste(c('fastp -w 4 -i ', paste(directory1, '/', runI, '_1.fastq.gz', sep = ''), ' -I ', paste(directory1, '/', runI, '_2.fastq.gz', sep = ''), ' -o ', paste(directory2, '/trim.', runI, '_1.fastq.gz', sep = ''), ' -O ', paste(directory2, '/trim.', runI, '_2.fastq.gz', sep = ''), ' -y -x -3'), collapse = ''))
+}
+out = c(out, '', paste(c('hisat2 -p 4 --dta -x hisat2_index/hs2_index -1 ', paste(paste(directory2, '/trim.', runs, '_1.fastq.gz', sep = ''), collapse=','), ' -2 ', paste(paste(directory2, '/trim.', runs, '_2.fastq.gz', sep = ''), collapse=','), ' | samtools view -bS -> mapped/mapped_merged.bam'), collapse = ''))
+write.csv(out, row.names=F, quote = F, file = 'generated code.txt')
+
+#Since I'm changing the directory names and final mapped merged bam name, I'll run this code:
+directory1 = 'fastq_dump_SAMN16357051'
+directory2 = 'trimmed_SAMN16357051'
+f = dir(directory1)
+runs = unique(sub('_.+', '', f[grepl('fastq.gz', f)]))
+out = NULL
+for (runI in runs) {
+	out = c(out, paste(c('fastp -w 4 -i ', paste(directory1, '/', runI, '_1.fastq.gz', sep = ''), ' -I ', paste(directory1, '/', runI, '_2.fastq.gz', sep = ''), ' -o ', paste(directory2, '/trim.', runI, '_1.fastq.gz', sep = ''), ' -O ', paste(directory2, '/trim.', runI, '_2.fastq.gz', sep = ''), ' -y -x -3'), collapse = ''))
+}
+out = c(out, '', paste(c('hisat2 -p 4 --dta -x hisat2_index/hs2_index -1 ', paste(paste(directory2, '/trim.', runs, '_1.fastq.gz', sep = ''), collapse=','), ' -2 ', paste(paste(directory2, '/trim.', runs, '_2.fastq.gz', sep = ''), collapse=','), ' | samtools view -bS -> mapped/mapped_merged_SAMN16357051.bam'), collapse = ''))
+write.csv(out, row.names=F, quote = F, file = 'generated code.txt')
+
+
+###Leave R with q() and then run "head generated\ code.txt" (no "") to get the output code. Then paste the corresponding codes where the following fastp and hisat2 jobs say "code" and run the jobs
+
+
+###fastp
+###The fastp code is in a separate document because it's so long (fastp_SAMN16357051.txt). Runtime was 30 mins. 
+
+
+###hisat2 code is in a separate document because it's so long (hisat2_SAMN16357051.txt). Runtime 16 hrs 20 min
+
+
+###Now to sort and index
+
+#!/bin/bash
+#SBATCH --job-name=sort_index
+#SBATCH --partition=batch
+#SBATCH --ntasks=20
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=20
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=6:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=sort_index_SAMN16357051.out
+#SBATCH --error=sort_index_SAMN16357051.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SAMtools/1.16.1-GCC-11.3.0
+
+cd /scratch/jms53460/mousesperm
+
+samtools sort mapped/mapped_merged_SAMN16357051.bam -o sort_index/merged_sorted_SAMN16357051.bam
+
+samtools index sort_index/merged_sorted_SAMN16357051.bam
+
+#####Runtime 3 hrs
+
+
+###Now to use SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=SNPsplit
+#SBATCH --partition=batch
+#SBATCH --ntasks=60
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=60
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=12:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=SNPsplit_SAMN16357051.out
+#SBATCH --error=SNPsplit_SAMN16357051.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SNPsplit/0.6.0-GCC-10.2.0-Perl-5.32.0
+
+SNPsplit --conflicting -o /scratch/jms53460/mousesperm/SNPsplit --snp_file /scratch/jms53460/mousesperm/all_SNPs_PWK_PhJ_GRCm39.txt.gz /scratch/jms53460/mousesperm/sort_index/merged_sorted_SAMN16357051.bam
+
+#####Runtime 8 hrs 45 mins
+
+
+
+###Sort the SNPsplit file
+
+#!/bin/bash
+#SBATCH --job-name=SNPsplit_sort
+#SBATCH --partition=batch
+#SBATCH --ntasks=100
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=100
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=12:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=SNPsplit_sort_SAMN16357051.out
+#SBATCH --error=SNPsplit_sort_SAMN16357051.err
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml SAMtools/1.16.1-GCC-11.3.0
+
+cd /scratch/jms53460/mousesperm
+
+samtools sort SNPsplit/merged_sorted_SAMN16357051.allele_flagged.bam -o SNPsplit_sort/sorted_SNPsplit_SAMN16357051.bam
+
+#####Runtime 2 hrs 30 mins
+
+
+###Next we annotate the reads
+
+#!/bin/bash
+#SBATCH --job-name=annotate
+#SBATCH --partition=batch
+#SBATCH --ntasks=100
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=100
+#SBATCH --cpus-per-task=1
+#SBATCH --constraint=AMD
+#SBATCH --time=12:00:00
+#SBATCH --mem=30gb
+#SBATCH --output=annotate_SAMN16357051.out
+#SBATCH --error=annotate_SAMN16357051.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=jms53460@uga.edu
+
+ml Drop-seq/2.5.1-Java-13.0.2
+
+cd /scratch/jms53460/mousesperm
+
+TagReadWithGeneFunction --ANNOTATIONS_FILE  Mus_musculus.GRCm39.109.gtf.gz -I SNPsplit_sort/sorted_SNPsplit_SAMN16357051.bam -O annotated/annotated_sorted_SNPsplit_SAMN16357051.bam
+
+#####Runtime 2 hrs 40 mins
+
+
+###Now to check how things went:
+
+samtools flagstat annotated/annotated_sorted_SNPsplit_SAMN16357051.bam
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | head -n 20
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o UA
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o CF
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o G1
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o G2
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o INTERGENIC
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | wc -l
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep G1 | head
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o XX:Z:G1
+
+
+jms53460@c4-20 mousesperm$ samtools flagstat annotated/annotated_sorted_SNPsplit_SAMN16357051.bam
+946301522 + 0 in total (QC-passed reads + QC-failed reads)
+837329825 + 0 primary
+108971697 + 0 secondary
+0 + 0 supplementary
+0 + 0 duplicates
+0 + 0 primary duplicates
+946301522 + 0 mapped (100.00% : N/A)
+837329825 + 0 primary mapped (100.00% : N/A)
+837329825 + 0 paired in sequencing
+423279366 + 0 read1
+414050459 + 0 read2
+788038596 + 0 properly paired (94.11% : N/A)
+795030936 + 0 with itself and mate mapped
+42298889 + 0 singletons (5.05% : N/A)
+5063972 + 0 with mate mapped to a different chr
+3960239 + 0 with mate mapped to a different chr (mapQ>=5)
+
+jms53460@c4-20 mousesperm$ samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | head -n 20
+SRR12791116.164897      145     10      3050148 0       10S66M  15      33792046        0       TGATGTGTTTCAACAGATGTTGGCGAGGATGTGGAGAAAGGGGAACACTCCTCCATTGTTGGTGGGATTGCAAGCT    EEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEAEEEEEEEEAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA    MD:Z:66 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:-10ZS:i:-10        YT:Z:UP XX:Z:UA
+SRR12791065.796836      161     10      3050288 1       76M     X       135873354       0       CCCCTCAACAGAGGAATGGATACAGAAAATGTGGTACATTTACACAATGGAATACTACTCAGCTATTAAAAAATGA    AAAAAEEEEEEEEEAEEEEEEEEEEEEEEEEEE6EEEEEEEEEEEAEEEEEEEEEEEEEEEEEEAEEEEEEEEEEE    MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0 ZS:i:0   YT:Z:UP XX:Z:UA
+SRR12790904.1086525     163     10      3050301 1       75M     =       3050409 184     GAATGGATACAGAAAATGTGGTACATTTACACAATGGAATACTACTCAGCTATTAAAAAATGAATTTATGAAATT    AAAAAEEE6<EEEEEEEEEEEEEAEEEEAA<AEEEEAEEEEEAEEEEEEAEA<A6AE/AAEEEEEEEAAAEE<EE      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791007.439756      321     10      3050324 1       76M     =       66515855        0       CATTTACACAATGGAATACTACTCAGCTATTAAAAAATGAATTTATGAAATTCCTAGGCAAATGGATGGACCTGGA    AAAAAEEEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEAEEEEEEEE6EEEEEEEEEEAAEEEEEEEEEEEEE/    MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0 ZS:i:0   YT:Z:UP XX:Z:UA
+SRR12791007.1253437     99      10      3050342 60      76M     =       3050393 127     CTACTCAGCTATTAAAAAATGAATTTATGAAATTCCTAGGCAAATGGATGGACCTGGAGGGTATCATCCTGAGTGA   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEAEEAEEEEEEEEEEEEA/EEEEEE/     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791007.1253437     147     10      3050393 60      76M     =       3050342 -127    ACCTGGAGGGTATCATCCTGAGTGAAGTAACCCAATCACAAAGGAACTCGCACAATATGTACTCACTGATAAGTGG   EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:1  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790904.1086525     83      10      3050409 1       76M     =       3050301 -184    CCTGAGTGAAGTAACCCAATCACAAAGGAACTCGCACAATATGTACTCACTGATAAGTGGATAATAGCCCAGAAAC   EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:3  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791013.418355      355     10      3050492 1       75M     =       3050614 197     ACCCAAGATATAAGATACAACTTGCCAAACGCATGAAATTCAAGAAGAACGAAGACCAAAGTGTGGACACTTTAC    AAAAAEEEEEEEEEEEEEEEEEEEAEEAAEAEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEE<EEAE/EEEEEE      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791068.961793      355     10      3050493 1       75M     =       3050612 191     CCCAAGATATAAGATACAACTTGCCAAACGCATGAAATTCAAGAAGAACGAAGACCAAAGTGTGGACACTTTACC    AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE<      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791084.1372974     419     10      3050497 1       75M     =       3050816 394     AGATATAAGATACAACTTGCCAAACGCATGAAATTCAAGAAGAACGAAGACCAAAGTGTGGACACTTTACCCTTT    AAAAAEEEEEEEE6EEEEEEEEEEEEEEEEEEEEEEEEEEEE/EEEEAEEEEEEEEEEEEEE</A<<EEA/EEAE      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790920.932643      329     10      3050499 1       76M     =       3050499 0       ATATAAGATACAACTTGCCAAACGCATGAAATTCAAGAAGAACGAAGACCAAAGTGTGGACACTTTACCCTTTCTT   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA/EEEEEEE     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  ZS:i:0 YT:Z:UP  XX:Z:UA
+SRR12791106.866496      163     10      3050566 1       76M     =       3050640 149     CCCTTTCTTAGAAATGGGAACAAAACACCCATAGAAGGAGTTACAGAGACAAAATTTGGAGCTGTGACGAAAGGAT   AAAAAEEEEAEEEEEEEEEEEEEE/EEEAEEEEEEEEEEEEEEEEEEE/EEEEEEEEEEEEEEEEEEEEEEEEEEE     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791169.756331      145     10      3050591 1       76M     Y       88863181        0       CACCCATAGAAGGAGTTACAGAGACAAAATTTGGAGCTGTGACGAAAGGATGGACCATCTAGTGACTGCCATATGC    EEEEEEEEEEE<EEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA    MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0 ZS:i:0   YT:Z:UP XX:Z:UA
+SRR12791068.961793      403     10      3050612 1       72M     =       3050493 -191    AGACAAAATTTGGAGCTGTGACGAAAGGATGGACCATCTAGTGACTGCCATATGCAGGGATCCATCCCATAA       EAEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA MD:Z:72 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0  ZS:i:0 YT:Z:CP  XX:Z:UA
+SRR12791013.418355      403     10      3050614 1       75M     =       3050492 -197    ACAAAATTTGGAGCTGTGACGAAAGGATGGACCATCTAGTGACTGCCATATGCAGGGATCCATCCCATAATCAGC    EEEEEEEEEEEEEE<EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790470.763556      355     10      3050637 1       76M     =       3050796 235     AGGATGGACCATCTAGTGACTGCCATATGCAGGGATCCATCCCATAATCAGCTTCCAAATGCTGACACCATTGCAT   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791106.866496      83      10      3050640 1       75M     =       3050566 -149    ATGGACCATCTAGTGACTGCCATATGCAGGGATCCATCCCATAATCAGCTTCCAAATGCTGACACCATTGCATAC    EEEEEEEEEEEEE<EEEE/EEEEEEEEEEAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAAAAA      MD:Z:75 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12791110.169901      385     10      3050643 0       76M     =       86717705        0       GACCATCTAGTGACTGCCATATGCAGGGATCCATCCCATAATCAGCTTCCAAATGCTGACACCATTGAATACACTA    AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEEEEEEAEEEEEEEEEEEEEEEEEEAEEEEEEEEEE    MD:Z:67C8       XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:1  XM:i:1  XN:i:0  XO:i:0 AS:i:-5  ZS:i:-5 YT:Z:UP XX:Z:UA
+SRR12790458.1077279     355     10      3050659 1       76M     =       3050860 275     CCATATGCAGGGATCCATCCCATAATCAGCTTCCAAATGCTGACACCATTGCATACACTAGCAAGATTTCGCTGAA   AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE     MD:Z:76 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:-2ZS:i:0   YT:Z:CP XX:Z:UA
+SRR12790877.960386      355     10      3050676 1       74M     =       3050814 214     TCCCATAATCAGCTTCCAAATGCTGACACCATTGCATACACTAGCAAGATTTCGCTGAAAGGACCCAGTTATAG     AAAAAEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEAEEEEEEEEE       MD:Z:74 XF:Z:INTERGENIC XG:i:0  NH:i:5  NM:i:0  XM:i:0  XN:i:0  XO:i:0  AS:i:0  YS:i:0 ZS:i:0   YT:Z:CP XX:Z:UA
+
+samtools view annotated/annotated_sorted_SNPsplit_SAMN16357051.bam | grep -c -o UA
+785194465
+
