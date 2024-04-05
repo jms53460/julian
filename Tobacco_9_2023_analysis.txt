@@ -1,3 +1,13 @@
+###Install fastq-multx
+ml Miniconda3/23.5.2-0
+conda create -p /home/jms53460/Fastq-Multx -c bioconda fastq-multx #when prompted, say 'y'
+source activate /home/jms53460/Fastq-Multx/
+fastq-multx
+conda deactivate
+
+
+###Demultiplex the raw data
+
 #!/bin/bash
 #SBATCH --job-name=Ns_demultiplex                       # Job name
 #SBATCH --partition=batch                               # Partition (queue) name
@@ -28,3 +38,6 @@ for file in Raw_Data/*_R1_*.gz; do
     fi
 done
 conda deactivate
+
+
+###
