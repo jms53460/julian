@@ -60,10 +60,9 @@ ml HISAT2/3n-20201216-gompi-2022a
 hisat2-build Ns_genome.fna Ns_hisat2_index
 mkdir hisat2_out
 
-cd /home/jms53460/Mapped_Data
-for file in "demultiplexed/"*.fastq*
+for file in "Mapped_Data/demultiplexed/"*.fastq*
 do
-	file2="${file:14:-9}"
+	file2="${file:26:-9}"
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
