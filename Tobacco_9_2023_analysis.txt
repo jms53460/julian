@@ -74,13 +74,14 @@ if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
 	module load SAMtools/1.16.1-GCC-11.3.0
 	hisat2 -p 6 --dta -x /home/jms53460/Ns_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
-	samtools sort -@ 8 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2"".bam"
+	samtools sort -@ 8 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
 	
 fi
 done
 
 
 ###Assemble transcripts with stringtie
+
 #!/bin/bash
 #SBATCH --job-name=Ns_stringtie                         # Job name
 #SBATCH --partition=batch                               # Partition (queue) name
@@ -93,22 +94,15 @@ done
 #SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
 #SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
 
-for file in "hisat2_out/"*.bam
+for file in "hisat2_out/"*_s.bam
 do
 	ml StringTie/2.2.1-GCC-11.3.0
-	stringtie -p 4 -G /scratch/jms53460/2022_SGT_paper_JG_Pollen/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 --rf -o "stringtie_out2/""${file:11:-4}"".gtf" "$file"
+	stringtie -p 6 --rf -o "stringtie_out2/""${file:11:-4}"".gtf" "$file"
 done
 
 # Merge StringTie transcripts
-
-cd $SLURM_SUBMIT_DIR
 ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
 
-# Load StringTie module
-ml StringTie/2.2.1-GCC-11.3.0
-
 # Merge GTF files
-stringtie --merge -p 8 -G /scratch/jms53460/2022_SGT_paper_JG_Pollen/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
-
-# Remove mergelist.txt
+stringtie --merge -p 6 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
 rm mergelist.txt

@@ -26,7 +26,7 @@ if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
 	module load SAMtools/1.16.1-GCC-11.3.0
 	hisat2 -p 6 --dta -x /home/jms53460/Ns_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
-	samtools sort -@ 8 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2"".bam"
+	samtools sort -@ 8 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
 	
 fi
 done
