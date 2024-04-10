@@ -11,6 +11,7 @@
 #SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
 
 cd /home/jms53460
+ml Miniconda3/23.5.2-0
 source activate /home/jms53460/Fastq-Multx/
 
 for file in Raw_Data/*_R1_*.gz; do
