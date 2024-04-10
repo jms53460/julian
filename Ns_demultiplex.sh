@@ -17,14 +17,14 @@ for file in Raw_Data/*_R1_*.gz; do
     filename=$(basename "$file")
     file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
 
-    if [ ! -f "Mapped_Data/demultiplexed/${file2}_dT-1s.fastq.gz" ]; then
+    if [ ! -f "Mapped_Data/demultiplexed/""$file2""_dT-1s.fastq.gz" ]; then
         module load fastp/0.23.2-GCC-11.3.0
-        fastp -w 6 -i "$file" -I "Raw_Data/${file2}_R2_001.fastq.gz" -o "Mapped_Data/demultiplexed/umi_${file2}_R1.fastq.gz" -O "Mapped_Data/demultiplexed/umi_${file2}_R2.fastq.gz" -A -Q -L --umi --umi_loc read1 --umi_len 10 --umi_prefix UMI
+	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Mapped_Data/demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Mapped_Data/demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
 
-        fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Mapped_Data/demultiplexed/umi_${file2}_R2.fastq.gz" "Mapped_Data/demultiplexed/umi_${file2}_R1.fastq.gz" -o "Mapped_Data/demultiplexed/${file2}_%_R1.fastq.gz" "Mapped_Data/demultiplexed/${file2}_%.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Mapped_Data/demultiplexed/umi_""$file2""_R2.fastq.gz" "Mapped_Data/demultiplexed/umi_""$file2""_R1.fastq.gz" -o "Mapped_Data/demultiplexed/""$file2""_%_R2.fastq.gz" "Mapped_Data/demultiplexed/""$file2""_%.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 
-        find "Mapped_Data/demultiplexed/" -name "umi_*" -delete
-        find "Mapped_Data/demultiplexed/" -name "*s_R2*" -delete
+	    find "Mapped_Data/demultiplexed/" -name "umi_*" -delete
+	    find "Mapped_Data/demultiplexed/" -name "*s_R2*" -delete
     fi
 done
 conda deactivate
