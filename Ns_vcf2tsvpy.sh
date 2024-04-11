@@ -1,4 +1,3 @@
-###Convert vcf to tsv
 #!/bin/bash
 #SBATCH --job-name=Ns_vcf2tsvpy                         # Job name
 #SBATCH --partition=batch                               # Partition (queue) name
