@@ -163,7 +163,7 @@ write.csv(out, row.names=F, quote = F, file = 'generated_code.txt')
 #SBATCH --ntasks=1                                      # Single task job
 #SBATCH --cpus-per-task=6                               # Number of cores per task
 #SBATCH --mem=50gb                                      # Total memory for job
-#SBATCH --time=2:00:00                                  # Time limit hrs:min:sec
+#SBATCH --time=12:00:00                                  # Time limit hrs:min:sec
 #SBATCH --output=/home/jms53460/Ns_h2m.out              # Location of standard output file
 #SBATCH --error=/home/jms53460/Ns_h2m.err               # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
