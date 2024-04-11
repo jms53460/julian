@@ -12,8 +12,8 @@
 
 cd /home/jms53460
 module load SAMtools/1.16.1-GCC-11.3.0
-samtools index -@ 6 Ns_merged.bam
+samtools index -@ 6 merged_s.bam
 
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna Ns_merged.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns.vcf.gz
+bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns.vcf.gz
 bcftools index Ns.vcf.gz
