@@ -14,5 +14,5 @@ cd /home/jms53460
 ml Miniconda3/23.5.2-0
 ml SAMtools/1.16.1-GCC-11.3.0
 source activate /home/jms53460/snpsplit
-SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna --strain hisat2_out/merged_s.bam
+SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna_dir --strain hisat2_out/merged_s.bam
 conda deactivate
