@@ -169,35 +169,6 @@ bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna hisat2_out/merged_
 bcftools index Ns.vcf.gz
 
 
-###Install vcf2tsvpy
-ml Miniconda3/23.5.2-0
-conda create -p /home/jms53460/vcf2tsvpy -c bioconda vcf2tsvpy -y
-source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --help
-conda deactivate
-
-
-###Convert vcf to tsv
-
-#!/bin/bash
-#SBATCH --job-name=Ns_vcf2tsvpy                         # Job name
-#SBATCH --partition=batch                               # Partition (queue) name
-#SBATCH --ntasks=1                                      # Single task job
-#SBATCH --cpus-per-task=6                               # Number of cores per task
-#SBATCH --mem=50gb                                      # Total memory for job
-#SBATCH --time=6:00:00                                  # Time limit hrs:min:sec
-#SBATCH --output=/home/jms53460/Ns_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/home/jms53460/Ns_vcf2tsvpy.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
-#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /home/jms53460
-ml Miniconda3/23.5.2-0
-source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf Ns.vcf.gz --out_tsv Ns.vcf_table.tsv 
-conda deactivate
-
-
 ###Install SNPsplit
 cd /home/jms53460
 ml Miniconda3/23.5.2-0
@@ -261,6 +232,72 @@ ml SAMtools/1.16.1-GCC-11.3.0
 source activate /home/jms53460/snpsplit
 SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna_dir --strain merged_s.bam
 conda deactivate
+
+
+###Here's what was used to make the vcf used for mouse with SNPsplit:
+bcftools mpileup -f Mus_musculus.GRCm39.dna.toplevel.fa.gz -b samples -g 10 -a FORMAT/DP,FORMAT/AD,FORMAT/ADF,FORMAT/ADR,FORMAT/SP,INFO/AD -E -Q 0 -pm 3 -F 0.25 -d 500
+bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v -f GQ,GP -p 0.99 --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns.vcf.gz
+call -mAv -f GQ,GP -p 0.99
+norm --fasta-ref Mus_musculus.GRCm39.dna.toplevel.fa.gz -m +indels
+
+
+###Rerunning Ns_vcf with bcftools norm added in. Hopefully this will add the FORMAT=<ID=FI line I need.
+
+#!/bin/bash
+#SBATCH --job-name=Ns_vcf3                              # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=6                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_vcf3.out             # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_vcf3.err              # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+module load BCFtools/1.15.1-GCC-11.3.0
+bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools norm -Ou -f Ns_genome.fna -m +indels --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' --threads 6 > Ns.3_vcf.gz
+bcftools index Ns.3_vcf.gz
+
+
+
+###SNPsplit_genome_preparation is not working, giving me an error message "Failed to extract FI index. I am afraid this will need some manual looking into... at /home/jms53460/snpsplit/bin/SNPsplit_genome_preparation line 1009, <IN> line 182."
+###I'll instead try to make my own SNP file and N-masked genome
+
+###Install vcf2tsvpy
+ml Miniconda3/23.5.2-0
+conda create -p /home/jms53460/vcf2tsvpy -c bioconda vcf2tsvpy -y
+source activate /home/jms53460/vcf2tsvpy
+vcf2tsvpy --help
+conda deactivate
+
+
+###Convert vcf to tsv
+
+#!/bin/bash
+#SBATCH --job-name=Ns_vcf2tsvpy                         # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=6                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=6:00:00                                  # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_vcf2tsvpy.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_vcf2tsvpy.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/vcf2tsvpy
+vcf2tsvpy --input_vcf Ns.vcf.gz --out_tsv Ns.vcf_table.tsv 
+conda deactivate
+
+
+###Selected columns from the vcf_table
+awk '{print $1,$2,$3,$4,$5,$16}' Ns.vcf_table.tsv OFS="\t" > Ns_variants.tsv
+grep F Ns_variants.tsv > Ns_SNPs.tsv
+awk '{print $6,$1,$2,$3,$4,$5}' Ns_SNPs.tsv OFS="\t" > Ns_SNPs_alt.tsv
 
 
 
