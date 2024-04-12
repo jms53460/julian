@@ -257,7 +257,7 @@ view -i 'FORMAT/FI[*] = 1' mgp_REL2021_snps.vcf.gz
 
 cd /home/jms53460
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam -a FORMAT/DP | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' --threads 6 > Ns.3_vcf.gz
+bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v -f GQ,GP --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' --threads 6 > Ns.3_vcf.gz
 bcftools index Ns.3_vcf.gz
 
 
