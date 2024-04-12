@@ -12,7 +12,5 @@
 
 cd /home/jms53460
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 -g 10 -a FORMAT/AD,FORMAT/ADF,FORMAT/ADR,FORMAT/SP,INFO/AD -E -Q 0 -pm 3 -F 0.25 -d 500 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -a GQ,GP -mAv -p 0.99 --threads 6 | bcftools norm -Ou --threads 6 -f Ns_genome.fna -m +indels | bcftools filter -Oz -e 'QUAL<40 || DP<10' --threads 6 > Ns.3_vcf.gz
-bcftools view -Ou --threads 6 -i 'FORMAT/FI[*] = 1' Ns.3_vcf.gz | bcftools annotate -Ou --threads 6 -x INFO/VDB,INFO/SGB,INFO/RPBZ,INFO/MQBZ,INFO/MQBZ,INFO/MQSBZ,INFO/BQBZ,INFO/SCBZ,INFO/FS,INFO/MQOF,INFO/AC,INFO/AN,FORMAT/SP,FORMAT/ADF,FORMAT/ADR,FORMAT/GP | bcftools view --threads 6 -a -Oz -o Ns.4_vcf.gz
-bcftools annotate -x INFO/MQ0F -Oz --threads 6-o Ns.4_vcf.gz Ns.3_vcf.gz
-bcftools index Ns.4_vcf.gz
+bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -s LowQual -e 'QUAL<40 || DP<10' > Ns.3_vcf.gz
+bcftools index Ns.3_vcf.gz
