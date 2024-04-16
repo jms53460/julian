@@ -169,7 +169,7 @@ bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna hisat2_out/merged_
 bcftools index Ns.vcf.gz
 
 
-###Install SNPsplit
+###Install SNPsplit (I asked them to add SNPsplit to the cluster, so that should be available soon)
 cd /home/jms53460
 ml Miniconda3/23.5.2-0
 ml SAMtools/1.16.1-GCC-11.3.0
@@ -234,14 +234,9 @@ SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fn
 conda deactivate
 
 
-###Here's what was used to make the vcf used for mouse with SNPsplit:
-bcftools mpileup -f Mus_musculus.GRCm39.dna.toplevel.fa.gz -b samples -g 10 -a FORMAT/DP,FORMAT/AD,FORMAT/ADF,FORMAT/ADR,FORMAT/SP,INFO/AD -E -Q 0 -pm 3 -F 0.25 -d 500
-bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v -f GQ,GP -p 0.99 --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns.vcf.gz
-call -mAv -f GQ,GP -p 0.99
-norm --fasta-ref Mus_musculus.GRCm39.dna.toplevel.fa.gz -m +indels
-view -i 'FORMAT/FI[*] = 1' mgp_REL2021_snps.vcf.gz
+###SNPsplit_genome_preparation is not working, giving me an error message "Failed to extract FI index. I am afraid this will need some manual looking into... at /home/jms53460/snpsplit/bin/SNPsplit_genome_preparation line 1009, <IN> line 182."
 
-###Rerunning Ns_vcf with bcftools mpileup -a FORMAT/DP added in. Hopefully this will add the FORMAT=<ID=FI line I need.
+###Rerunning Ns_vcf with bcftools filter -s LowQual added in. Hopefully this will add the FORMAT=<ID=FI line I need.
 
 #!/bin/bash
 #SBATCH --job-name=Ns_vcf3                              # Job name
@@ -257,14 +252,12 @@ view -i 'FORMAT/FI[*] = 1' mgp_REL2021_snps.vcf.gz
 
 cd /home/jms53460
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 -g 10 -a FORMAT/DP,FORMAT/AD,FORMAT/ADF,FORMAT/ADR,FORMAT/SP,INFO/AD -E -Q 0 -pm 3 -F 0.25 -d 500 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -a GQ,GP -mAv -p 0.99 --threads 6 | bcftools norm -Ou --threads 6 -f Ns_genome.fna -m +indels | bcftools filter -Oz -e 'QUAL<40 || DP<10' --threads 6 > Ns.3_vcf.gz
-bcftools view -Ou --threads 6 -i 'FORMAT/FI[*] = 1' Ns.3_vcf.gz | bcftools annotate -Ou --threads 6 -x INFO/VDB,INFO/SGB,INFO/RPBZ,INFO/MQBZ,INFO/MQBZ,INFO/MQSBZ,INFO/BQBZ,INFO/SCBZ,INFO/FS,INFO/MQOF,INFO/AC,INFO/AN,FORMAT/SP,FORMAT/ADF,FORMAT/ADR,FORMAT/GP | bcftools view --threads 6 -a -Oz -o Ns.4_vcf.gz
-bcftools annotate -x INFO/MQ0F -Oz --threads 6-o Ns.4_vcf.gz Ns.3_vcf.gz
-bcftools index Ns.4_vcf.gz
+bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -s LowQual -e 'QUAL<40 || DP<10' > Ns.3_vcf.gz
+bcftools index Ns.3_vcf.gz
 
 
+###That did not work at all.
 
-###SNPsplit_genome_preparation is not working, giving me an error message "Failed to extract FI index. I am afraid this will need some manual looking into... at /home/jms53460/snpsplit/bin/SNPsplit_genome_preparation line 1009, <IN> line 182."
 ###I'll instead try to make my own SNP file and N-masked genome
 
 ###Install vcf2tsvpy
@@ -300,6 +293,20 @@ conda deactivate
 awk '{print $1,$2,$3,$4,$5,$16}' Ns.vcf_table.tsv OFS="\t" > Ns_variants.tsv
 grep F Ns_variants.tsv > Ns_SNPs.tsv
 awk '{print $6,$1,$2,$3,$4,$5}' Ns_SNPs.tsv OFS="\t" > Ns_SNPs_alt.tsv
+
+
+###Using scp to move the tsv file to local computer to manipulate in RStudio
+###Figured out some code in R that seems to have done what I wanted, now I'll try it on Sapelo2. (I changed the directory for read.csv between RStudio and here)
+ml R/4.3.2-foss-2022b
+R
+Ns_SNPs_alt <- read.csv("/home/jms53460/Ns_SNPs_alt.tsv", sep="")
+Ns_SNPs = Ns_SNPs_alt[,(1:4)]
+Ns_SNPs[,5] = paste(Ns_SNPs_alt[,5], "/", Ns_SNPs_alt[,6])
+colnames(Ns_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Ns_SNPs$"ID" = "."
+Ns_SNPs$"SNP value" = 1
+write.table(Ns_SNPs, file = 'Ns_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t') #this part is failing
+q()
 
 
 
