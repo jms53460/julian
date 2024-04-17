@@ -15,4 +15,4 @@ ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 
 SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna_dir --strain merged_s.bam --skip_filtering
-conda deactivate
+
