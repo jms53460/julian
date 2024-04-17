@@ -177,18 +177,41 @@ conda create -p /home/jms53460/snpsplit -c bioconda snpsplit -y
 source activate /home/jms53460/snpsplit
 SNPsplit_genome_preparation --help
 SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna_dir --list_strains
-#Available genome according to SNPsplit_genome_preparation is named 'merged_s.bam'
+#Available genome according to SNPsplit_genome_preparation is named 'hisat2_out/merged_s.bam'
 SNPsplit --help
 conda deactivate
 
 
+###Trying SNPsplit_genome_preparation
+
+#!/bin/bash
+#SBATCH --job-name=Ns_SNPsplit_genome_prep                         # Job name
+#SBATCH --partition=batch                                          # Partition (queue) name
+#SBATCH --ntasks=1                                                 # Single task job
+#SBATCH --cpus-per-task=6                                          # Number of cores per task
+#SBATCH --mem=50gb                                                 # Total memory for job
+#SBATCH --time=6:00:00                                             # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_SNPsplit_genome_prep.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_SNPsplit_genome_prep.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
+#SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+ml Miniconda3/23.5.2-0
+ml SAMtools/1.16.1-GCC-11.3.0
+source activate /home/jms53460/snpsplit
+SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna_dir --strain hisat2/merged_s.bam
+conda deactivate
+
+
+###Failed because SNPsplit expects the reference genome to be in its own directory and it also could not make a directory named 'SNPs_hisat2/merged_s.bam'
 ###Reconfiguring things to try and get SNPsplit_genome_preparation to work
 mkdir Ns_genome.fna_dir
 cp Ns_genome.fna Ns_genome.fna_dir
 cp hisat2_out/merged_s.bam /home/jms53460
 
 
-###Rerunning Ns_vcf with moved merged sorted bam file
+###Rerunning Ns_vcf
 
 #!/bin/bash
 #SBATCH --job-name=Ns_vcf2                              # Job name
@@ -210,6 +233,9 @@ module load BCFtools/1.15.1-GCC-11.3.0
 bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna merged_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns.vcf.gz
 bcftools index Ns.vcf.gz
 
+
+SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fna_dir --list_strains
+#Available genome according to SNPsplit_genome_preparation is named 'merged_s.bam'
 
 
 ###Trying SNPsplit_genome_preparation
@@ -318,8 +344,8 @@ q()
 #SBATCH --cpus-per-task=6                                          # Number of cores per task
 #SBATCH --mem=50gb                                                 # Total memory for job
 #SBATCH --time=6:00:00                                             # Time limit hrs:min:sec
-#SBATCH --output=/home/jms53460/Ns_SNPsplit_genome_prep2.out        # Location of standard output file
-#SBATCH --error=/home/jms53460/Ns_SNPsplit_genome_prep2.err         # Location of error log file
+#SBATCH --output=/home/jms53460/Ns_SNPsplit_genome_prep3.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_SNPsplit_genome_prep3.err         # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
 #SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
 
@@ -331,6 +357,39 @@ SNPsplit_genome_preparation --vcf_file Ns.vcf.gz --reference_genome Ns_genome.fn
 conda deactivate
 
 
+
+
+
+
+
+
+###Assemble transcripts with stringtie
+
+#!/bin/bash
+#SBATCH --job-name=Ns_stringtie                         # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=6                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_stringtie.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_stringtie.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+for file in "hisat2_out/"*_s.bam
+do
+	ml StringTie/2.2.1-GCC-11.3.0
+	stringtie -p 6 --rf -o "stringtie_out2/""${file:11:-4}"".gtf" "$file"
+done
+
+# Merge StringTie transcripts
+ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
+
+# Merge GTF files
+stringtie --merge -p 6 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
+rm mergelist.txt
 
 
 
