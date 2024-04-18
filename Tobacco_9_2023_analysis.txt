@@ -446,6 +446,8 @@ samtools sort -@ 6 hisat2_out2/merged_N-masked_unsorted.bam -o hisat2_out2/merge
 samtools index -@ 6 hisat2_out2/merged_N-masked_s.bam
 
 
+mkdir Ns_SNPsplit
+
 ###Run SNPsplit
 
 #!/bin/bash
@@ -465,6 +467,59 @@ ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 
 SNPsplit --conflicting -o Ns_SNPsplit --snp_file SNPs_merged_s.bam/Ns_SNPs2.tab hisat2_out2/merged_N-masked_s.bam
+
+
+###It ran, but was not successful because there were no N containing reads. 
+###It looks like this was because I forgot to change the hisat2 index in the hisat2 code to the N-masked one.
+
+
+###Rerunning hisat2 using the correct hisat2 index (N-masked)
+
+#!/bin/bash
+#SBATCH --job-name=Ns_N-masked_hisat2_2                   # Job name
+#SBATCH --partition=batch                                 # Partition (queue) name
+#SBATCH --ntasks=1                                        # Single task job
+#SBATCH --cpus-per-task=6                                 # Number of cores per task
+#SBATCH --mem=50gb                                        # Total memory for job
+#SBATCH --time=12:00:00                                   # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_N-masked_hisat2_2.out  # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_N-masked_hisat2_2.err   # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+ml HISAT2/3n-20201216-gompi-2022a
+module load SAMtools/1.16.1-GCC-11.3.0
+
+hisat2 -p 6 --dta -x /home/jms53460/Ns_N-masked_hisat2_index -U hisat2_out/Brad_T1_S11_L004_10s.fastq.gz,hisat2_out/Brad_T1_S11_L004_11s.fastq.gz,hisat2_out/Brad_T1_S11_L004_12s.fastq.gz,hisat2_out/Brad_T1_S11_L004_13s.fastq.gz,hisat2_out/Brad_T1_S11_L004_14s.fastq.gz,hisat2_out/Brad_T1_S11_L004_15s.fastq.gz,hisat2_out/Brad_T1_S11_L004_16s.fastq.gz,hisat2_out/Brad_T1_S11_L004_17s.fastq.gz,hisat2_out/Brad_T1_S11_L004_18s.fastq.gz,hisat2_out/Brad_T1_S11_L004_19s.fastq.gz,hisat2_out/Brad_T1_S11_L004_1s.fastq.gz,hisat2_out/Brad_T1_S11_L004_20s.fastq.gz,hisat2_out/Brad_T1_S11_L004_21s.fastq.gz,hisat2_out/Brad_T1_S11_L004_22s.fastq.gz,hisat2_out/Brad_T1_S11_L004_23s.fastq.gz,hisat2_out/Brad_T1_S11_L004_24s.fastq.gz,hisat2_out/Brad_T1_S11_L004_25s.fastq.gz,hisat2_out/Brad_T1_S11_L004_26s.fastq.gz,hisat2_out/Brad_T1_S11_L004_27s.fastq.gz,hisat2_out/Brad_T1_S11_L004_28s.fastq.gz,hisat2_out/Brad_T1_S11_L004_29s.fastq.gz,hisat2_out/Brad_T1_S11_L004_2s.fastq.gz,hisat2_out/Brad_T1_S11_L004_30s.fastq.gz,hisat2_out/Brad_T1_S11_L004_31s.fastq.gz,hisat2_out/Brad_T1_S11_L004_32s.fastq.gz,hisat2_out/Brad_T1_S11_L004_33s.fastq.gz,hisat2_out/Brad_T1_S11_L004_34s.fastq.gz,hisat2_out/Brad_T1_S11_L004_35s.fastq.gz,hisat2_out/Brad_T1_S11_L004_36s.fastq.gz,hisat2_out/Brad_T1_S11_L004_37s.fastq.gz,hisat2_out/Brad_T1_S11_L004_38s.fastq.gz,hisat2_out/Brad_T1_S11_L004_39s.fastq.gz,hisat2_out/Brad_T1_S11_L004_3s.fastq.gz,hisat2_out/Brad_T1_S11_L004_40s.fastq.gz,hisat2_out/Brad_T1_S11_L004_41s.fastq.gz,hisat2_out/Brad_T1_S11_L004_42s.fastq.gz,hisat2_out/Brad_T1_S11_L004_43s.fastq.gz,hisat2_out/Brad_T1_S11_L004_44s.fastq.gz,hisat2_out/Brad_T1_S11_L004_45s.fastq.gz,hisat2_out/Brad_T1_S11_L004_46s.fastq.gz,hisat2_out/Brad_T1_S11_L004_47s.fastq.gz,hisat2_out/Brad_T1_S11_L004_48s.fastq.gz,hisat2_out/Brad_T1_S11_L004_49s.fastq.gz,hisat2_out/Brad_T1_S11_L004_4s.fastq.gz,hisat2_out/Brad_T1_S11_L004_50s.fastq.gz,hisat2_out/Brad_T1_S11_L004_51s.fastq.gz,hisat2_out/Brad_T1_S11_L004_52s.fastq.gz,hisat2_out/Brad_T1_S11_L004_53s.fastq.gz,hisat2_out/Brad_T1_S11_L004_54s.fastq.gz,hisat2_out/Brad_T1_S11_L004_55s.fastq.gz,hisat2_out/Brad_T1_S11_L004_56s.fastq.gz,hisat2_out/Brad_T1_S11_L004_57s.fastq.gz,hisat2_out/Brad_T1_S11_L004_58s.fastq.gz,hisat2_out/Brad_T1_S11_L004_59s.fastq.gz,hisat2_out/Brad_T1_S11_L004_5s.fastq.gz,hisat2_out/Brad_T1_S11_L004_60s.fastq.gz,hisat2_out/Brad_T1_S11_L004_61s.fastq.gz,hisat2_out/Brad_T1_S11_L004_62s.fastq.gz,hisat2_out/Brad_T1_S11_L004_63s.fastq.gz,hisat2_out/Brad_T1_S11_L004_64s.fastq.gz,hisat2_out/Brad_T1_S11_L004_65s.fastq.gz,hisat2_out/Brad_T1_S11_L004_66s.fastq.gz,hisat2_out/Brad_T1_S11_L004_67s.fastq.gz,hisat2_out/Brad_T1_S11_L004_68s.fastq.gz,hisat2_out/Brad_T1_S11_L004_69s.fastq.gz,hisat2_out/Brad_T1_S11_L004_6s.fastq.gz,hisat2_out/Brad_T1_S11_L004_70s.fastq.gz,hisat2_out/Brad_T1_S11_L004_71s.fastq.gz,hisat2_out/Brad_T1_S11_L004_72s.fastq.gz,hisat2_out/Brad_T1_S11_L004_73s.fastq.gz,hisat2_out/Brad_T1_S11_L004_74s.fastq.gz,hisat2_out/Brad_T1_S11_L004_75s.fastq.gz,hisat2_out/Brad_T1_S11_L004_76s.fastq.gz,hisat2_out/Brad_T1_S11_L004_77s.fastq.gz,hisat2_out/Brad_T1_S11_L004_78s.fastq.gz,hisat2_out/Brad_T1_S11_L004_79s.fastq.gz,hisat2_out/Brad_T1_S11_L004_7s.fastq.gz,hisat2_out/Brad_T1_S11_L004_80s.fastq.gz,hisat2_out/Brad_T1_S11_L004_81s.fastq.gz,hisat2_out/Brad_T1_S11_L004_82s.fastq.gz,hisat2_out/Brad_T1_S11_L004_83s.fastq.gz,hisat2_out/Brad_T1_S11_L004_84s.fastq.gz,hisat2_out/Brad_T1_S11_L004_85s.fastq.gz,hisat2_out/Brad_T1_S11_L004_86s.fastq.gz,hisat2_out/Brad_T1_S11_L004_87s.fastq.gz,hisat2_out/Brad_T1_S11_L004_88s.fastq.gz,hisat2_out/Brad_T1_S11_L004_89s.fastq.gz,hisat2_out/Brad_T1_S11_L004_8s.fastq.gz,hisat2_out/Brad_T1_S11_L004_90s.fastq.gz,hisat2_out/Brad_T1_S11_L004_91s.fastq.gz,hisat2_out/Brad_T1_S11_L004_92s.fastq.gz,hisat2_out/Brad_T1_S11_L004_93s.fastq.gz,hisat2_out/Brad_T1_S11_L004_94s.fastq.gz,hisat2_out/Brad_T1_S11_L004_95s.fastq.gz,hisat2_out/Brad_T1_S11_L004_96s.fastq.gz,hisat2_out/Brad_T1_S11_L004_9s.fastq.gz,hisat2_out/Brad_T1_S11_L004_unmatched.fastq.gz,hisat2_out/Brad_T2_S12_L004_10s.fastq.gz,hisat2_out/Brad_T2_S12_L004_11s.fastq.gz,hisat2_out/Brad_T2_S12_L004_12s.fastq.gz,hisat2_out/Brad_T2_S12_L004_13s.fastq.gz,hisat2_out/Brad_T2_S12_L004_14s.fastq.gz,hisat2_out/Brad_T2_S12_L004_15s.fastq.gz,hisat2_out/Brad_T2_S12_L004_16s.fastq.gz,hisat2_out/Brad_T2_S12_L004_17s.fastq.gz,hisat2_out/Brad_T2_S12_L004_18s.fastq.gz,hisat2_out/Brad_T2_S12_L004_19s.fastq.gz,hisat2_out/Brad_T2_S12_L004_1s.fastq.gz,hisat2_out/Brad_T2_S12_L004_20s.fastq.gz,hisat2_out/Brad_T2_S12_L004_21s.fastq.gz,hisat2_out/Brad_T2_S12_L004_22s.fastq.gz,hisat2_out/Brad_T2_S12_L004_23s.fastq.gz,hisat2_out/Brad_T2_S12_L004_24s.fastq.gz,hisat2_out/Brad_T2_S12_L004_25s.fastq.gz,hisat2_out/Brad_T2_S12_L004_26s.fastq.gz,hisat2_out/Brad_T2_S12_L004_27s.fastq.gz,hisat2_out/Brad_T2_S12_L004_28s.fastq.gz,hisat2_out/Brad_T2_S12_L004_29s.fastq.gz,hisat2_out/Brad_T2_S12_L004_2s.fastq.gz,hisat2_out/Brad_T2_S12_L004_30s.fastq.gz,hisat2_out/Brad_T2_S12_L004_31s.fastq.gz,hisat2_out/Brad_T2_S12_L004_32s.fastq.gz,hisat2_out/Brad_T2_S12_L004_33s.fastq.gz,hisat2_out/Brad_T2_S12_L004_34s.fastq.gz,hisat2_out/Brad_T2_S12_L004_35s.fastq.gz,hisat2_out/Brad_T2_S12_L004_36s.fastq.gz,hisat2_out/Brad_T2_S12_L004_37s.fastq.gz,hisat2_out/Brad_T2_S12_L004_38s.fastq.gz,hisat2_out/Brad_T2_S12_L004_39s.fastq.gz,hisat2_out/Brad_T2_S12_L004_3s.fastq.gz,hisat2_out/Brad_T2_S12_L004_40s.fastq.gz,hisat2_out/Brad_T2_S12_L004_41s.fastq.gz,hisat2_out/Brad_T2_S12_L004_42s.fastq.gz,hisat2_out/Brad_T2_S12_L004_43s.fastq.gz,hisat2_out/Brad_T2_S12_L004_44s.fastq.gz,hisat2_out/Brad_T2_S12_L004_45s.fastq.gz,hisat2_out/Brad_T2_S12_L004_46s.fastq.gz,hisat2_out/Brad_T2_S12_L004_47s.fastq.gz,hisat2_out/Brad_T2_S12_L004_48s.fastq.gz,hisat2_out/Brad_T2_S12_L004_49s.fastq.gz,hisat2_out/Brad_T2_S12_L004_4s.fastq.gz,hisat2_out/Brad_T2_S12_L004_50s.fastq.gz,hisat2_out/Brad_T2_S12_L004_51s.fastq.gz,hisat2_out/Brad_T2_S12_L004_52s.fastq.gz,hisat2_out/Brad_T2_S12_L004_53s.fastq.gz,hisat2_out/Brad_T2_S12_L004_54s.fastq.gz,hisat2_out/Brad_T2_S12_L004_55s.fastq.gz,hisat2_out/Brad_T2_S12_L004_56s.fastq.gz,hisat2_out/Brad_T2_S12_L004_57s.fastq.gz,hisat2_out/Brad_T2_S12_L004_58s.fastq.gz,hisat2_out/Brad_T2_S12_L004_59s.fastq.gz,hisat2_out/Brad_T2_S12_L004_5s.fastq.gz,hisat2_out/Brad_T2_S12_L004_60s.fastq.gz,hisat2_out/Brad_T2_S12_L004_61s.fastq.gz,hisat2_out/Brad_T2_S12_L004_62s.fastq.gz,hisat2_out/Brad_T2_S12_L004_63s.fastq.gz,hisat2_out/Brad_T2_S12_L004_64s.fastq.gz,hisat2_out/Brad_T2_S12_L004_65s.fastq.gz,hisat2_out/Brad_T2_S12_L004_66s.fastq.gz,hisat2_out/Brad_T2_S12_L004_67s.fastq.gz,hisat2_out/Brad_T2_S12_L004_68s.fastq.gz,hisat2_out/Brad_T2_S12_L004_69s.fastq.gz,hisat2_out/Brad_T2_S12_L004_6s.fastq.gz,hisat2_out/Brad_T2_S12_L004_70s.fastq.gz,hisat2_out/Brad_T2_S12_L004_71s.fastq.gz,hisat2_out/Brad_T2_S12_L004_72s.fastq.gz,hisat2_out/Brad_T2_S12_L004_73s.fastq.gz,hisat2_out/Brad_T2_S12_L004_74s.fastq.gz,hisat2_out/Brad_T2_S12_L004_75s.fastq.gz,hisat2_out/Brad_T2_S12_L004_76s.fastq.gz,hisat2_out/Brad_T2_S12_L004_77s.fastq.gz,hisat2_out/Brad_T2_S12_L004_78s.fastq.gz,hisat2_out/Brad_T2_S12_L004_79s.fastq.gz,hisat2_out/Brad_T2_S12_L004_7s.fastq.gz,hisat2_out/Brad_T2_S12_L004_80s.fastq.gz,hisat2_out/Brad_T2_S12_L004_81s.fastq.gz,hisat2_out/Brad_T2_S12_L004_82s.fastq.gz,hisat2_out/Brad_T2_S12_L004_83s.fastq.gz,hisat2_out/Brad_T2_S12_L004_84s.fastq.gz,hisat2_out/Brad_T2_S12_L004_85s.fastq.gz,hisat2_out/Brad_T2_S12_L004_86s.fastq.gz,hisat2_out/Brad_T2_S12_L004_87s.fastq.gz,hisat2_out/Brad_T2_S12_L004_88s.fastq.gz,hisat2_out/Brad_T2_S12_L004_89s.fastq.gz,hisat2_out/Brad_T2_S12_L004_8s.fastq.gz,hisat2_out/Brad_T2_S12_L004_90s.fastq.gz,hisat2_out/Brad_T2_S12_L004_91s.fastq.gz,hisat2_out/Brad_T2_S12_L004_92s.fastq.gz,hisat2_out/Brad_T2_S12_L004_93s.fastq.gz,hisat2_out/Brad_T2_S12_L004_94s.fastq.gz,hisat2_out/Brad_T2_S12_L004_95s.fastq.gz,hisat2_out/Brad_T2_S12_L004_96s.fastq.gz,hisat2_out/Brad_T2_S12_L004_9s.fastq.gz,hisat2_out/Brad_T2_S12_L004_unmatched.fastq.gz,hisat2_out/Brad_T3_S13_L004_10s.fastq.gz,hisat2_out/Brad_T3_S13_L004_11s.fastq.gz,hisat2_out/Brad_T3_S13_L004_12s.fastq.gz,hisat2_out/Brad_T3_S13_L004_13s.fastq.gz,hisat2_out/Brad_T3_S13_L004_14s.fastq.gz,hisat2_out/Brad_T3_S13_L004_15s.fastq.gz,hisat2_out/Brad_T3_S13_L004_16s.fastq.gz,hisat2_out/Brad_T3_S13_L004_17s.fastq.gz,hisat2_out/Brad_T3_S13_L004_18s.fastq.gz,hisat2_out/Brad_T3_S13_L004_19s.fastq.gz,hisat2_out/Brad_T3_S13_L004_1s.fastq.gz,hisat2_out/Brad_T3_S13_L004_20s.fastq.gz,hisat2_out/Brad_T3_S13_L004_21s.fastq.gz,hisat2_out/Brad_T3_S13_L004_22s.fastq.gz,hisat2_out/Brad_T3_S13_L004_23s.fastq.gz,hisat2_out/Brad_T3_S13_L004_24s.fastq.gz,hisat2_out/Brad_T3_S13_L004_25s.fastq.gz,hisat2_out/Brad_T3_S13_L004_26s.fastq.gz,hisat2_out/Brad_T3_S13_L004_27s.fastq.gz,hisat2_out/Brad_T3_S13_L004_28s.fastq.gz,hisat2_out/Brad_T3_S13_L004_29s.fastq.gz,hisat2_out/Brad_T3_S13_L004_2s.fastq.gz,hisat2_out/Brad_T3_S13_L004_30s.fastq.gz,hisat2_out/Brad_T3_S13_L004_31s.fastq.gz,hisat2_out/Brad_T3_S13_L004_32s.fastq.gz,hisat2_out/Brad_T3_S13_L004_33s.fastq.gz,hisat2_out/Brad_T3_S13_L004_34s.fastq.gz,hisat2_out/Brad_T3_S13_L004_35s.fastq.gz,hisat2_out/Brad_T3_S13_L004_36s.fastq.gz,hisat2_out/Brad_T3_S13_L004_37s.fastq.gz,hisat2_out/Brad_T3_S13_L004_38s.fastq.gz,hisat2_out/Brad_T3_S13_L004_39s.fastq.gz,hisat2_out/Brad_T3_S13_L004_3s.fastq.gz,hisat2_out/Brad_T3_S13_L004_40s.fastq.gz,hisat2_out/Brad_T3_S13_L004_41s.fastq.gz,hisat2_out/Brad_T3_S13_L004_42s.fastq.gz,hisat2_out/Brad_T3_S13_L004_43s.fastq.gz,hisat2_out/Brad_T3_S13_L004_44s.fastq.gz,hisat2_out/Brad_T3_S13_L004_45s.fastq.gz,hisat2_out/Brad_T3_S13_L004_46s.fastq.gz,hisat2_out/Brad_T3_S13_L004_47s.fastq.gz,hisat2_out/Brad_T3_S13_L004_48s.fastq.gz,hisat2_out/Brad_T3_S13_L004_49s.fastq.gz,hisat2_out/Brad_T3_S13_L004_4s.fastq.gz,hisat2_out/Brad_T3_S13_L004_50s.fastq.gz,hisat2_out/Brad_T3_S13_L004_51s.fastq.gz,hisat2_out/Brad_T3_S13_L004_52s.fastq.gz,hisat2_out/Brad_T3_S13_L004_53s.fastq.gz,hisat2_out/Brad_T3_S13_L004_54s.fastq.gz,hisat2_out/Brad_T3_S13_L004_55s.fastq.gz,hisat2_out/Brad_T3_S13_L004_56s.fastq.gz,hisat2_out/Brad_T3_S13_L004_57s.fastq.gz,hisat2_out/Brad_T3_S13_L004_58s.fastq.gz,hisat2_out/Brad_T3_S13_L004_59s.fastq.gz,hisat2_out/Brad_T3_S13_L004_5s.fastq.gz,hisat2_out/Brad_T3_S13_L004_60s.fastq.gz,hisat2_out/Brad_T3_S13_L004_61s.fastq.gz,hisat2_out/Brad_T3_S13_L004_62s.fastq.gz,hisat2_out/Brad_T3_S13_L004_63s.fastq.gz,hisat2_out/Brad_T3_S13_L004_64s.fastq.gz,hisat2_out/Brad_T3_S13_L004_65s.fastq.gz,hisat2_out/Brad_T3_S13_L004_66s.fastq.gz,hisat2_out/Brad_T3_S13_L004_67s.fastq.gz,hisat2_out/Brad_T3_S13_L004_68s.fastq.gz,hisat2_out/Brad_T3_S13_L004_69s.fastq.gz,hisat2_out/Brad_T3_S13_L004_6s.fastq.gz,hisat2_out/Brad_T3_S13_L004_70s.fastq.gz,hisat2_out/Brad_T3_S13_L004_71s.fastq.gz,hisat2_out/Brad_T3_S13_L004_72s.fastq.gz,hisat2_out/Brad_T3_S13_L004_73s.fastq.gz,hisat2_out/Brad_T3_S13_L004_74s.fastq.gz,hisat2_out/Brad_T3_S13_L004_75s.fastq.gz,hisat2_out/Brad_T3_S13_L004_76s.fastq.gz,hisat2_out/Brad_T3_S13_L004_77s.fastq.gz,hisat2_out/Brad_T3_S13_L004_78s.fastq.gz,hisat2_out/Brad_T3_S13_L004_79s.fastq.gz,hisat2_out/Brad_T3_S13_L004_7s.fastq.gz,hisat2_out/Brad_T3_S13_L004_80s.fastq.gz,hisat2_out/Brad_T3_S13_L004_81s.fastq.gz,hisat2_out/Brad_T3_S13_L004_82s.fastq.gz,hisat2_out/Brad_T3_S13_L004_83s.fastq.gz,hisat2_out/Brad_T3_S13_L004_84s.fastq.gz,hisat2_out/Brad_T3_S13_L004_85s.fastq.gz,hisat2_out/Brad_T3_S13_L004_86s.fastq.gz,hisat2_out/Brad_T3_S13_L004_87s.fastq.gz,hisat2_out/Brad_T3_S13_L004_88s.fastq.gz,hisat2_out/Brad_T3_S13_L004_89s.fastq.gz,hisat2_out/Brad_T3_S13_L004_8s.fastq.gz,hisat2_out/Brad_T3_S13_L004_90s.fastq.gz,hisat2_out/Brad_T3_S13_L004_91s.fastq.gz,hisat2_out/Brad_T3_S13_L004_92s.fastq.gz,hisat2_out/Brad_T3_S13_L004_93s.fastq.gz,hisat2_out/Brad_T3_S13_L004_94s.fastq.gz,hisat2_out/Brad_T3_S13_L004_95s.fastq.gz,hisat2_out/Brad_T3_S13_L004_96s.fastq.gz,hisat2_out/Brad_T3_S13_L004_9s.fastq.gz,hisat2_out/Brad_T3_S13_L004_unmatched.fastq.gz | samtools view -bS -> hisat2_out2/merged_N-masked_unsorted.bam
+samtools sort -@ 6 hisat2_out2/merged_N-masked_unsorted.bam -o hisat2_out2/merged_N-masked_s.bam
+samtools index -@ 6 hisat2_out2/merged_N-masked_s.bam
+
+
+mkdir Ns_SNPsplit2
+
+###Run SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=Ns_SNPsplit2                         # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=1                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_SNPsplit2.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_SNPsplit2.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+
+SNPsplit --conflicting -o Ns_SNPsplit2 --snp_file SNPs_merged_s.bam/Ns_SNPs2.tab hisat2_out2/merged_N-masked_s.bam
+
+
+
 
 
 
@@ -564,3 +619,35 @@ do
         umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
     fi
 done
+
+
+ml R/4.3.2-foss-2022b
+
+R
+
+annots = strsplit(read.table('stringtie_out2/stringtie_merged.gtf', sep = '\t')[,9], '; ')
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('gene_id ', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+
+save(B, file = "v5_Jonathan_data")
