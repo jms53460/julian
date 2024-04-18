@@ -85,3 +85,34 @@ curl -s https://stacks.stanford.edu/file/druid:js115sm3463/RPI8_CKDL190144505-1B
 curl -s https://stacks.stanford.edu/file/druid:js115sm3463/RPI8_CKDL190144505-1B-8_HNLFWDSXX_L3_R2.fastq.gz > RPI8_1B-8_L3_R2.fastq.gz
 curl -s https://stacks.stanford.edu/file/druid:js115sm3463/RPI9_CKDL190144505-1B-9_HNLFWDSXX_L3_R1.fastq.gz > RPI9_1B-9_L3_R1.fastq.gz
 curl -s https://stacks.stanford.edu/file/druid:js115sm3463/RPI9_CKDL190144505-1B-9_HNLFWDSXX_L3_R2.fastq.gz > RPI9_1B-9_L3_R2.fastq.gz
+
+
+###Download B73 v5 genome and A188 genome
+cd /scratch/jms53460/Maize_SGT_2022
+curl -s https://download.maizegdb.org/Zm-B73-REFERENCE-NAM-5.0/Zm-B73-REFERENCE-NAM-5.0.fa.gz > B73_v5_genome.fa.gz
+curl -s https://download.maizegdb.org/Zm-A188-REFERENCE-KSU-1.0/Zm-A188-REFERENCE-KSU-1.0.fa.gz > A188_genome.fa.gz
+
+
+###Trying to map the A188 genome to the B73 genome so I have a bam file
+mkdir hisat2_out
+
+#!/bin/bash
+#SBATCH --job-name=Zm_genome_hisat2                     # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=6                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Zm_genome_hisat2.out # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Zm_genome_hisat2.err  # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build B73_v5_genome.fa.gz B73_v5_hisat2_index
+
+module load SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 6 --dta -x B73_v5_hisat2_index -U A188_genome.fa.gz | samtools view -bS -> hisat2_out/A188_B73_unsorted.bam
+samtools sort -@ 6 hisat2_out/A188_B73_unsorted.bam -o A188_B73_s.bam
+
