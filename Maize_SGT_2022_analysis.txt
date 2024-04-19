@@ -146,7 +146,7 @@ gzip A188_sim.read2.fq
 
 ml HISAT2/3n-20201216-gompi-2022a
 ml SAMtools/1.16.1-GCC-11.3.0
-hisat2 -p 6 --dta -x B73_v5_hisat2_index -1 A188_sim_trim.read1.fq.gz -2 A188_sim_trim.read2.fq.gz | samtools view -bS -> hisat2_out/A188_B73_unsorted.bam
+hisat2 -p 6 --dta -x B73_v5_hisat2_index -1 A188_sim.read1.fq.gz -2 A188_sim.read2.fq.gz | samtools view -bS -> hisat2_out/A188_B73_unsorted.bam
 samtools sort -@ 6 hisat2_out/A188_B73_unsorted.bam -o A188_B73_s.bam
 
 
