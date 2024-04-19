@@ -13,12 +13,9 @@
 cd /scratch/jms53460/Maize_SGT_2022
 
 ml wgsim/20111017-GCC-11.3.0
-wgsim -1 450 -2 450 A188_genome.fa A188_sim.read1.fq A188_sim.read2.fq 
+wgsim A188_genome.fa A188_sim.read1.fq A188_sim.read2.fq 
 gzip A188_sim.read1.fq
 gzip A188_sim.read2.fq
-
-module load fastp/0.23.2-GCC-11.3.0
-fastp -w 6 -i A188_sim.read1.fq.gz -I A188_sim.read2.fq.gz -o A188_sim_trim.read1.fq.gz -O A188_sim_trim.read2.fq.gz -y -x -3
 
 ml HISAT2/3n-20201216-gompi-2022a
 ml SAMtools/1.16.1-GCC-11.3.0
