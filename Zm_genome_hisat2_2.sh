@@ -13,7 +13,7 @@
 cd /scratch/jms53460/Maize_SGT_2022
 
 ml wgsim/20111017-GCC-11.3.0
-wgsim A188_genome.fa A188_sim.read1.fq A188_sim.read2.fq
+wgsim -1 450 -2 450 A188_genome.fa A188_sim.read1.fq A188_sim.read2.fq 
 gzip A188_sim.read1.fq
 gzip A188_sim.read2.fq
 
