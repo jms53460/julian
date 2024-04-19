@@ -219,7 +219,7 @@ bcftools index Zm_A188_B73_vcf.gz
 #SBATCH --partition=batch                                                  # Partition (queue) name
 #SBATCH --ntasks=1                                                         # Single task job
 #SBATCH --cpus-per-task=6                                                  # Number of cores per task
-#SBATCH --mem=50gb                                                         # Total memory for job
+#SBATCH --mem=150gb                                                         # Total memory for job
 #SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_minimap_syri.out      # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_minimap_syri.err       # Location of error log file
