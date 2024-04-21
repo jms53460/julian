@@ -17,7 +17,7 @@ source activate /scratch/jms53460/Fastq-Multx/
 for file in Raw_Data/*_R1*.gz; do
     file2="${file:9:-12}"
 
-    if [ ! -f "Mapped_Data/demultiplexed/""$file2""_dT-1s.fastq.gz" ]; then
+    if [ ! -f "Mapped_Data/demultiplexed/""$file2""_1s.fastq.gz" ]; then
         module load fastp/0.23.2-GCC-11.3.0
 	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2.fastq.gz" -o "Mapped_Data/demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Mapped_Data/demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L --umi --umi_loc read1 --umi_len 10 --umi_prefix UMI
 
