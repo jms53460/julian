@@ -237,7 +237,40 @@ ml SyRI/1.6.3
 syri -c A188_aligned_to_B73.sam -r B73_v5_genome.fa -q A188_genome.fa -k -F S
 
 
+###Apparently the chromosome IDs do not match, which is odd because the chromosomes appear to be labeled the same way in both files (chr1)
+###There are also apparently unplaced scaffolds and contigs
+###I think it may work if I get rid of the scaffolds that don't match between files (basically only keeping the chromosome data)
+###I will try using head like they used in the documentation for SyRI to get rid everything after the chromosomes: https://schneebergerlab.github.io/syri/pipeline.html
 
+grep -n c A188_genome.fa
+#24992964:>chr10 
+#26915829:>c01_001
+head -26915828 A188_genome.fa > A188_genome_trim.fa
+
+grep -n c B73_v5_genome.fa
+#24742658:>chr10
+#26648102:>scaf_21
+head -26648101 B73_v5_genome.fa > B73_v5_genome_trim.fa
+
+#!/bin/bash
+#SBATCH --job-name=Zm_minimap_syri                                         # Job name
+#SBATCH --partition=batch                                                  # Partition (queue) name
+#SBATCH --ntasks=1                                                         # Single task job
+#SBATCH --cpus-per-task=6                                                  # Number of cores per task
+#SBATCH --mem=350gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_minimap_syri2.out     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_minimap_syri2.err      # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                       # Where to send mail
+#SBATCH --mail-type=END,FAIL                                               # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+
+ml minimap2/2.26-GCCcore-12.2.0
+minimap2 -t 6 -ax asm5 --eqx B73_v5_genome_trim.fa A188_genome_trim.fa > A188_aligned_to_B73_trim.sam
+
+ml SyRI/1.6.3
+syri -c A188_aligned_to_B73_trim.sam -r B73_v5_genome_trim.fa -q A188_genome_trim.fa -k -F S
 
 
 
