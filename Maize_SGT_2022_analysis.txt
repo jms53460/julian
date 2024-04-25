@@ -365,8 +365,7 @@ cd /scratch/jms53460/Maize_SGT_2022
 ml BEDTools/2.30.0-GCC-12.2.0
 bedtools maskfasta -fi B73_v5_genome.fa -fo Zm_N-masked_genome.fa -bed syri.vcf -fullHeader
 
-
-
+###It seems to have worked. Now I need to get some of the maize data ready so I can try SNPsplit.
 
 
 ###Demultiplex the raw data
@@ -477,8 +476,8 @@ rm Mapped_Data/demultiplexed/*PI3_1B-3_L3*
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=200gb                                                       # Total memory for job
 #SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_dm2.out               # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_dm2.err                # Location of error log file
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_dm2.out              # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_dm2.err               # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
@@ -500,3 +499,139 @@ for file in Raw_Data/*_R1*.gz; do
     fi
 done
 conda deactivate
+
+
+###There is a problem with some of these files, so I will move forward with some of the files that worked for now
+mkdir Mapped_Data/demultiplexed2
+cp Mapped_Data/demultiplexed/RPI10_1B-10_L3* Mapped_Data/demultiplexed2
+
+
+###Make hisat2 index and run fastp
+
+#!/bin/bash
+#SBATCH --job-name=Zm_index_fastp                                         # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                       # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_index_fastp.out      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_index_fastp.err       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build B73_v5_genome.fa B73_v5_hisat2_index
+mkdir hisat2_out
+
+for file in "Mapped_Data/demultiplexed2/"*.fastq*
+do
+	file2="${file:27:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	module load fastp/0.23.2-GCC-11.3.0
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+    
+fi
+done
+
+
+
+###R code to make a list of hisat2_out/*fastq.gz files
+ml R/4.3.2-foss-2022b
+R
+directory1 = 'hisat2_out'
+f = dir(directory1)
+runs = unique(f[grepl('fastq.gz', f)])
+out = NULL
+out = c(out, '', paste(c('hisat2 -p 6 --dta -x /scratch/jms53460/Maize_SGT_2022/B73_v5_hisat2_index -U ', paste(paste(directory1, '/', runs, sep = ''), collapse=','), ' | samtools view -bS -> hisat2_out/merged_unsorted.bam'), collapse = ''))
+write.csv(out, row.names=F, quote = F, file = 'generated_code.txt')
+q()
+
+#Copied and pasted the code generated in R in the bash script below
+#Make hisat2 index (hisat2-build), filter (fastp), map to genome (hisat2), .bam output (samtools view), sort (samtools sort)
+
+#!/bin/bash
+#SBATCH --job-name=Zm_hisat2                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=200gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_hs2.out              # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_hs2.err               # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build B73_v5_genome.fa B73_v5_hisat2_index
+mkdir hisat2_out
+
+for file in "Mapped_Data/demultiplexed2/"*.fastq*
+do
+	file2="${file:27:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	module load fastp/0.23.2-GCC-11.3.0
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+fi
+done
+	
+module load SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 6 --dta -x /home/jms53460/Ns_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+samtools index 
+
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Ns_SNPsplit3                         # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=1                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_SNPsplit3.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_SNPsplit3.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+
+SNPsplit --conflicting -o Ns_SNPsplit3 --snp_file Ns_SNPs3.tab hisat2_out2/merged_N-masked_s.bam
+
+
+###Assemble transcripts with stringtie
+
+#!/bin/bash
+#SBATCH --job-name=Ns_stringtie                         # Job name
+#SBATCH --partition=batch                               # Partition (queue) name
+#SBATCH --ntasks=1                                      # Single task job
+#SBATCH --cpus-per-task=6                               # Number of cores per task
+#SBATCH --mem=50gb                                      # Total memory for job
+#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
+#SBATCH --output=/home/jms53460/Ns_stringtie.out        # Location of standard output file
+#SBATCH --error=/home/jms53460/Ns_stringtie.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
+#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /home/jms53460
+for file in "hisat2_out/"*_s.bam
+do
+	ml StringTie/2.2.1-GCC-11.3.0
+	stringtie -p 6 --rf -o "stringtie_out2/""${file:11:-4}"".gtf" "$file"
+done
+
+# Merge StringTie transcripts
+ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
+
+# Merge GTF files
+stringtie --merge -p 6 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
+rm mergelist.txt
