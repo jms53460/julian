@@ -533,7 +533,7 @@ if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
 	module load fastp/0.23.2-GCC-11.3.0
 	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
-    
+
 fi
 done
 
@@ -549,17 +549,18 @@ out = NULL
 out = c(out, '', paste(c('hisat2 -p 6 --dta -x /scratch/jms53460/Maize_SGT_2022/B73_v5_hisat2_index -U ', paste(paste(directory1, '/', runs, sep = ''), collapse=','), ' | samtools view -bS -> hisat2_out/merged_unsorted.bam'), collapse = ''))
 write.csv(out, row.names=F, quote = F, file = 'generated_code.txt')
 q()
+head generated_code.txt
 
 #Copied and pasted the code generated in R in the bash script below
-#Make hisat2 index (hisat2-build), filter (fastp), map to genome (hisat2), .bam output (samtools view), sort (samtools sort)
+#Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
 
 #!/bin/bash
 #SBATCH --job-name=Zm_hisat2                                              # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=200gb                                                       # Total memory for job
-#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_hs2.out              # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_hs2.err               # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
@@ -567,45 +568,31 @@ q()
 
 cd /scratch/jms53460/Maize_SGT_2022
 ml HISAT2/3n-20201216-gompi-2022a
-hisat2-build B73_v5_genome.fa B73_v5_hisat2_index
-mkdir hisat2_out
-
-for file in "Mapped_Data/demultiplexed2/"*.fastq*
-do
-	file2="${file:27:-9}"
-
-if [ ! -f "hisat2_out/""$file2"".bam" ]; then
-
-	module load fastp/0.23.2-GCC-11.3.0
-	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
-fi
-done
-	
-module load SAMtools/1.16.1-GCC-11.3.0
-hisat2 -p 6 --dta -x /home/jms53460/Ns_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
-samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
-samtools index 
+ml SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 6 --dta -x /scratch/jms53460/Maize_SGT_2022/B73_v5_hisat2_index -U hisat2_out/RPI10_1B-10_L3_10s.fastq.gz,hisat2_out/RPI10_1B-10_L3_11s.fastq.gz,hisat2_out/RPI10_1B-10_L3_12s.fastq.gz,hisat2_out/RPI10_1B-10_L3_13s.fastq.gz,hisat2_out/RPI10_1B-10_L3_14s.fastq.gz,hisat2_out/RPI10_1B-10_L3_15s.fastq.gz,hisat2_out/RPI10_1B-10_L3_16s.fastq.gz,hisat2_out/RPI10_1B-10_L3_17s.fastq.gz,hisat2_out/RPI10_1B-10_L3_18s.fastq.gz,hisat2_out/RPI10_1B-10_L3_19s.fastq.gz,hisat2_out/RPI10_1B-10_L3_1s.fastq.gz,hisat2_out/RPI10_1B-10_L3_20s.fastq.gz,hisat2_out/RPI10_1B-10_L3_21s.fastq.gz,hisat2_out/RPI10_1B-10_L3_22s.fastq.gz,hisat2_out/RPI10_1B-10_L3_23s.fastq.gz,hisat2_out/RPI10_1B-10_L3_24s.fastq.gz,hisat2_out/RPI10_1B-10_L3_25s.fastq.gz,hisat2_out/RPI10_1B-10_L3_26s.fastq.gz,hisat2_out/RPI10_1B-10_L3_27s.fastq.gz,hisat2_out/RPI10_1B-10_L3_28s.fastq.gz,hisat2_out/RPI10_1B-10_L3_29s.fastq.gz,hisat2_out/RPI10_1B-10_L3_2s.fastq.gz,hisat2_out/RPI10_1B-10_L3_30s.fastq.gz,hisat2_out/RPI10_1B-10_L3_31s.fastq.gz,hisat2_out/RPI10_1B-10_L3_32s.fastq.gz,hisat2_out/RPI10_1B-10_L3_33s.fastq.gz,hisat2_out/RPI10_1B-10_L3_34s.fastq.gz,hisat2_out/RPI10_1B-10_L3_35s.fastq.gz,hisat2_out/RPI10_1B-10_L3_36s.fastq.gz,hisat2_out/RPI10_1B-10_L3_37s.fastq.gz,hisat2_out/RPI10_1B-10_L3_38s.fastq.gz,hisat2_out/RPI10_1B-10_L3_39s.fastq.gz,hisat2_out/RPI10_1B-10_L3_3s.fastq.gz,hisat2_out/RPI10_1B-10_L3_40s.fastq.gz,hisat2_out/RPI10_1B-10_L3_41s.fastq.gz,hisat2_out/RPI10_1B-10_L3_42s.fastq.gz,hisat2_out/RPI10_1B-10_L3_43s.fastq.gz,hisat2_out/RPI10_1B-10_L3_44s.fastq.gz,hisat2_out/RPI10_1B-10_L3_45s.fastq.gz,hisat2_out/RPI10_1B-10_L3_46s.fastq.gz,hisat2_out/RPI10_1B-10_L3_47s.fastq.gz,hisat2_out/RPI10_1B-10_L3_48s.fastq.gz,hisat2_out/RPI10_1B-10_L3_49s.fastq.gz,hisat2_out/RPI10_1B-10_L3_4s.fastq.gz,hisat2_out/RPI10_1B-10_L3_50s.fastq.gz,hisat2_out/RPI10_1B-10_L3_51s.fastq.gz,hisat2_out/RPI10_1B-10_L3_52s.fastq.gz,hisat2_out/RPI10_1B-10_L3_53s.fastq.gz,hisat2_out/RPI10_1B-10_L3_54s.fastq.gz,hisat2_out/RPI10_1B-10_L3_55s.fastq.gz,hisat2_out/RPI10_1B-10_L3_56s.fastq.gz,hisat2_out/RPI10_1B-10_L3_57s.fastq.gz,hisat2_out/RPI10_1B-10_L3_58s.fastq.gz,hisat2_out/RPI10_1B-10_L3_59s.fastq.gz,hisat2_out/RPI10_1B-10_L3_5s.fastq.gz,hisat2_out/RPI10_1B-10_L3_60s.fastq.gz,hisat2_out/RPI10_1B-10_L3_61s.fastq.gz,hisat2_out/RPI10_1B-10_L3_62s.fastq.gz,hisat2_out/RPI10_1B-10_L3_63s.fastq.gz,hisat2_out/RPI10_1B-10_L3_64s.fastq.gz,hisat2_out/RPI10_1B-10_L3_65s.fastq.gz,hisat2_out/RPI10_1B-10_L3_66s.fastq.gz,hisat2_out/RPI10_1B-10_L3_67s.fastq.gz,hisat2_out/RPI10_1B-10_L3_68s.fastq.gz,hisat2_out/RPI10_1B-10_L3_69s.fastq.gz,hisat2_out/RPI10_1B-10_L3_6s.fastq.gz,hisat2_out/RPI10_1B-10_L3_70s.fastq.gz,hisat2_out/RPI10_1B-10_L3_71s.fastq.gz,hisat2_out/RPI10_1B-10_L3_72s.fastq.gz,hisat2_out/RPI10_1B-10_L3_73s.fastq.gz,hisat2_out/RPI10_1B-10_L3_74s.fastq.gz,hisat2_out/RPI10_1B-10_L3_75s.fastq.gz,hisat2_out/RPI10_1B-10_L3_76s.fastq.gz,hisat2_out/RPI10_1B-10_L3_77s.fastq.gz,hisat2_out/RPI10_1B-10_L3_78s.fastq.gz,hisat2_out/RPI10_1B-10_L3_79s.fastq.gz,hisat2_out/RPI10_1B-10_L3_7s.fastq.gz,hisat2_out/RPI10_1B-10_L3_80s.fastq.gz,hisat2_out/RPI10_1B-10_L3_81s.fastq.gz,hisat2_out/RPI10_1B-10_L3_82s.fastq.gz,hisat2_out/RPI10_1B-10_L3_83s.fastq.gz,hisat2_out/RPI10_1B-10_L3_84s.fastq.gz,hisat2_out/RPI10_1B-10_L3_85s.fastq.gz,hisat2_out/RPI10_1B-10_L3_86s.fastq.gz,hisat2_out/RPI10_1B-10_L3_87s.fastq.gz,hisat2_out/RPI10_1B-10_L3_88s.fastq.gz,hisat2_out/RPI10_1B-10_L3_89s.fastq.gz,hisat2_out/RPI10_1B-10_L3_8s.fastq.gz,hisat2_out/RPI10_1B-10_L3_90s.fastq.gz,hisat2_out/RPI10_1B-10_L3_91s.fastq.gz,hisat2_out/RPI10_1B-10_L3_92s.fastq.gz,hisat2_out/RPI10_1B-10_L3_93s.fastq.gz,hisat2_out/RPI10_1B-10_L3_94s.fastq.gz,hisat2_out/RPI10_1B-10_L3_95s.fastq.gz,hisat2_out/RPI10_1B-10_L3_96s.fastq.gz,hisat2_out/RPI10_1B-10_L3_9s.fastq.gz,hisat2_out/RPI10_1B-10_L3_unmatched.fastq.gz | samtools view -bS -> hisat2_out/merged_unsorted.bam
+samtools sort -@ 6 hisat2_out/merged_unsorted.bam -o hisat2_out/merged_s.bam
+samtools index -@ 6 hisat2_out/merged_s.bam
 
 
-
+###Tring SNPsplit
 
 #!/bin/bash
-#SBATCH --job-name=Ns_SNPsplit3                         # Job name
-#SBATCH --partition=batch                               # Partition (queue) name
-#SBATCH --ntasks=1                                      # Single task job
-#SBATCH --cpus-per-task=1                               # Number of cores per task
-#SBATCH --mem=50gb                                      # Total memory for job
-#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
-#SBATCH --output=/home/jms53460/Ns_SNPsplit3.out        # Location of standard output file
-#SBATCH --error=/home/jms53460/Ns_SNPsplit3.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
-#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --job-name=Zm_SNPsplit                                            # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit.out         # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit.err          # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /home/jms53460
+cd /scratch/jms53460/Maize_SGT_2022
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 
-SNPsplit --conflicting -o Ns_SNPsplit3 --snp_file Ns_SNPs3.tab hisat2_out2/merged_N-masked_s.bam
+SNPsplit --conflicting -o Zm_SNPsplit --snp_file Zm_SNPs.tab hisat2_out/merged_s.bam
 
 
 ###Assemble transcripts with stringtie
