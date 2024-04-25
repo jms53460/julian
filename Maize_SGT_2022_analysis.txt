@@ -276,24 +276,70 @@ syri -c A188_aligned_to_B73_trim.sam -r B73_v5_genome_trim.fa -q A188_genome_tri
 ###This seems to have worked! Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
 
 #!/bin/bash
-#SBATCH --job-name=Zm_vcf2tsvpy                         # Job name
-#SBATCH --partition=batch                               # Partition (queue) name
-#SBATCH --ntasks=1                                      # Single task job
-#SBATCH --cpus-per-task=1                               # Number of cores per task
-#SBATCH --mem=50gb                                      # Total memory for job
-#SBATCH --time=6:00:00                                  # Time limit hrs:min:sec
-#SBATCH --output=/home/jms53460/Zm_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/home/jms53460/Zm_vcf2tsvpy.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
-#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --job-name=Zm_vcf2tsvpy                                           # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_vcf2tsvpy.out        # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_vcf2tsvpy.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /home/jms53460
+cd /scratch/jms53460/Maize_SGT_2022
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/vcf2tsvpy
 vcf2tsvpy --input_vcf syri.vcf --out_tsv Zm_vcf_table.tsv 
 conda deactivate
 
 
+###Selected columns from the vcf_table
+awk '{print $3,$1,$2,$6,$4,$5}' Zm_vcf_table.tsv OFS="\t" > Zm_variants.tsv
+grep -i "chr" Zm_variants.tsv > Zm_variants2.tsv
+
+###Alter the table to match required SNP file format
+ml R/4.3.2-foss-2022b
+R
+Zm_variants2 <- read.csv("/scratch/jms53460/Maize_SGT_2022/Zm_variants2.tsv", sep="")
+Zm_SNPs = Zm_variants2[,(1:4)]
+Zm_SNPs[,5] = paste(Zm_variants2[,5], "/", Zm_variants2[,6], sep = "")
+colnames(Zm_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Zm_SNPs$"SNP value" = 1
+write.table(Zm_SNPs, file = 'Zm_variants.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
+
+grep "SNP" Zm_variants.tab > Zm_SNPs.tab
+
+
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+mkdir B73_v5_genome_dir
+cp B73_v5_genome.fa B73_v5_genome_dir
+SNPsplit_genome_preparation --vcf_file syri.vcf --reference_genome B73_v5_genome_dir --list_strains
+#There were no genomes available according to SNPsplit_genome_preparation, but I think that just looks at the vcf, which lacks a strain name this time. Since I will skip vcf filtering, I may be able to do this by assigning a strain name in the SNP directory
+
+###Trying to use SNPsplit_genome_preparation to make N-masked genome
+mkdir SNPs_B73_v5
+cp Zm_SNPs.tab SNPs_B73_v5
+
+#!/bin/bash
+#SBATCH --job-name=Zm_SNPsplit_genome_prep                                # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit_gp.out      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit_gp.err       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+
+SNPsplit_genome_preparation --vcf_file syri.vcf --reference_genome B73_v5_genome_dir --strain B73_v5 --skip_filtering
 
 
 
