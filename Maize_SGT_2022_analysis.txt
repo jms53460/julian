@@ -597,30 +597,39 @@ ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 SNPsplit --conflicting -o Zm_SNPsplit --snp_file Zm_SNPs.tab hisat2_out/merged_s.bam
 
 
-###Assemble transcripts with stringtie
+###It seems to have worked. The proportions of reads specific for each genome are low compared to what Brad recalls observing before, so there may still be some optimization needed, but overall I consider this goal met.
+
+#Allele-specific single-end sorting report
+#=========================================
+#Read alignments processed in total:             324801816
+#Reads were unassignable:                        318237590 (97.98%)
+#Reads were specific for genome 1:               3016984 (0.93%)
+#Reads were specific for genome 2:               2558188 (0.79%)
+#Reads contained conflicting SNP information:    989054 (0.30)
+
+
+mkdir Mapped_Data/demultiplexed3
+cp Mapped_Data/demultiplexed/RPI1_1a_L2_* Mapped_Data/demultiplexed3
+
 
 #!/bin/bash
-#SBATCH --job-name=Ns_stringtie                         # Job name
-#SBATCH --partition=batch                               # Partition (queue) name
-#SBATCH --ntasks=1                                      # Single task job
-#SBATCH --cpus-per-task=6                               # Number of cores per task
-#SBATCH --mem=50gb                                      # Total memory for job
-#SBATCH --time=12:00:00                                 # Time limit hrs:min:sec
-#SBATCH --output=/home/jms53460/Ns_stringtie.out        # Location of standard output file
-#SBATCH --error=/home/jms53460/Ns_stringtie.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                    # Where to send mail
-#SBATCH --mail-type=END,FAIL                            # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --job-name=Zm_download_v4                                         # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=3:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_download4.out         # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_download4.err          # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /home/jms53460
-for file in "hisat2_out/"*_s.bam
-do
-	ml StringTie/2.2.1-GCC-11.3.0
-	stringtie -p 6 --rf -o "stringtie_out2/""${file:11:-4}"".gtf" "$file"
-done
+cd /scratch/jms53460/Maize_SGT_2022
 
-# Merge StringTie transcripts
-ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
+curl -s https://stacks.stanford.edu/file/druid:js115sm3463/4o-A188_B73.AB.final.vcf > v4_A188_B73.vcf
+curl -s https://stacks.stanford.edu/file/druid:js115sm3463/A188_SNPs.tab.gz > v4_SNPs.tab.gz
+curl -s https://download.maizegdb.org/Zm-B73-REFERENCE-GRAMENE-4.0/Zm-B73-REFERENCE-GRAMENE-4.0.fa.gz > v4_B73.fa
 
-# Merge GTF files
-stringtie --merge -p 6 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
-rm mergelist.txt
+
+
+###Next steps are to figure out what is going wrong with the files that are not making it through demultiplexing, remap the data using all the files, and run stringtie, featurecounts, UMIcounts, and R code to output data tables for visualizing the data in R 
