@@ -725,5 +725,40 @@ ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 SNPsplit --conflicting -o Zm_SNPsplit2 --snp_file Zm_SNPs.tab hisat2_out2/merged_s.bam
 
 
+wc -l hisat2_out2/merged_s.bam #140488880
+#Somehow SNPsplit is processing a lot more lines than exist in my bam file? Already at 444000000 lines processed
+wc -l hisat2_out/merged_s.bam #46302542 lines in the previous run
+#SNPsplit processed 350084986 read alignments in the previous run
+#Based on this ratio SNPsplit should read ~1062210528 read alignments this time
+
+###There were still not that many reads matching the two genomes (about 2% genome 1 and 1.5% genome 2). I suspect there may be an issue with the N-masking including non-SNP regions. It looks like SNPsplit_genome_preparation expects the SNP file to be split by chromosome, so I can try splitting the file up and running that again. I may also want an alternative method to make a vcf file where I don't have to exclude scaffolds.
+###I'm trying to make a vcf file using the alignment from minimap2 and bcftools mpileup
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Zm_mpileup                                             # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=12                                                # Number of cores per task
+#SBATCH --mem=100gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_mpileup.out          # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_mpileup.err           # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+module load SAMtools/1.16.1-GCC-11.3.0
+samtools view -@ 12 -bS A188_aligned_to_B73.sam > A188_aligned_to_B73.bam
+samtools index -@ 12 A188_aligned_to_B73.bam
+
+module load BCFtools/1.15.1-GCC-11.3.0
+bcftools mpileup -Ou --threads 12 --min-MQ 60 -f B73_v5_genome.fa A188_aligned_to_B73.bam | bcftools call -Ou -m -v --threads 12 | bcftools filter --threads 12 -Oz -e 'QUAL<40 || DP<10' > Zm_mpileup.vcf.gz
+bcftools index --threads 12 Zm_mpileup.vcf.gz
+
+
+
+
 
 ###Next steps are to figure out what is going wrong with the files that are not making it through demultiplexing, remap the data using all the files, and run stringtie, featurecounts, UMIcounts, and R code to output data tables for visualizing the data in R 
