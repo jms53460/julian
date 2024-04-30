@@ -750,13 +750,73 @@ wc -l hisat2_out/merged_s.bam #46302542 lines in the previous run
 
 cd /scratch/jms53460/Maize_SGT_2022
 module load SAMtools/1.16.1-GCC-11.3.0
-samtools view -@ 12 -bT B73_v5_genome.fa A188_aligned_to_B73.sam > A188_aligned_to_B73.bam
+samtools view -@ 12 -bS A188_aligned_to_B73.sam > A188_aligned_to_B73.bam
 samtools index -@ 12 A188_aligned_to_B73.bam
 
 module load BCFtools/1.15.1-GCC-11.3.0
 bcftools mpileup -Ou --threads 12 -d 10000000000000 --min-MQ 60 -f B73_v5_genome.fa A188_aligned_to_B73.bam | bcftools call -Ou -m -v --threads 12 | bcftools filter --threads 12 -Oz -e 'QUAL<40 || DP<10' > Zm_mpileup.vcf.gz
 bcftools index --threads 12 Zm_mpileup.vcf.gz
 
+
+###This is not working. The sam file is not coverting to a bam file successfully.
+
+
+###Trying to use SNPsplit_genome_preparation after splitting SNP file by chromosomes
+grep chr1 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr1.txt
+grep chr2 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr2.txt
+grep chr3 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr3.txt
+grep chr4 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr4.txt
+grep chr5 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr5.txt
+grep chr6 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr6.txt
+grep chr7 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr7.txt
+grep chr8 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr8.txt
+grep chr9 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr9.txt
+grep chr10 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr10.txt
+
+#!/bin/bash
+#SBATCH --job-name=Zm_SNPsplit_genome_prep2                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit_gp2.out     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit_gp2.err      # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+
+SNPsplit_genome_preparation --vcf_file syri.vcf --reference_genome B73_v5_genome_dir --strain B73_v5 --skip_filtering
+
+
+
+###Next I'll try using v4 files and see if things go differently
+
+mkdir v4_B73_genome_dir
+cp v4_B73.fa v4_B73_genome_dir
+mkdir SNPs_v4_B73
+cp v4_SNPs.tab SNPs_v4_B73
+
+#!/bin/bash
+#SBATCH --job-name=Zm_SNPsplit_genome_prep_v4                             # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit_gp_v4.out   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit_gp_v4.err    # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+
+SNPsplit_genome_preparation --vcf_file v4_A188_B73.vcf --reference_genome v4_B73_genome_dir --strain v4_B73 --skip_filtering
 
 
 
