@@ -1,0 +1,29 @@
+Input file:					'merged_N-masked_s.bam'
+Writing allele-flagged output file to:		'merged_N-masked_s.allele_flagged.bam'
+
+
+Allele-tagging report
+=====================
+Processed 94858737 read alignments in total
+Reads were unaligned and hence skipped: 9447768 (9.96%)
+84076647 reads were unassignable (88.63%)
+543315 reads were specific for genome 1 (0.57%)
+732886 reads were specific for genome 2 (0.77%)
+204165 reads did not contain one of the expected bases at known SNP positions (0.22%)
+58121 contained conflicting allele-specific SNPs (0.06%)
+
+
+SNP coverage report
+===================
+SNP annotation file:	Ns_SNPs3.tab
+SNPs stored in total:	4585
+N-containing reads:	1501934
+non-N:			83872482
+total:			94858737
+Reads had a deletion of the N-masked position (and were thus dropped):	36553 (0.04%)
+Of which had multiple deletions of N-masked positions within the same read:	68
+
+Of valid N containing reads,
+N was present in the list of known SNPs:	2346548 (71.66%)
+N was not present in the list of SNPs:		928165 (28.34%)
+

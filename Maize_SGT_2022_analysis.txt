@@ -772,6 +772,60 @@ grep chr7 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr7.txt
 grep chr8 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr8.txt
 grep chr9 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr9.txt
 grep chr10 SNPs_B73_v5/Zm_SNPs.tab > SNPs_B73_v5/chr10.txt
+cd SNPs_B73_v5
+ml R/4.3.2-foss-2022b
+R
+chr1 <- read.delim('chr1.txt', header = FALSE)
+colnames(chr1) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr1$Chr = 1
+write.table(chr1, file = 'chr1.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr2 <- read.delim('chr2.txt', header = FALSE)
+colnames(chr2) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr2$Chr = 2
+write.table(chr2, file = 'chr2.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr3 <- read.delim('chr3.txt', header = FALSE)
+colnames(chr3) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr3$Chr = 3
+write.table(chr3, file = 'chr3.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr4 <- read.delim('chr4.txt', header = FALSE)
+colnames(chr4) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr4$Chr = 4
+write.table(chr4, file = 'chr4.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr5 <- read.delim('chr5.txt', header = FALSE)
+colnames(chr5) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr5$Chr = 5
+write.table(chr5, file = 'chr5.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr6 <- read.delim('chr6.txt', header = FALSE)
+colnames(chr6) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr6$Chr = 6
+write.table(chr6, file = 'chr6.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr7 <- read.delim('chr7.txt', header = FALSE)
+colnames(chr7) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr7$Chr = 7
+write.table(chr7, file = 'chr7.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr8 <- read.delim('chr8.txt', header = FALSE)
+colnames(chr8) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr8$Chr = 8
+write.table(chr8, file = 'chr8.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr9 <- read.delim('chr9.txt', header = FALSE)
+colnames(chr9) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr9$Chr = 9
+write.table(chr9, file = 'chr9.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+chr10 <- read.delim('chr10.txt', header = FALSE)
+colnames(chr10) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+chr10$Chr = 10
+write.table(chr10, file = 'chr10.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
+
 
 #!/bin/bash
 #SBATCH --job-name=Zm_SNPsplit_genome_prep2                               # Job name
@@ -791,7 +845,7 @@ ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 
 SNPsplit_genome_preparation --vcf_file syri.vcf --reference_genome B73_v5_genome_dir --strain B73_v5 --skip_filtering
 
-
+###I should check that I disabled soft clipping with hisat2
 
 ###Next I'll try using v4 files and see if things go differently
 
@@ -819,6 +873,9 @@ ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 SNPsplit_genome_preparation --vcf_file v4_A188_B73.vcf --reference_genome v4_B73_genome_dir --strain v4_B73 --skip_filtering
 
 
+###download SNPsplit reports with scp
+scp txfer:/scratch/jms53460/Maize_SGT_2022/Zm_SNPsplit2/merged_s.SNPsplit_report.txt .
+scp txfer:/home/jms53460/Ns_SNPsplit3/merged_N-masked_s.SNPsplit_report.txt .
 
 
 ###Next steps are to figure out what is going wrong with the files that are not making it through demultiplexing, remap the data using all the files, and run stringtie, featurecounts, UMIcounts, and R code to output data tables for visualizing the data in R 
