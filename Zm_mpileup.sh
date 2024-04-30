@@ -12,9 +12,9 @@
 
 cd /scratch/jms53460/Maize_SGT_2022
 module load SAMtools/1.16.1-GCC-11.3.0
-samtools view -@ 12 -bS A188_aligned_to_B73.sam > A188_aligned_to_B73.bam
+samtools view -@ 12 -bT B73_v5_genome.fa A188_aligned_to_B73.sam > A188_aligned_to_B73.bam
 samtools index -@ 12 A188_aligned_to_B73.bam
 
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 12 --min-MQ 60 -f B73_v5_genome.fa A188_aligned_to_B73.bam | bcftools call -Ou -m -v --threads 12 | bcftools filter --threads 12 -Oz -e 'QUAL<40 || DP<10' > Zm_mpileup.vcf.gz
+bcftools mpileup -Ou --threads 12 -d 10000000000000 --min-MQ 60 -f B73_v5_genome.fa A188_aligned_to_B73.bam | bcftools call -Ou -m -v --threads 12 | bcftools filter --threads 12 -Oz -e 'QUAL<40 || DP<10' > Zm_mpileup.vcf.gz
 bcftools index --threads 12 Zm_mpileup.vcf.gz
