@@ -211,3 +211,69 @@ samtools sort -@ 6 hisat2_out/merged_unsorted.bam -o hisat2_out/merged_s.bam
 samtools index -@ 6 hisat2_out/merged_s.bam
 
 
+###Realized I need to remove the files from CELseq barcodes I did not use
+###What I did use: 
+#At1: 1-24s
+#At2: 25-48s
+#At3: 49-72s
+#At4: 73-96s
+
+rm At1*25*
+ml R/4.3.2-foss-2022b
+R
+At1 = c(25:96)
+At2 = c(1:24,49:96)
+At3 = c(1:48,73:96)
+At4 = c(1:72)
+rm1 = paste('rm hisat2_out/At1_S90_L003_', At1, 's.fastq.gz', sep = '')
+write.csv(rm1, row.names=F, quote = F, file = 'rm1.txt')
+rm2 = paste('rm hisat2_out/At2_S91_L003_', At2, 's.fastq.gz', sep = '')
+write.csv(rm2, row.names=F, quote = F, file = 'rm2.txt')
+rm3 = paste('rm hisat2_out/At3_S92_L003_', At3, 's.fastq.gz', sep = '')
+write.csv(rm3, row.names=F, quote = F, file = 'rm3.txt')
+rm4 = paste('rm hisat2_out/At4_S93_L003_', At4, 's.fastq.gz', sep = '')
+write.csv(rm4, row.names=F, quote = F, file = 'rm4.txt')
+q()
+head -100 rm1.txt #copy and paste into command line
+head -100 rm2.txt
+head -100 rm3.txt
+head -100 rm4.txt
+rm hisat2_out/*unmatched*
+rm hisat2_out/merged_unsorted.bam
+
+###Rerunning hisat2 now that I got rid of the unnecessary files
+
+###R code to make a list of hisat2_out/*fastq.gz files
+ml R/4.3.2-foss-2022b
+R
+directory1 = 'hisat2_out'
+f = dir(directory1)
+runs = unique(f[grepl('fastq.gz', f)])
+out = NULL
+out = c(out, '', paste(c('hisat2 -p 6 --dta -x /scratch/jms53460/4_2024_At_Spike_ins/Ler_0_N-masked/merged_hisat2_index -U ', paste(paste(directory1, '/', runs, sep = ''), collapse=','), ' | samtools view -bS -> hisat2_out/merged_unsorted.bam'), collapse = ''))
+write.csv(out, row.names=F, quote = F, file = 'generated_code.txt')
+q()
+head generated_code.txt
+
+#Copied and pasted the code generated in R in the bash script below
+#Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
+
+#!/bin/bash
+#SBATCH --job-name=At_hisat2_2                                            # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_hs2_2.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_hs2_2.err        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+ml HISAT2/3n-20201216-gompi-2022a
+ml SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 6 --dta -x /scratch/jms53460/4_2024_At_Spike_ins/Ler_0_N-masked/merged_hisat2_index -U hisat2_out/At1_S90_L003_10s.fastq.gz,hisat2_out/At1_S90_L003_11s.fastq.gz,hisat2_out/At1_S90_L003_12s.fastq.gz,hisat2_out/At1_S90_L003_13s.fastq.gz,hisat2_out/At1_S90_L003_14s.fastq.gz,hisat2_out/At1_S90_L003_15s.fastq.gz,hisat2_out/At1_S90_L003_16s.fastq.gz,hisat2_out/At1_S90_L003_17s.fastq.gz,hisat2_out/At1_S90_L003_18s.fastq.gz,hisat2_out/At1_S90_L003_19s.fastq.gz,hisat2_out/At1_S90_L003_1s.fastq.gz,hisat2_out/At1_S90_L003_20s.fastq.gz,hisat2_out/At1_S90_L003_21s.fastq.gz,hisat2_out/At1_S90_L003_22s.fastq.gz,hisat2_out/At1_S90_L003_23s.fastq.gz,hisat2_out/At1_S90_L003_24s.fastq.gz,hisat2_out/At1_S90_L003_2s.fastq.gz,hisat2_out/At1_S90_L003_3s.fastq.gz,hisat2_out/At1_S90_L003_4s.fastq.gz,hisat2_out/At1_S90_L003_5s.fastq.gz,hisat2_out/At1_S90_L003_6s.fastq.gz,hisat2_out/At1_S90_L003_7s.fastq.gz,hisat2_out/At1_S90_L003_8s.fastq.gz,hisat2_out/At1_S90_L003_9s.fastq.gz,hisat2_out/At2_S91_L003_25s.fastq.gz,hisat2_out/At2_S91_L003_26s.fastq.gz,hisat2_out/At2_S91_L003_27s.fastq.gz,hisat2_out/At2_S91_L003_28s.fastq.gz,hisat2_out/At2_S91_L003_29s.fastq.gz,hisat2_out/At2_S91_L003_30s.fastq.gz,hisat2_out/At2_S91_L003_31s.fastq.gz,hisat2_out/At2_S91_L003_32s.fastq.gz,hisat2_out/At2_S91_L003_33s.fastq.gz,hisat2_out/At2_S91_L003_34s.fastq.gz,hisat2_out/At2_S91_L003_35s.fastq.gz,hisat2_out/At2_S91_L003_36s.fastq.gz,hisat2_out/At2_S91_L003_37s.fastq.gz,hisat2_out/At2_S91_L003_38s.fastq.gz,hisat2_out/At2_S91_L003_39s.fastq.gz,hisat2_out/At2_S91_L003_40s.fastq.gz,hisat2_out/At2_S91_L003_41s.fastq.gz,hisat2_out/At2_S91_L003_42s.fastq.gz,hisat2_out/At2_S91_L003_43s.fastq.gz,hisat2_out/At2_S91_L003_44s.fastq.gz,hisat2_out/At2_S91_L003_45s.fastq.gz,hisat2_out/At2_S91_L003_46s.fastq.gz,hisat2_out/At2_S91_L003_47s.fastq.gz,hisat2_out/At2_S91_L003_48s.fastq.gz,hisat2_out/At3_S92_L003_49s.fastq.gz,hisat2_out/At3_S92_L003_50s.fastq.gz,hisat2_out/At3_S92_L003_51s.fastq.gz,hisat2_out/At3_S92_L003_52s.fastq.gz,hisat2_out/At3_S92_L003_53s.fastq.gz,hisat2_out/At3_S92_L003_54s.fastq.gz,hisat2_out/At3_S92_L003_55s.fastq.gz,hisat2_out/At3_S92_L003_56s.fastq.gz,hisat2_out/At3_S92_L003_57s.fastq.gz,hisat2_out/At3_S92_L003_58s.fastq.gz,hisat2_out/At3_S92_L003_59s.fastq.gz,hisat2_out/At3_S92_L003_60s.fastq.gz,hisat2_out/At3_S92_L003_61s.fastq.gz,hisat2_out/At3_S92_L003_62s.fastq.gz,hisat2_out/At3_S92_L003_63s.fastq.gz,hisat2_out/At3_S92_L003_64s.fastq.gz,hisat2_out/At3_S92_L003_65s.fastq.gz,hisat2_out/At3_S92_L003_66s.fastq.gz,hisat2_out/At3_S92_L003_67s.fastq.gz,hisat2_out/At3_S92_L003_68s.fastq.gz,hisat2_out/At3_S92_L003_69s.fastq.gz,hisat2_out/At3_S92_L003_70s.fastq.gz,hisat2_out/At3_S92_L003_71s.fastq.gz,hisat2_out/At3_S92_L003_72s.fastq.gz,hisat2_out/At4_S93_L003_73s.fastq.gz,hisat2_out/At4_S93_L003_74s.fastq.gz,hisat2_out/At4_S93_L003_75s.fastq.gz,hisat2_out/At4_S93_L003_76s.fastq.gz,hisat2_out/At4_S93_L003_77s.fastq.gz,hisat2_out/At4_S93_L003_78s.fastq.gz,hisat2_out/At4_S93_L003_79s.fastq.gz,hisat2_out/At4_S93_L003_80s.fastq.gz,hisat2_out/At4_S93_L003_81s.fastq.gz,hisat2_out/At4_S93_L003_82s.fastq.gz,hisat2_out/At4_S93_L003_83s.fastq.gz,hisat2_out/At4_S93_L003_84s.fastq.gz,hisat2_out/At4_S93_L003_85s.fastq.gz,hisat2_out/At4_S93_L003_86s.fastq.gz,hisat2_out/At4_S93_L003_87s.fastq.gz,hisat2_out/At4_S93_L003_88s.fastq.gz,hisat2_out/At4_S93_L003_89s.fastq.gz,hisat2_out/At4_S93_L003_90s.fastq.gz,hisat2_out/At4_S93_L003_91s.fastq.gz,hisat2_out/At4_S93_L003_92s.fastq.gz,hisat2_out/At4_S93_L003_93s.fastq.gz,hisat2_out/At4_S93_L003_94s.fastq.gz,hisat2_out/At4_S93_L003_95s.fastq.gz,hisat2_out/At4_S93_L003_96s.fastq.gz | samtools view -bS -> hisat2_out/merged_unsorted.bam 
+samtools sort -@ 6 hisat2_out/merged_unsorted.bam -o hisat2_out/merged_s.bam
+samtools index -@ 6 hisat2_out/merged_s.bam
+
