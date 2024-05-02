@@ -16,4 +16,4 @@ samtools sort -@ 6 At_SNPsplit/merged_s.allele_flagged.bam -o At_SNPsplit/sorted
 mkdir stringtie_out
 
 ml StringTie/2.2.1-GCC-11.3.0
-stringtie At_SNPsplit/sorted_SNPsplit.bam -p 6 -G TAIR10.1_Col_5.gff --rf -o stringtie_out/sorted_SNPsplit.gtf
+stringtie At_SNPsplit/sorted_SNPsplit.bam -p 6 -G TAIR10.1_Col_chr.gff --rf -o stringtie_out/sorted_SNPsplit.gtf

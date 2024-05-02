@@ -351,6 +351,13 @@ sed 's/NC_003074.8/3/' TAIR10.1_Col_2.gff > TAIR10.1_Col_3.gff
 sed 's/NC_003075.7/4/' TAIR10.1_Col_3.gff > TAIR10.1_Col_4.gff
 sed 's/NC_003076.8/5/' TAIR10.1_Col_4.gff > TAIR10.1_Col_5.gff
 
+###Remove mitochondrial and plastid annotations from gff
+grep 'genome=' TAIR10.1_Col_5.gff 
+#ID=NC_037304.1:1..367808;Dbxref=taxon:3702;Is_circular=true;Name=MT;ecotype=Col-0;gbkey=Src;genome=mitochondrion;mol_type=genomic DNA
+#ID=NC_000932.1:1..154478;Dbxref=taxon:3702;Is_circular=true;Name=Pltd;ecotype=Columbia;gbkey=Src;genome=chloroplast;mol_type=genomic DNA
+grep -v 'NC_037304.1' TAIR10.1_Col_5.gff > TAIR10.1_Col_6.gff
+grep -v 'NC_000932.1' TAIR10.1_Col_6.gff > TAIR10.1_Col_chr.gff
+
 ###Sort SNPsplit flagged bam file, assemble transcripts with stringtie
 
 #!/bin/bash
@@ -371,7 +378,7 @@ samtools sort -@ 6 At_SNPsplit/merged_s.allele_flagged.bam -o At_SNPsplit/sorted
 mkdir stringtie_out
 
 ml StringTie/2.2.1-GCC-11.3.0
-stringtie At_SNPsplit/sorted_SNPsplit.bam -p 6 -G TAIR10.1_Col_5.gff --rf -o stringtie_out/sorted_SNPsplit.gtf
+stringtie At_SNPsplit/sorted_SNPsplit.bam -p 6 -G TAIR10.1_Col_chr.gff --rf -o stringtie_out/sorted_SNPsplit.gtf
 
 
 
