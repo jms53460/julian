@@ -96,8 +96,7 @@ ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 
 SNPsplit_genome_preparation --vcf_file At_vcf.gz --reference_genome Col_genome_dir --strain Ler_0 --skip_filtering --genome_build Col
 
-###This failed, and I suspect the chromosome names not matching may be why. Downloading genome directly from TAIR instead of NCBI
-curl -s https://www.arabidopsis.org/download_files/Genes/TAIR10_genome_release/TAIR10_chromosome_files/TAIR10_chr_all.fas.gz > TAIR10_genome.fa.gz
+###This failed, and I suspect the chromosome names not matching and the SNP files not being split may be why
 
 sed 's/NC_003070.9/1/' TAIR10.1_Col_genome.fa > TAIR10.1_Col_1.fa
 sed 's/NC_003071.7/2/' TAIR10.1_Col_1.fa > TAIR10.1_Col_2.fa
@@ -309,3 +308,171 @@ mkdir At_SNPsplit
 SNPsplit --conflicting -o At_SNPsplit --snp_file Ler_SNPs.tab hisat2_out/merged_s.bam
 
 
+###less At_SNPsplit.err
+Allele-tagging report
+=====================
+Processed 26201798 read alignments in total
+Reads were unaligned and hence skipped: 11999147 (45.80%)
+Reads were hard-clipped (CIGAR: H) and skipped: 0
+12125435 reads were unassignable (46.28%)
+958520 reads were specific for genome 1 (3.66%)
+1082888 reads were specific for genome 2 (4.13%)
+7072 reads did not contain one of the expected bases at known SNP positions (0.03%)
+35808 contained conflicting allele-specific SNPs (0.14%)
+
+
+SNP coverage report
+===================
+SNP annotation file:    Ler_SNPs.tab
+SNPs stored in total:   795403
+N-containing reads:     2080926
+non-N:                  12118363
+total:                  26201798
+Reads had a deletion of the N-masked position (and were thus called Conflicting):       3362 (0.01%)
+Of which had multiple deletions of N-masked positions within the same read:     0 (0.00%)
+
+Of valid N containing reads,
+N was present in the list of known SNPs:        3447857 (99.93%)
+N was not present in the list of SNPs:          2469 (0.07%)
+
+Allele-specific single-end sorting report
+=========================================
+Read alignments processed in total:             14202651
+Reads were unassignable:                        12125435 (85.37%)
+Reads were specific for genome 1:               958520 (6.75%)
+Reads were specific for genome 2:               1082888 (7.62%)
+Reads contained conflicting SNP information:    35808 (0.25)
+
+
+###Make chromosome names in the gff file match what was used with SNPsplit
+sed 's/NC_003070.9/1/' TAIR10.1_Col.gff > TAIR10.1_Col_1.gff
+sed 's/NC_003071.7/2/' TAIR10.1_Col_1.gff > TAIR10.1_Col_2.gff
+sed 's/NC_003074.8/3/' TAIR10.1_Col_2.gff > TAIR10.1_Col_3.gff
+sed 's/NC_003075.7/4/' TAIR10.1_Col_3.gff > TAIR10.1_Col_4.gff
+sed 's/NC_003076.8/5/' TAIR10.1_Col_4.gff > TAIR10.1_Col_5.gff
+
+###Sort SNPsplit flagged bam file, assemble transcripts with stringtie
+
+#!/bin/bash
+#SBATCH --job-name=At_stringtie                                           # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_stringtie.out   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_stringtie.err    # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+ml SAMtools/1.16.1-GCC-11.3.0
+samtools sort -@ 6 At_SNPsplit/merged_s.allele_flagged.bam -o At_SNPsplit/sorted_SNPsplit.bam
+mkdir stringtie_out
+
+ml StringTie/2.2.1-GCC-11.3.0
+stringtie At_SNPsplit/sorted_SNPsplit.bam -p 6 -G TAIR10.1_Col_5.gff --rf -o stringtie_out/sorted_SNPsplit.gtf
+
+
+
+interact -c 4 --mem 8gb
+ml purge
+ml Miniconda3/4.12.0
+conda create -p subread-env -y
+source activate ./subread-env/
+conda install -c bioconda subread -y
+subread-align
+
+
+### Run featurecounts 
+
+#!/bin/bash
+#SBATCH --job-name=featurecounts       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=4                  # Number of CPU cores per task
+#SBATCH --mem=40gb                       # Job memory request
+#SBATCH --time=4:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=featurecounts.out         # Standard output log
+#SBATCH --error=featurecounts.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate /scratch/jms53460/Poplar/subread-env
+
+featureCounts -T 4 -s 1 -a "/scratch/jms53460/Poplar/PtremulaxPopulusalbaHAP1_717_v5.1.gene.gff3" -t 'gene' -g 'ID' -o "stringtie_out/read_counts.tab" --readExtension5 500 -R BAM "hisat2_out/"*.bam
+
+featureCounts -T 4 -s 1 -a "stringtie_out/stringtie_merged.gtf" -o "stringtie_out/read_counts.tab" --readExtension5 500 -R BAM "hisat2_out/"*.bam
+
+conda deactivate
+
+
+#### Count UMIs
+
+mkdir "bams"
+mkdir "UMIcounts"
+
+#!/bin/bash
+#SBATCH --job-name=UMIcounts       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=40gb                       # Job memory request
+#SBATCH --time=4:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=UMIcounts.out         # Standard output log
+#SBATCH --error=UMIcounts.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+
+cd $SLURM_SUBMIT_DIR
+
+for file in "stringtie_out/"*.bam
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 8 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+        # rm "$file"
+    fi
+done
+
+
+ml R/4.3.1-foss-2022a
+
+R
+
+annots = strsplit(read.table('stringtie_out/stringtie_merged.gtf', sep = '\t')[,9], '; ')
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('gene_id ', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+
+save(B, file = "Poplar_10-23")
