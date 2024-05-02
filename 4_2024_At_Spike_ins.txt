@@ -96,8 +96,118 @@ ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 
 SNPsplit_genome_preparation --vcf_file At_vcf.gz --reference_genome Col_genome_dir --strain Ler_0 --skip_filtering --genome_build Col
 
+###This failed, and I suspect the chromosome names not matching may be why. Downloading genome directly from TAIR instead of NCBI
+curl -s https://www.arabidopsis.org/download_files/Genes/TAIR10_genome_release/TAIR10_chromosome_files/TAIR10_chr_all.fas.gz > TAIR10_genome.fa.gz
 
-ml SNPsplit
-SNPsplit_genome_preparation --vcf_file At_vcf.gz --reference_genome Col_genome_dir --list_strains
+sed 's/NC_003070.9/1/' TAIR10.1_Col_genome.fa > TAIR10.1_Col_1.fa
+sed 's/NC_003071.7/2/' TAIR10.1_Col_1.fa > TAIR10.1_Col_2.fa
+sed 's/NC_003074.8/3/' TAIR10.1_Col_2.fa > TAIR10.1_Col_3.fa
+sed 's/NC_003075.7/4/' TAIR10.1_Col_3.fa > TAIR10.1_Col_4.fa
+sed 's/NC_003076.8/5/' TAIR10.1_Col_4.fa > TAIR10.1_Col_5.fa
+rm Col_genome_dir/TAIR10.1_Col_genome.fa
+cp TAIR10.1_Col_5.fa Col_genome_dir/
 
-###Downloaded current Nicotiana sylvestris genome from NCBI and used FileZilla to transfer to the cluster
+###Splitting up the SNP files by chromosome
+
+ml R/4.3.2-foss-2022b
+R
+Ler_SNPs <- read.delim('Ler.syri.out.gz', header = FALSE)
+Ler_SNPs_only = Ler_SNPs[Ler_SNPs$V11 == 'SNP',]
+columns = c('V12','V1','V2','V12')
+Ler_SNPs_trim = Ler_SNPs_only[,columns]
+Ler_SNPs_trim[,5] = paste(Ler_SNPs_only$V4, "/", Ler_SNPs_only$V5, sep = "")
+Ler_SNPs_trim[,2] = gsub("Chr", "", Ler_SNPs_trim[,2])
+colnames(Ler_SNPs_trim) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Ler_SNPs_trim$"ID" = "."
+Ler_SNPs_trim$"SNP value" = 1
+chr1 = Ler_SNPs_trim[Ler_SNPs_trim$Chr == "1",]
+write.table(chr1, file = 'chr1.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+chr2 = Ler_SNPs_trim[Ler_SNPs_trim$Chr == "2",]
+write.table(chr2, file = 'chr2.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+chr3 = Ler_SNPs_trim[Ler_SNPs_trim$Chr == "3",]
+write.table(chr3, file = 'chr3.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+chr4 = Ler_SNPs_trim[Ler_SNPs_trim$Chr == "4",]
+write.table(chr4, file = 'chr4.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+chr5 = Ler_SNPs_trim[Ler_SNPs_trim$Chr == "5",]
+write.table(chr5, file = 'chr5.txt', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
+
+cp chr*.txt SNPs_Ler_0/
+rm SNPs_Ler_0/Ler_SNPs.tab
+rm Ler_0_N-masked/*NC_*
+
+###When I reran SNPsplit_genome_preparation, it finally worked! I'm discarding the mitochondrial and plastid sequences from the reference since I have no SNPs for them.
+###Now I can map my reads to the N-masked genome
+
+###Merge the N-masked chromosome files
+cat Ler_0_N-masked/*.fa >> Ler_0_N-masked/merged.fa
+grep 'N' Ler_0_N-masked/merged.fa | head
+grep '>' Ler_0_N-masked/merged.fa | head #looks like it worked
+
+###Make hisat2 index and run fastp
+
+#!/bin/bash
+#SBATCH --job-name=At_index_fastp                                         # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_index_fastp.out # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_index_fastp.err  # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build -p 6 Ler_0_N-masked/merged.fa Ler_0_N-masked/merged_hisat2_index
+mkdir hisat2_out
+
+for file in "Demultiplexed/"*.fastq*
+do
+	file2="${file:14:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	module load fastp/0.23.2-GCC-11.3.0
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+fi
+done
+
+
+###R code to make a list of hisat2_out/*fastq.gz files
+ml R/4.3.2-foss-2022b
+R
+directory1 = 'hisat2_out'
+f = dir(directory1)
+runs = unique(f[grepl('fastq.gz', f)])
+out = NULL
+out = c(out, '', paste(c('hisat2 -p 6 --dta -x /scratch/jms53460/4_2024_At_Spike_ins/Ler_0_N-masked/merged_hisat2_index -U ', paste(paste(directory1, '/', runs, sep = ''), collapse=','), ' | samtools view -bS -> hisat2_out/merged_unsorted.bam'), collapse = ''))
+write.csv(out, row.names=F, quote = F, file = 'generated_code.txt')
+q()
+head generated_code.txt
+
+#Copied and pasted the code generated in R in the bash script below
+#Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
+
+#!/bin/bash
+#SBATCH --job-name=At_hisat2                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_hs2.out         # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_hs2.err          # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+ml HISAT2/3n-20201216-gompi-2022a
+ml SAMtools/1.16.1-GCC-11.3.0
+hisat2
+samtools sort -@ 6 hisat2_out/merged_unsorted.bam -o hisat2_out/merged_s.bam
+samtools index -@ 6 hisat2_out/merged_s.bam
+
+
