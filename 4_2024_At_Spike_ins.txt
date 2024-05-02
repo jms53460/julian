@@ -49,4 +49,55 @@ done
 conda deactivate
 
 
+
+curl -s https://1001genomes.org/data/GMI-MPI/releases/v3.1/1001genomes_snp-short-indel_only_ACGTN.vcf.gz > At_vcf.gz
+curl -s https://1001genomes.org/data/MPIPZ/MPIPZJiao2020/releases/current/strains/Ler/Ler.syri.out.gz > Ler.syri.out.gz
+
+ml NCBI-Datasets-CLI
+datasets download genome accession GCF_000001735.4 --include gff3,genome
+unzip ncbi_dataset.zip
+cp ncbi_dataset/data/GCF_000001735.4/GCF_000001735.4_TAIR10.1_genomic.fna /scratch/jms53460/4_2024_At_Spike_ins/TAIR10.1_Col_genome.fa
+cp ncbi_dataset/data/GCF_000001735.4/genomic.gff /scratch/jms53460/4_2024_At_Spike_ins/TAIR10.1_Col.gff
+
+
+ml R/4.3.2-foss-2022b
+R
+Ler_SNPs <- read.delim('Ler.syri.out.gz', header = FALSE)
+Ler_SNPs_only = Ler_SNPs[Ler_SNPs$V11 == 'SNP',]
+columns = c('V12','V1','V2','V12')
+Ler_SNPs_trim = Ler_SNPs_only[,columns]
+Ler_SNPs_trim[,5] = paste(Ler_SNPs_only$V4, "/", Ler_SNPs_only$V5, sep = "")
+Ler_SNPs_trim[,2] = gsub("Chr", "", Ler_SNPs_trim[,2])
+colnames(Ler_SNPs_trim) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Ler_SNPs_trim$"ID" = "."
+Ler_SNPs_trim$"SNP value" = 1
+write.table(Ler_SNPs_trim, file = 'Ler_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+mkdir Col_genome_dir
+cp TAIR10.1_Col_genome.fa Col_genome_dir/
+mkdir SNPs_Ler_0
+cp Ler_SNPs.tab SNPs_Ler_0/
+
+#!/bin/bash
+#SBATCH --job-name=At_SNPsplit_genome_prep                                # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_SNPsplit_gp.out # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_SNPsplit_gp.err  # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+
+SNPsplit_genome_preparation --vcf_file At_vcf.gz --reference_genome Col_genome_dir --strain Ler_0 --skip_filtering --genome_build Col
+
+
+ml SNPsplit
+SNPsplit_genome_preparation --vcf_file At_vcf.gz --reference_genome Col_genome_dir --list_strains
+
 ###Downloaded current Nicotiana sylvestris genome from NCBI and used FileZilla to transfer to the cluster
