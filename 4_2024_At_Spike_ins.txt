@@ -451,9 +451,7 @@ done
 
 
 ml R/4.3.1-foss-2022a
-
 R
-
 annots = strsplit(read.table('stringtie_out/sorted_SNPsplit.gtf', sep = '\t')[,9], '; ')
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
 names(annots) = sub('gene_id ', '', names(annots))
@@ -471,16 +469,52 @@ for (f in files) {
 colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
 A[is.na(A)] = 0
 A = A[rowSums(A) > 0,]
-
-B = A[order(rownames(A)),]
+A = as.matrix(A)
+B = as.matrix(A[order(rownames(A)),])
 B2 = B
 B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
 
-save(B, file = "4_2024_At_Spike_ins.RData")
+###This did not turn out right. It looks like I used the wrong bam file for featureCounts and UMItools, and also they did not handle the merged bam file properly (which was apparently okay with TagReadWithGeneFunction when I used it on mouse data). I will rerun things without making a merged bam file
 
+
+###Rerunning code, not making a merged bam file
+mkdir merged_files
+mv hisat2_out/merged* merged_files
+mv stringtie_out/* merged_files
+mv At_SNPsplit/* merged_files
+mv UMIcounts/* merged_files/
+mv bams/* merged_files/
+
+#!/bin/bash
+#SBATCH --job-name=At_hisat2_3                                            # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_hs2_3.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_hs2_3.err        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+for file in "hisat2_out/"*.fastq*
+do
+	file2="${file:11:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	ml HISAT2/3n-20201216-gompi-2022a
+    ml SAMtools/1.16.1-GCC-11.3.0
+	hisat2 -p 6 --dta -x Ler_0_N-masked/merged_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam" |
+	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
+	
+fi
+done
 
 
 
