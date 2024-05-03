@@ -477,6 +477,9 @@ for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
 
+save(B, file = "4_2024_At_Spike_ins.RData")
+q()
+
 ###This did not turn out right. It looks like I used the wrong bam file for featureCounts and UMItools, and also they did not handle the merged bam file properly (which was apparently okay with TagReadWithGeneFunction when I used it on mouse data). I will rerun things without making a merged bam file
 
 
@@ -548,8 +551,71 @@ do
 done
 
 
+#!/bin/bash
+#SBATCH --job-name=At_features_UMIs                                           # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=6                                                     # Number of cores per task
+#SBATCH --mem=50gb                                                            # Total memory for job
+#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_features_UMIs.out   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_features_UMIs.err    # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate ./subread-env/
+
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -o stringtie_out/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
+
+conda deactivate
+
+for file in "stringtie_out/"*.bam
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
 
 
+
+annots = strsplit(read.table('stringtie_out/stringtie_merged.gtf', sep = '\t')[,9], '; ')
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('gene_id ', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+
+save(B, file = "4_2024_At_Spike_ins.RData")
+q()
 
 
 
