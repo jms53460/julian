@@ -420,36 +420,32 @@ conda deactivate
 
 #### Count UMIs
 
-mkdir "bams"
-mkdir "UMIcounts"
-
 #!/bin/bash
-#SBATCH --job-name=UMIcounts       	# Job name
-#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
-#SBATCH --ntasks=1                          # Run a single task
-#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
-#SBATCH --mem=40gb                       # Job memory request
-#SBATCH --time=4:00:00                     # Time limit hrs:min:sec
-#SBATCH --output=UMIcounts.out         # Standard output log
-#SBATCH --error=UMIcounts.err          # Standard error log
-#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
-#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
-#SBATCH --export=NONE                       # do not load any env variables to compute node
+#SBATCH --job-name=At_UMIcounts                                               # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=6                                                     # Number of cores per task
+#SBATCH --mem=50gb                                                            # Total memory for job
+#SBATCH --time=6:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_UMIcounts.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_UMIcounts.err        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd $SLURM_SUBMIT_DIR
-
+cd /scratch/jms53460/4_2024_At_Spike_ins
+mkdir bams
+mkdir UMIcounts
 for file in "stringtie_out/"*.bam
 do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts/${file2}.tsv" ]; then
 
         module load SAMtools/1.16.1-GCC-11.3.0
-        samtools sort -@ 8 "$file" -o "bams/$file2"
+        samtools sort -@ 6 "$file" -o "bams/$file2"
         samtools index "bams/$file2"
 
         module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
         umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
-        # rm "$file"
     fi
 done
 
@@ -458,7 +454,7 @@ ml R/4.3.1-foss-2022a
 
 R
 
-annots = strsplit(read.table('stringtie_out/stringtie_merged.gtf', sep = '\t')[,9], '; ')
+annots = strsplit(read.table('stringtie_out/sorted_SNPsplit.gtf', sep = '\t')[,9], '; ')
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
 names(annots) = sub('gene_id ', '', names(annots))
 annots = annots[!duplicated(names(annots))]
@@ -483,7 +479,7 @@ for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
 
-save(B, file = "Poplar_10-23")
+save(B, file = "4_2024_At_Spike_ins.RData")
 
 
 
