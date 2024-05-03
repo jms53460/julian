@@ -542,13 +542,21 @@ do
     SNPsplit --conflicting -o At_SNPsplit --snp_file Ler_SNPs.tab "$file"
     samtools sort -@ 6 At_SNPsplit/"$file2"_s.allele_flagged.bam -o At_SNPsplit/"$file2"_SNPsplit.bam
     
-    ml StringTie/2.2.1-GCC-11.3.0
-    stringtie At_SNPsplit/"$file2"_SNPsplit.bam -p 6 -G TAIR10.1_Col_chr.gff --rf -o stringtie_out/"$file2".gtf
-    #Merge stringtie transcripts
-    ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
-    # Merge GTF files
-    stringtie --merge -p 6 -G TAIR10.1_Col_chr.gff -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
 done
+
+ml StringTie/2.2.1-GCC-11.3.0
+for file in "hisat2_out/"*_s.bam
+do
+    file2="${file:11:-6}"
+
+    stringtie At_SNPsplit/"$file2"_SNPsplit.bam -p 6 -G TAIR10.1_Col_chr.gff --rf -o stringtie_out/"$file2".gtf
+done    
+    
+#Merge stringtie transcripts
+ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
+# Merge GTF files
+stringtie --merge -p 6 -G TAIR10.1_Col_chr.gff -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
+
 
 
 #!/bin/bash
