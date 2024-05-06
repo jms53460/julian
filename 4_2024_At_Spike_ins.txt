@@ -878,7 +878,7 @@ do
     zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.+/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > /scratch/jms53460/4_2024_At_Spike_ins/spike_ins/raw_"$file".tab
 done
 
-
+cd /scratch/jms53460/4_2024_At_Spike_ins
 ###Check demultiplexed files for matching spike-ins. I made a text file with the 24 spike-in barcode sequences (24spike_in_barcodes.txt)
 for file in "Demultiplexed/"*.fastq*
 do
