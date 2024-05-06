@@ -776,16 +776,81 @@ q()
 
 scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 ###Opened R terminal
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
 load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/4_2024_At_Spike_ins.RData')
 
-summary(colSums(B))
+> summary(colSums(B))                                                        
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   2363    8718   12038   17993   20227   62645 
+> summary(colSums(g1))
    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-   2363    8718   12038   17993   20227   62645
+    272    1189    1772    2732    3058   13469
+> summary(colSums(g2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+    331    1118    1534    2630    2802   13050
 
+UMIs = B
+rownames(UMIs) = gsub("gene-", "", rownames(UMIs))
+rownames(genes) = genes[,3]
+rownames(g1) = gsub("gene-", "", rownames(g1))
+rownames(g2) = gsub("gene-", "", rownames(g2))
 
-###I need tables that are specific to genome 1 vs. genome 2 UMI counts
+g1_new = matrix(0, nrow = nrow(genes), ncol = ncol(g1))
+rownames(g1_new) = genes[,3]
+colnames(g1_new) = colnames(g1)
+g1_new[which(rownames(g1_new) %in% rownames(g1)),] = g1[which(rownames(g1) %in% rownames(g1_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2732 in g1 down to 1416 in g1_new
+g1 = g1_new
 
+g2_new = matrix(0, nrow = nrow(genes), ncol = ncol(g2))
+rownames(g2_new) = genes[,3]
+colnames(g2_new) = colnames(g2)
+g2_new[which(rownames(g2_new) %in% rownames(g2)),] = g2[which(rownames(g2) %in% rownames(g2_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2630 in g2 down to 1498 in g2_new
+g2 = g2_new
 
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN(g1)
+g2_bin = BIN(g2)
+g1_frac = g1_bin/(g1_bin + g2_bin)
+AlleleFrac = g1_frac
+
+plotCell('At3_S92_L003_50s_SNPsplit')
+
+Samples = c(colnames(AlleleFrac))
+paste("plotCell('", Samples, "')", sep = "")
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+svg('At1-12.svg', width = 24, height = 8)
+ggarrange(plotCell('At1_S90_L003_1s_SNPsplit'), plotCell('At1_S90_L003_2s_SNPsplit'), plotCell('At1_S90_L003_3s_SNPsplit'), plotCell('At1_S90_L003_4s_SNPsplit'), plotCell('At1_S90_L003_5s_SNPsplit'), plotCell('At1_S90_L003_6s_SNPsplit'), plotCell('At1_S90_L003_7s_SNPsplit'), plotCell('At1_S90_L003_8s_SNPsplit'), plotCell('At1_S90_L003_9s_SNPsplit'), plotCell('At1_S90_L003_10s_SNPsplit'), plotCell('At1_S90_L003_11s_SNPsplit'), plotCell('At1_S90_L003_12s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At13-24.svg', width = 24, height = 8)
+ggarrange(plotCell('At1_S90_L003_13s_SNPsplit'), plotCell('At1_S90_L003_14s_SNPsplit'), plotCell('At1_S90_L003_15s_SNPsplit'), plotCell('At1_S90_L003_16s_SNPsplit'), plotCell('At1_S90_L003_17s_SNPsplit'), plotCell('At1_S90_L003_18s_SNPsplit'), plotCell('At1_S90_L003_19s_SNPsplit'), plotCell('At1_S90_L003_20s_SNPsplit'), plotCell('At1_S90_L003_21s_SNPsplit'), plotCell('At1_S90_L003_22s_SNPsplit'), plotCell('At1_S90_L003_23s_SNPsplit'), plotCell('At1_S90_L003_24s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At25-36.svg', width = 24, height = 8)
+ggarrange(plotCell('At2_S91_L003_25s_SNPsplit'), plotCell('At2_S91_L003_26s_SNPsplit'), plotCell('At2_S91_L003_27s_SNPsplit'), plotCell('At2_S91_L003_28s_SNPsplit'), plotCell('At2_S91_L003_29s_SNPsplit'), plotCell('At2_S91_L003_30s_SNPsplit'), plotCell('At2_S91_L003_31s_SNPsplit'), plotCell('At2_S91_L003_32s_SNPsplit'), plotCell('At2_S91_L003_33s_SNPsplit'), plotCell('At2_S91_L003_34s_SNPsplit'), plotCell('At2_S91_L003_35s_SNPsplit'), plotCell('At2_S91_L003_36s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At37-48.svg', width = 24, height = 8)
+ggarrange(plotCell('At2_S91_L003_37s_SNPsplit'), plotCell('At2_S91_L003_38s_SNPsplit'), plotCell('At2_S91_L003_39s_SNPsplit'), plotCell('At2_S91_L003_40s_SNPsplit'), plotCell('At2_S91_L003_41s_SNPsplit'), plotCell('At2_S91_L003_42s_SNPsplit'), plotCell('At2_S91_L003_43s_SNPsplit'), plotCell('At2_S91_L003_44s_SNPsplit'), plotCell('At2_S91_L003_45s_SNPsplit'), plotCell('At2_S91_L003_46s_SNPsplit'), plotCell('At2_S91_L003_47s_SNPsplit'), plotCell('At2_S91_L003_48s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At49-60.svg', width = 24, height = 8)
+ggarrange(plotCell('At3_S92_L003_49s_SNPsplit'), plotCell('At3_S92_L003_50s_SNPsplit'), plotCell('At3_S92_L003_51s_SNPsplit'), plotCell('At3_S92_L003_52s_SNPsplit'), plotCell('At3_S92_L003_53s_SNPsplit'), plotCell('At3_S92_L003_54s_SNPsplit'), plotCell('At3_S92_L003_55s_SNPsplit'), plotCell('At3_S92_L003_56s_SNPsplit'), plotCell('At3_S92_L003_57s_SNPsplit'), plotCell('At3_S92_L003_58s_SNPsplit'), plotCell('At3_S92_L003_59s_SNPsplit'), plotCell('At3_S92_L003_60s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At61-72.svg', width = 24, height = 8)
+ggarrange(plotCell('At3_S92_L003_61s_SNPsplit'), plotCell('At3_S92_L003_62s_SNPsplit'), plotCell('At3_S92_L003_63s_SNPsplit'), plotCell('At3_S92_L003_64s_SNPsplit'), plotCell('At3_S92_L003_65s_SNPsplit'), plotCell('At3_S92_L003_66s_SNPsplit'), plotCell('At3_S92_L003_67s_SNPsplit'), plotCell('At3_S92_L003_68s_SNPsplit'), plotCell('At3_S92_L003_69s_SNPsplit'), plotCell('At3_S92_L003_70s_SNPsplit'), plotCell('At3_S92_L003_71s_SNPsplit'), plotCell('At3_S92_L003_72s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At73-84.svg', width = 24, height = 8)
+ggarrange(plotCell('At4_S93_L003_73s_SNPsplit'), plotCell('At4_S93_L003_74s_SNPsplit'), plotCell('At4_S93_L003_75s_SNPsplit'), plotCell('At4_S93_L003_76s_SNPsplit'), plotCell('At4_S93_L003_77s_SNPsplit'), plotCell('At4_S93_L003_78s_SNPsplit'), plotCell('At4_S93_L003_79s_SNPsplit'), plotCell('At4_S93_L003_80s_SNPsplit'), plotCell('At4_S93_L003_81s_SNPsplit'), plotCell('At4_S93_L003_82s_SNPsplit'), plotCell('At4_S93_L003_83s_SNPsplit'), plotCell('At4_S93_L003_84s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At85-96.svg', width = 24, height = 8)
+ggarrange(plotCell('At4_S93_L003_85s_SNPsplit'), plotCell('At4_S93_L003_86s_SNPsplit'), plotCell('At4_S93_L003_87s_SNPsplit'), plotCell('At4_S93_L003_88s_SNPsplit'), plotCell('At4_S93_L003_89s_SNPsplit'), plotCell('At4_S93_L003_90s_SNPsplit'), plotCell('At4_S93_L003_91s_SNPsplit'), plotCell('At4_S93_L003_92s_SNPsplit'), plotCell('At4_S93_L003_93s_SNPsplit'), plotCell('At4_S93_L003_94s_SNPsplit'), plotCell('At4_S93_L003_95s_SNPsplit'), plotCell('At4_S93_L003_96s_SNPsplit'), ncol = 12, align = 'v')
+dev.off()
 
 
 
@@ -795,14 +860,14 @@ zcat At1_S90_L003_R1_001.fastq.gz | sed -n '2~4p' | head -n 1000000 | grep AAAAA
 ###Checking spike-in barcodes in the raw data (before demultiplexing)
 
 #!/bin/bash
-#SBATCH --job-name=At_raw_spike_ins                                           # Job name
+#SBATCH --job-name=At_spike_ins                                               # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
 #SBATCH --ntasks=1                                                            # Single task job
 #SBATCH --cpus-per-task=1                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
-#SBATCH --time=6:00:00                                                       # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_raw_spike_ins.out   # Location of standard output file
-#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_raw_spike_ins.err    # Location of error log file
+#SBATCH --time=6:00:00                                                        # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_spike_ins.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_spike_ins.err        # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
