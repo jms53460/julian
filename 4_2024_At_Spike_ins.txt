@@ -773,6 +773,50 @@ for (g in unique(rownames(g2)[duplicated(rownames(g2))])) {
 save(B, g1, g2, file = "4_2024_At_Spike_ins.RData")
 q()
 
+###Code Brad used to find the sequence adjacent to the spike-ins is below
+zcat At1_S90_L003_R1_001.fastq.gz | sed -n '2~4p' | head -n 1000000 | grep AAAAAAAAAAAAAA | sort |  uniq -c | sort -nr | head -n 200D:28721145
+
+###Checking spike-in barcodes in the raw data (before demultiplexing)
+
+#!/bin/bash
+#SBATCH --job-name=At_spike_ins                                               # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=1                                                     # Number of cores per task
+#SBATCH --mem=50gb                                                            # Total memory for job
+#SBATCH --time=6:00:00                                                        # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_spike_ins.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_spike_ins.err        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/4_2024_At_Spike_ins/Raw_Data
+mkdir /scratch/jms53460/4_2024_At_Spike_ins/spike_ins
+for file in *R1*
+do
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > /scratch/jms53460/4_2024_At_Spike_ins/spike_ins/raw_"$file".txt
+done
+
+cd /scratch/jms53460/4_2024_At_Spike_ins
+###Check demultiplexed files for matching spike-ins. I made a text file with the 24 spike-in barcode sequences (24spike_in_barcodes.txt)
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 4 >> spike_ins/dm.txt
+done
+
+###dm.txt was confusing (it looks like it only saved the zcat lines) so I'm rerunning the code in terminal, not directing output to a file
+
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 4
+done
+
+###I copied this info into excel to organize it
+
 
 scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 ###Opened R terminal
@@ -788,6 +832,7 @@ load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/4_2
 > summary(colSums(g2))
    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
     331    1118    1534    2630    2802   13050
+
 
 UMIs = B
 rownames(UMIs) = gsub("gene-", "", rownames(UMIs))
@@ -824,71 +869,225 @@ svg('At1-12.svg', width = 24, height = 8)
 ggarrange(plotCell('At1_S90_L003_1s_SNPsplit'), plotCell('At1_S90_L003_2s_SNPsplit'), plotCell('At1_S90_L003_3s_SNPsplit'), plotCell('At1_S90_L003_4s_SNPsplit'), plotCell('At1_S90_L003_5s_SNPsplit'), plotCell('At1_S90_L003_6s_SNPsplit'), plotCell('At1_S90_L003_7s_SNPsplit'), plotCell('At1_S90_L003_8s_SNPsplit'), plotCell('At1_S90_L003_9s_SNPsplit'), plotCell('At1_S90_L003_10s_SNPsplit'), plotCell('At1_S90_L003_11s_SNPsplit'), plotCell('At1_S90_L003_12s_SNPsplit'), ncol = 12, align = 'v')
 dev.off()
 
+###This works, now I need to randomize the samples to blind myself (while saving the )
+
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/4_2024_At_Spike_ins.RData')
+
+set.seed(2)
+UMIs = B[,sample(1:ncol(B))]
+sampled_cols = colnames(UMIs)
+g1_original = g1
+colnames(g1) = colnames(B)
+g1 = g1[,colnames(UMIs)]
+g2_original = g2
+colnames(g2) = colnames(B)
+g2 = g2[,colnames(UMIs)]
+colnames(UMIs) = 1:ncol(UMIs)
+colnames(g1) = 1:ncol(UMIs)
+colnames(g2) = 1:ncol(UMIs)
+
+#checked that this worked with set.seed(1), then redid it with set.seed(2)
+
+rownames(UMIs) = gsub("gene-", "", rownames(UMIs))
+rownames(genes) = genes[,3]
+rownames(g1) = gsub("gene-", "", rownames(g1))
+rownames(g2) = gsub("gene-", "", rownames(g2))
+
+g1_new = matrix(0, nrow = nrow(genes), ncol = ncol(g1))
+rownames(g1_new) = genes[,3]
+colnames(g1_new) = colnames(g1)
+g1_new[which(rownames(g1_new) %in% rownames(g1)),] = g1[which(rownames(g1) %in% rownames(g1_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2732 in g1 down to 1416 in g1_new
+g1 = g1_new
+
+g2_new = matrix(0, nrow = nrow(genes), ncol = ncol(g2))
+rownames(g2_new) = genes[,3]
+colnames(g2_new) = colnames(g2)
+g2_new[which(rownames(g2_new) %in% rownames(g2)),] = g2[which(rownames(g2) %in% rownames(g2_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2630 in g2 down to 1498 in g2_new
+g2 = g2_new
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN(g1)
+g2_bin = BIN(g2)
+g1_frac = g1_bin/(g1_bin + g2_bin)
+AlleleFrac = g1_frac
+
+plotCell('1')
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+svg('At1-12.svg', width = 24, height = 8)
+ggarrange(plotCell('1'), plotCell('2'), plotCell('3'), plotCell('4'), plotCell('5'), plotCell('6'), plotCell('7'), plotCell('8'), plotCell('9'), plotCell('10'), plotCell('11'), plotCell('12'), ncol = 12, align = 'v')
+dev.off()
+
 svg('At13-24.svg', width = 24, height = 8)
-ggarrange(plotCell('At1_S90_L003_13s_SNPsplit'), plotCell('At1_S90_L003_14s_SNPsplit'), plotCell('At1_S90_L003_15s_SNPsplit'), plotCell('At1_S90_L003_16s_SNPsplit'), plotCell('At1_S90_L003_17s_SNPsplit'), plotCell('At1_S90_L003_18s_SNPsplit'), plotCell('At1_S90_L003_19s_SNPsplit'), plotCell('At1_S90_L003_20s_SNPsplit'), plotCell('At1_S90_L003_21s_SNPsplit'), plotCell('At1_S90_L003_22s_SNPsplit'), plotCell('At1_S90_L003_23s_SNPsplit'), plotCell('At1_S90_L003_24s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('13'), plotCell('14'), plotCell('15'), plotCell('16'), plotCell('17'), plotCell('18'), plotCell('19'), plotCell('20'), plotCell('21'), plotCell('22'), plotCell('23'), plotCell('24'), ncol = 12, align = 'v')
 dev.off()
 
 svg('At25-36.svg', width = 24, height = 8)
-ggarrange(plotCell('At2_S91_L003_25s_SNPsplit'), plotCell('At2_S91_L003_26s_SNPsplit'), plotCell('At2_S91_L003_27s_SNPsplit'), plotCell('At2_S91_L003_28s_SNPsplit'), plotCell('At2_S91_L003_29s_SNPsplit'), plotCell('At2_S91_L003_30s_SNPsplit'), plotCell('At2_S91_L003_31s_SNPsplit'), plotCell('At2_S91_L003_32s_SNPsplit'), plotCell('At2_S91_L003_33s_SNPsplit'), plotCell('At2_S91_L003_34s_SNPsplit'), plotCell('At2_S91_L003_35s_SNPsplit'), plotCell('At2_S91_L003_36s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('25'), plotCell('26'), plotCell('27'), plotCell('28'), plotCell('29'), plotCell('30'), plotCell('31'), plotCell('32'), plotCell('33'), plotCell('34'), plotCell('35'), plotCell('36'), ncol = 12, align = 'v')
 dev.off()
 
 svg('At37-48.svg', width = 24, height = 8)
-ggarrange(plotCell('At2_S91_L003_37s_SNPsplit'), plotCell('At2_S91_L003_38s_SNPsplit'), plotCell('At2_S91_L003_39s_SNPsplit'), plotCell('At2_S91_L003_40s_SNPsplit'), plotCell('At2_S91_L003_41s_SNPsplit'), plotCell('At2_S91_L003_42s_SNPsplit'), plotCell('At2_S91_L003_43s_SNPsplit'), plotCell('At2_S91_L003_44s_SNPsplit'), plotCell('At2_S91_L003_45s_SNPsplit'), plotCell('At2_S91_L003_46s_SNPsplit'), plotCell('At2_S91_L003_47s_SNPsplit'), plotCell('At2_S91_L003_48s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('37'), plotCell('38'), plotCell('39'), plotCell('40'), plotCell('41'), plotCell('42'), plotCell('43'), plotCell('44'), plotCell('45'), plotCell('46'), plotCell('47'), plotCell('48'), ncol = 12, align = 'v')
 dev.off()
 
 svg('At49-60.svg', width = 24, height = 8)
-ggarrange(plotCell('At3_S92_L003_49s_SNPsplit'), plotCell('At3_S92_L003_50s_SNPsplit'), plotCell('At3_S92_L003_51s_SNPsplit'), plotCell('At3_S92_L003_52s_SNPsplit'), plotCell('At3_S92_L003_53s_SNPsplit'), plotCell('At3_S92_L003_54s_SNPsplit'), plotCell('At3_S92_L003_55s_SNPsplit'), plotCell('At3_S92_L003_56s_SNPsplit'), plotCell('At3_S92_L003_57s_SNPsplit'), plotCell('At3_S92_L003_58s_SNPsplit'), plotCell('At3_S92_L003_59s_SNPsplit'), plotCell('At3_S92_L003_60s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('49'), plotCell('50'), plotCell('51'), plotCell('52'), plotCell('53'), plotCell('54'), plotCell('55'), plotCell('56'), plotCell('57'), plotCell('58'), plotCell('59'), plotCell('60'), ncol = 12, align = 'v')
 dev.off()
 
 svg('At61-72.svg', width = 24, height = 8)
-ggarrange(plotCell('At3_S92_L003_61s_SNPsplit'), plotCell('At3_S92_L003_62s_SNPsplit'), plotCell('At3_S92_L003_63s_SNPsplit'), plotCell('At3_S92_L003_64s_SNPsplit'), plotCell('At3_S92_L003_65s_SNPsplit'), plotCell('At3_S92_L003_66s_SNPsplit'), plotCell('At3_S92_L003_67s_SNPsplit'), plotCell('At3_S92_L003_68s_SNPsplit'), plotCell('At3_S92_L003_69s_SNPsplit'), plotCell('At3_S92_L003_70s_SNPsplit'), plotCell('At3_S92_L003_71s_SNPsplit'), plotCell('At3_S92_L003_72s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('61'), plotCell('62'), plotCell('63'), plotCell('64'), plotCell('65'), plotCell('66'), plotCell('67'), plotCell('68'), plotCell('69'), plotCell('70'), plotCell('71'), plotCell('72'), ncol = 12, align = 'v')
 dev.off()
 
 svg('At73-84.svg', width = 24, height = 8)
-ggarrange(plotCell('At4_S93_L003_73s_SNPsplit'), plotCell('At4_S93_L003_74s_SNPsplit'), plotCell('At4_S93_L003_75s_SNPsplit'), plotCell('At4_S93_L003_76s_SNPsplit'), plotCell('At4_S93_L003_77s_SNPsplit'), plotCell('At4_S93_L003_78s_SNPsplit'), plotCell('At4_S93_L003_79s_SNPsplit'), plotCell('At4_S93_L003_80s_SNPsplit'), plotCell('At4_S93_L003_81s_SNPsplit'), plotCell('At4_S93_L003_82s_SNPsplit'), plotCell('At4_S93_L003_83s_SNPsplit'), plotCell('At4_S93_L003_84s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('73'), plotCell('74'), plotCell('75'), plotCell('76'), plotCell('77'), plotCell('78'), plotCell('79'), plotCell('80'), plotCell('81'), plotCell('82'), plotCell('83'), plotCell('84'), ncol = 12, align = 'v')
 dev.off()
 
 svg('At85-96.svg', width = 24, height = 8)
-ggarrange(plotCell('At4_S93_L003_85s_SNPsplit'), plotCell('At4_S93_L003_86s_SNPsplit'), plotCell('At4_S93_L003_87s_SNPsplit'), plotCell('At4_S93_L003_88s_SNPsplit'), plotCell('At4_S93_L003_89s_SNPsplit'), plotCell('At4_S93_L003_90s_SNPsplit'), plotCell('At4_S93_L003_91s_SNPsplit'), plotCell('At4_S93_L003_92s_SNPsplit'), plotCell('At4_S93_L003_93s_SNPsplit'), plotCell('At4_S93_L003_94s_SNPsplit'), plotCell('At4_S93_L003_95s_SNPsplit'), plotCell('At4_S93_L003_96s_SNPsplit'), ncol = 12, align = 'v')
+ggarrange(plotCell('85'), plotCell('86'), plotCell('87'), plotCell('88'), plotCell('89'), plotCell('90'), plotCell('91'), plotCell('92'), plotCell('93'), plotCell('94'), plotCell('95'), plotCell('96'), ncol = 12, align = 'v')
+dev.off()
+
+g2_bin_filter[which(g2_bin_filter < 5)] = 0
+#Trying changing all bins <5 to 0 so they are excluded
+g1_bin_filter = g1_bin
+g1_bin_filter[which(g1_bin & g2_bin < 5)] = 0
+g2_bin_filter = g2_bin
+g2_bin_filter[which(g1_bin & g2_bin < 5)] = 0
+g1_frac_filter = g1_bin_filter/(g1_bin_filter + g2_bin_filter)
+AlleleFrac = g1_frac_filter
+
+svg('At1-12f.svg', width = 24, height = 8)
+ggarrange(plotCell('1'), plotCell('2'), plotCell('3'), plotCell('4'), plotCell('5'), plotCell('6'), plotCell('7'), plotCell('8'), plotCell('9'), plotCell('10'), plotCell('11'), plotCell('12'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At13-24f.svg', width = 24, height = 8)
+ggarrange(plotCell('13'), plotCell('14'), plotCell('15'), plotCell('16'), plotCell('17'), plotCell('18'), plotCell('19'), plotCell('20'), plotCell('21'), plotCell('22'), plotCell('23'), plotCell('24'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At25-36f.svg', width = 24, height = 8)
+ggarrange(plotCell('25'), plotCell('26'), plotCell('27'), plotCell('28'), plotCell('29'), plotCell('30'), plotCell('31'), plotCell('32'), plotCell('33'), plotCell('34'), plotCell('35'), plotCell('36'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At37-48f.svg', width = 24, height = 8)
+ggarrange(plotCell('37'), plotCell('38'), plotCell('39'), plotCell('40'), plotCell('41'), plotCell('42'), plotCell('43'), plotCell('44'), plotCell('45'), plotCell('46'), plotCell('47'), plotCell('48'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At49-60f.svg', width = 24, height = 8)
+ggarrange(plotCell('49'), plotCell('50'), plotCell('51'), plotCell('52'), plotCell('53'), plotCell('54'), plotCell('55'), plotCell('56'), plotCell('57'), plotCell('58'), plotCell('59'), plotCell('60'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At61-72f.svg', width = 24, height = 8)
+ggarrange(plotCell('61'), plotCell('62'), plotCell('63'), plotCell('64'), plotCell('65'), plotCell('66'), plotCell('67'), plotCell('68'), plotCell('69'), plotCell('70'), plotCell('71'), plotCell('72'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At73-84f.svg', width = 24, height = 8)
+ggarrange(plotCell('73'), plotCell('74'), plotCell('75'), plotCell('76'), plotCell('77'), plotCell('78'), plotCell('79'), plotCell('80'), plotCell('81'), plotCell('82'), plotCell('83'), plotCell('84'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At85-96f.svg', width = 24, height = 8)
+ggarrange(plotCell('85'), plotCell('86'), plotCell('87'), plotCell('88'), plotCell('89'), plotCell('90'), plotCell('91'), plotCell('92'), plotCell('93'), plotCell('94'), plotCell('95'), plotCell('96'), ncol = 12, align = 'v')
 dev.off()
 
 
-
-
-zcat At1_S90_L003_R1_001.fastq.gz | sed -n '2~4p' | head -n 1000000 | grep AAAAAAAAAAAAAA | sort |  uniq -c | sort -nr | head -n 200D:28721145
-
-###Checking spike-in barcodes in the raw data (before demultiplexing)
+###Realized that I should not have used the stringtie twice with the same output--I overwrote the first with the second, and the first is the one I wanted in this case
 
 #!/bin/bash
-#SBATCH --job-name=At_spike_ins                                               # Job name
+#SBATCH --job-name=At_features_UMIs3                                          # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
 #SBATCH --ntasks=1                                                            # Single task job
-#SBATCH --cpus-per-task=1                                                     # Number of cores per task
+#SBATCH --cpus-per-task=6                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
-#SBATCH --time=6:00:00                                                        # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_spike_ins.out       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_spike_ins.err        # Location of error log file
+#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/4_2024_At_Spike_ins/At_features_UMIs3.out  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/4_2024_At_Spike_ins/At_features_UMIs3.err   # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/4_2024_At_Spike_ins/Raw_Data
-mkdir /scratch/jms53460/4_2024_At_Spike_ins/spike_ins
-for file in *R1*
-do
-    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > /scratch/jms53460/4_2024_At_Spike_ins/spike_ins/raw_"$file".txt
-done
-
 cd /scratch/jms53460/4_2024_At_Spike_ins
-###Check demultiplexed files for matching spike-ins. I made a text file with the 24 spike-in barcode sequences (24spike_in_barcodes.txt)
-for file in "Demultiplexed/"*.fastq*
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate ./subread-env/
+
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts_g1.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts_g2.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+for file in "stringtie_out/"*SNPsplit.bam*
 do
-    echo ""
-    echo "$file"
-    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 4 >> spike_ins/dm.txt
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "stringtie_out/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "stringtie_out/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
 done
 
 
 
-cd Raw_Data
-zcat At1_S90_L003_R1_001.fastq.gz | sed -n '2~4p' | grep TGCAAATAGGCGGCC | head -n 1000000 | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100
-zcat At1_S90_L003_R1_001.fastq.gz | sed -n '2~4p' | head -n 1000000 | grep AAAAAAAAAAAAAA | sort |  uniq -c | sort -nr | head -n 200D:28721145
+cd /scratch/jms53460/4_2024_At_Spike_ins/
+ml R/4.3.1-foss-2022a
+R
+annots = strsplit(read.table('TAIR10.1_Col_chr.gff', sep = '\t')[,9], ';')
+annots = annots[grep('ID=gene-', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('ID=gene-', '', names(annots))
+
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+
+save(B, file = "4_2024_At_Spike_ins.RData")
+q()
