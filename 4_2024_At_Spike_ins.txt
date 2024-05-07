@@ -875,7 +875,7 @@ cd /scratch/jms53460/4_2024_At_Spike_ins/Raw_Data
 mkdir /scratch/jms53460/4_2024_At_Spike_ins/spike_ins
 for file in *R1*
 do
-    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.+/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > /scratch/jms53460/4_2024_At_Spike_ins/spike_ins/raw_"$file".tab
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.+/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > /scratch/jms53460/4_2024_At_Spike_ins/spike_ins/raw_"$file".txt
 done
 
 cd /scratch/jms53460/4_2024_At_Spike_ins
@@ -884,5 +884,5 @@ for file in "Demultiplexed/"*.fastq*
 do
     echo ""
     echo "$file"
-    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.+/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f 24spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 4 >> spike_ins/dm.tab
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.+/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 4 >> spike_ins/dm.txt
 done
