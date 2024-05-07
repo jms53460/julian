@@ -992,6 +992,12 @@ dev.off()
 
 ###Realized that I should not have used the stringtie twice with the same output--I overwrote the first with the second, and the first is the one I wanted in this case
 
+mkdir featurecounts
+mkdir bams2
+rm UMIcounts/*
+rm UMIcounts_g1/*
+rm UMIcounts_g2/*
+
 #!/bin/bash
 #SBATCH --job-name=At_features_UMIs3                                          # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
@@ -1009,51 +1015,51 @@ ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate ./subread-env/
 
-featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts_g1.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o stringtie_out/read_counts_g2.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g2.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_chr.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g2.bam
 
 conda deactivate
 
-for file in "stringtie_out/"*SNPsplit.bam*
+for file in "featurecounts/"*SNPsplit.bam*
 do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts/${file2}.tsv" ]; then
 
         module load SAMtools/1.16.1-GCC-11.3.0
-        samtools sort -@ 6 "$file" -o "bams/$file2"
-        samtools index "bams/$file2"
+        samtools sort -@ 6 "$file" -o "bams2/$file2"
+        samtools index "bams2/$file2"
 
         module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts/${file2}.tsv"
     fi
 done
 
-for file in "stringtie_out/"*g1.bam*
+for file in "featurecounts/"*g1.bam*
 do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
 
         module load SAMtools/1.16.1-GCC-11.3.0
-        samtools sort -@ 6 "$file" -o "bams/$file2"
-        samtools index "bams/$file2"
+        samtools sort -@ 6 "$file" -o "bams2/$file2"
+        samtools index "bams2/$file2"
 
         module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts_g1/${file2}.tsv"
     fi
 done
 
-for file in "stringtie_out/"*g2.bam*
+for file in "featurecounts/"*g2.bam*
 do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
 
         module load SAMtools/1.16.1-GCC-11.3.0
-        samtools sort -@ 6 "$file" -o "bams/$file2"
-        samtools index "bams/$file2"
+        samtools sort -@ 6 "$file" -o "bams2/$file2"
+        samtools index "bams2/$file2"
 
         module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts_g2/${file2}.tsv"
     fi
 done
 
