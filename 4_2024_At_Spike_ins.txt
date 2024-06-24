@@ -1071,8 +1071,7 @@ R
 annots = strsplit(read.table('TAIR10.1_Col_chr.gff', sep = '\t')[,9], ';')
 annots = annots[grep('ID=gene-', annots)]
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
-names(annots) = sub('ID=gene-', '', names(annots))
-
+names(annots) = sub('ID=', '', names(annots))
 annots = annots[!duplicated(names(annots))]
 annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
 
@@ -1084,7 +1083,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
+colnames(A) = sub('L003_', '', sub('_SNPsplit.tsv', '', files))
 A[is.na(A)] = 0
 A = A[rowSums(A) > 0,]
 
@@ -1094,6 +1093,505 @@ B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
+C = B
 
-save(B, file = "4_2024_At_Spike_ins.RData")
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit_g1.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1.1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit_g2.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2.1 = B
+
+genes = read.table('TAIR10.1_Col_chr.gff', sep = '\t')[,c(1,5)]
+annots2 = strsplit(read.table('TAIR10.1_Col_chr.gff', sep = '\t')[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes2 = genes[grepl('ID=gene-', genes[,3]),]
+genes = genes2[order(genes2[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+
+save(C,g1.1,g2.1,genes, file = "4_2024_At_Spike_ins2.RData")
 q()
+
+
+scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins2.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/4_2024_At_Spike_ins2.RData')
+
+set.seed(2)
+UMIs = C[,sample(1:ncol(C))]
+sampled_cols = colnames(UMIs)
+g1.1_original = g1.1
+colnames(g1.1) = colnames(C)
+g1.1 = g1.1[,colnames(UMIs)]
+g2.1_original = g2.1
+colnames(g2.1) = colnames(C)
+g2.1 = g2.1[,colnames(UMIs)]
+colnames(UMIs) = 1:ncol(UMIs)
+colnames(g1.1) = 1:ncol(UMIs)
+colnames(g2.1) = 1:ncol(UMIs)
+
+g1.1_new = matrix(0, nrow = nrow(genes), ncol = ncol(g1.1))
+rownames(g1.1_new) = genes[,3]
+colnames(g1.1_new) = colnames(g1.1)
+g1.1_new[which(rownames(g1.1_new) %in% rownames(g1.1)),] = g1.1[which(rownames(g1.1) %in% rownames(g1.1_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2732 in g1 down to 1416 in g1_new
+
+
+g2.1_new = matrix(0, nrow = nrow(genes), ncol = ncol(g2.1))
+rownames(g2.1_new) = genes[,3]
+colnames(g2.1_new) = colnames(g2.1)
+g2.1_new[which(rownames(g2.1_new) %in% rownames(g2.1)),] = g2.1[which(rownames(g2.1) %in% rownames(g2.1_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2630 in g2 down to 1498 in g2_new
+
+
+library(ggplot2)
+library(ggpubr)
+g1.1_bin = BIN(g1.1_new)
+g2.1_bin = BIN(g2.1_new)
+g1.1_frac = g1.1_bin/(g1.1_bin + g2.1_bin)
+AlleleFrac = g1.1_frac
+
+plotCell('1')
+colSums_C = matrix(colSums(UMIs), nrow = 96, ncol = 1)
+colSums_C[,1] #pasted this into excel
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+svg('At1-12_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('1'), plotCell2('2'), plotCell2('3'), plotCell2('4'), plotCell2('5'), plotCell2('6'), plotCell2('7'), plotCell2('8'), plotCell2('9'), plotCell2('10'), plotCell2('11'), plotCell2('12'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At13-24_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('13'), plotCell2('14'), plotCell2('15'), plotCell2('16'), plotCell2('17'), plotCell2('18'), plotCell2('19'), plotCell2('20'), plotCell2('21'), plotCell2('22'), plotCell2('23'), plotCell2('24'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At25-36_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('25'), plotCell2('26'), plotCell2('27'), plotCell2('28'), plotCell2('29'), plotCell2('30'), plotCell2('31'), plotCell2('32'), plotCell2('33'), plotCell2('34'), plotCell2('35'), plotCell2('36'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At37-48_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('37'), plotCell2('38'), plotCell2('39'), plotCell2('40'), plotCell2('41'), plotCell2('42'), plotCell2('43'), plotCell2('44'), plotCell2('45'), plotCell2('46'), plotCell2('47'), plotCell2('48'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At49-60_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('49'), plotCell2('50'), plotCell2('51'), plotCell2('52'), plotCell2('53'), plotCell2('54'), plotCell2('55'), plotCell2('56'), plotCell2('57'), plotCell2('58'), plotCell2('59'), plotCell2('60'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At61-72_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('61'), plotCell2('62'), plotCell2('63'), plotCell2('64'), plotCell2('65'), plotCell2('66'), plotCell2('67'), plotCell2('68'), plotCell2('69'), plotCell2('70'), plotCell2('71'), plotCell2('72'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At73-84_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('73'), plotCell2('74'), plotCell2('75'), plotCell2('76'), plotCell2('77'), plotCell2('78'), plotCell2('79'), plotCell2('80'), plotCell2('81'), plotCell2('82'), plotCell2('83'), plotCell2('84'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At85-96_1.svg', width = 24, height = 8)
+ggarrange(plotCell2('85'), plotCell2('86'), plotCell2('87'), plotCell2('88'), plotCell2('89'), plotCell2('90'), plotCell2('91'), plotCell2('92'), plotCell2('93'), plotCell2('94'), plotCell2('95'), plotCell2('96'), ncol = 12, align = 'v')
+dev.off()
+
+
+#Trying changing all bins <3 to 0 so they are excluded
+g1.1_bin_filter = g1.1_bin
+g1.1_bin_filter[which(g1.1_bin & g2.1_bin < 3)] = 0
+g2.1_bin_filter = g2.1_bin
+g2.1_bin_filter[which(g1.1_bin & g2.1_bin < 3)] = 0
+g1.1_frac_filter = g1.1_bin_filter/(g1.1_bin_filter + g2.1_bin_filter)
+AlleleFrac = g1.1_frac_filter
+
+svg('At1-12_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('1'), plotCell2('2'), plotCell2('3'), plotCell2('4'), plotCell2('5'), plotCell2('6'), plotCell2('7'), plotCell2('8'), plotCell2('9'), plotCell2('10'), plotCell2('11'), plotCell2('12'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At13-24_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('13'), plotCell2('14'), plotCell2('15'), plotCell2('16'), plotCell2('17'), plotCell2('18'), plotCell2('19'), plotCell2('20'), plotCell2('21'), plotCell2('22'), plotCell2('23'), plotCell2('24'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At25-36_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('25'), plotCell2('26'), plotCell2('27'), plotCell2('28'), plotCell2('29'), plotCell2('30'), plotCell2('31'), plotCell2('32'), plotCell2('33'), plotCell2('34'), plotCell2('35'), plotCell2('36'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At37-48_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('37'), plotCell2('38'), plotCell2('39'), plotCell2('40'), plotCell2('41'), plotCell2('42'), plotCell2('43'), plotCell2('44'), plotCell2('45'), plotCell2('46'), plotCell2('47'), plotCell2('48'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At49-60_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('49'), plotCell2('50'), plotCell2('51'), plotCell2('52'), plotCell2('53'), plotCell2('54'), plotCell2('55'), plotCell2('56'), plotCell2('57'), plotCell2('58'), plotCell2('59'), plotCell2('60'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At61-72_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('61'), plotCell2('62'), plotCell2('63'), plotCell2('64'), plotCell2('65'), plotCell2('66'), plotCell2('67'), plotCell2('68'), plotCell2('69'), plotCell2('70'), plotCell2('71'), plotCell2('72'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At73-84_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('73'), plotCell2('74'), plotCell2('75'), plotCell2('76'), plotCell2('77'), plotCell2('78'), plotCell2('79'), plotCell2('80'), plotCell2('81'), plotCell2('82'), plotCell2('83'), plotCell2('84'), ncol = 12, align = 'v')
+dev.off()
+
+svg('At85-96_1f.svg', width = 24, height = 8)
+ggarrange(plotCell2('85'), plotCell2('86'), plotCell2('87'), plotCell2('88'), plotCell2('89'), plotCell2('90'), plotCell2('91'), plotCell2('92'), plotCell2('93'), plotCell2('94'), plotCell2('95'), plotCell2('96'), ncol = 12, align = 'v')
+dev.off()
+
+
+library('ComplexHeatmap')
+AlleleFrac = g1.1_frac
+#AlleleFrac[AlleleFrac == 'Invalid Number'] = 'NA'
+#AlleleFrac[AlleleFrac == 'NaN'] = 0
+#class(AlleleFrac) = 'numeric'
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+svg('AlleleFrac_cor_blind.svg', width = 14, height = 13.5)
+Heatmap(cor(AlleleFrac, use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+
+svg('At43-13_blind_hmap.svg', width = 24, height = 8)
+ggarrange(plotCell2('43'), plotCell2('67'), plotCell2('58'), plotCell2('21'), plotCell2('96'), plotCell2('18'), plotCell2('29'), plotCell2('55'), plotCell2('92'), plotCell2('66'), plotCell2('82'), plotCell2('13'), ncol = 12, align = 'v')
+dev.off()
+
+svg('AlleleFrac_cor_blind_over6000.svg', width = 10, height = 9.5)
+Heatmap(cor(AlleleFrac[,which(colSums(UMIs) >= 6000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+svg('AlleleFrac_cor_blind_over10000.svg', width = 10, height = 9.5)
+Heatmap(cor(AlleleFrac[,which(colSums(UMIs) >= 10000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+svg('At_over10000_blind_hmap.svg', width = 30, height = 8)
+ggarrange(plotCell2('11'), plotCell2('92'), plotCell2('32'), plotCell2('17'), plotCell2('87'), plotCell2('13'), plotCell2('36'), plotCell2('9'), plotCell2('3'), plotCell2('2'), plotCell2('83'), plotCell2('88'), plotCell2('76'), plotCell2('65'), plotCell2('93'), plotCell2('64'), plotCell2('44'), plotCell2('41'), ncol = 18, align = 'v')
+dev.off()
+
+
+###Finding how many spike-ins were detected in total and how many unique spike-ins were found for each sample
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | wc -l
+done
+
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | sort | uniq -c | sort -nr | wc -l
+done
+
+
+###Simulate contamination in my data. Most monoallelic looking samples: '2','3','9','11','13','17','32','36','41','44','49','64','65','87','93'
+g1.1_contam = 0.8*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.2*g1.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g2.1_contam = 0.8*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.2*g2.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+
+BIN2 = function (xx, bin = 10^6) 
+    {
+        bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+        out = by(xx, bin, colSums)
+        out2 = t(matrix(unlist(out), nrow = ncol(g1.1_contam)))
+        colnames(out2) = colnames(g1.1_contam)
+        rownames(out2) = names(out)
+        return(out2)
+    }
+
+g1.1_bin_contam = round(BIN2(g1.1_contam))
+g2.1_bin_contam = round(BIN2(g2.1_contam))
+g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+AlleleFrac = g1.1_frac_contam
+
+plotCell2 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), 
+        plotChr(cell, chr = 5), plotScaleBar, ncol = 1, nrow = 6, 
+        align = "v", heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from Col-0 allele", 
+        rot = 90, size = 10), top = cell)
+}
+plotCell2('2')
+###I'm going back and changing the above scripts to use plotCell2
+
+svg('At_sim_contam_0.8-0.2.svg', width = 30, height = 8)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+###Version without simulated contamination
+AlleleFrac = g1.1_frac
+svg('At_no_sim_contam.svg', width = 30, height = 8)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+###Checking different contamination levels
+g1.1_contam = 0.7*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.3*g1.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g2.1_contam = 0.7*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.3*g2.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g1.1_bin_contam = round(BIN2(g1.1_contam))
+g2.1_bin_contam = round(BIN2(g2.1_contam))
+g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+AlleleFrac = g1.1_frac_contam
+svg('At_sim_contam_0.7-0.3.svg', width = 30, height = 8)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+g1.1_contam = 0.9*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.1*g1.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g2.1_contam = 0.9*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.1*g2.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g1.1_bin_contam = round(BIN2(g1.1_contam))
+g2.1_bin_contam = round(BIN2(g2.1_contam))
+g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+AlleleFrac = g1.1_frac_contam
+svg('At_sim_contam_0.9-0.1.svg', width = 30, height = 8)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+g1.1_contam = 0.85*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.15*g1.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g2.1_contam = 0.85*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.15*g2.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+g1.1_bin_contam = round(BIN2(g1.1_contam))
+g2.1_bin_contam = round(BIN2(g2.1_contam))
+g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+AlleleFrac = g1.1_frac_contam
+svg('At_sim_contam_0.85-0.15.svg', width = 30, height = 8)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+###Trying using rowMeans to simulate small amounts of contamination from all samples
+
+g1.1_contam = 0.8*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.2*rowMeans(g1.1_new)
+g2.1_contam = 0.8*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + 0.2*rowMeans(g2.1_new)
+g1.1_bin_contam = round(BIN2(g1.1_contam))
+g2.1_bin_contam = round(BIN2(g2.1_contam))
+g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+AlleleFrac = g1.1_frac_contam
+svg('At_sim_gen_contam_0.8-0.2.svg', width = 30, height = 8)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+Contam_func = function(x, y){
+    g1.1_contam = x*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + y*rowMeans(g1.1_new)
+    g2.1_contam = x*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + y*rowMeans(g2.1_new)
+    g1.1_bin_contam = round(BIN2(g1.1_contam))
+    g2.1_bin_contam = round(BIN2(g2.1_contam))
+    g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+    AlleleFrac = g1.1_frac_contam
+    return(AlleleFrac)
+}
+
+svg('At_sim_gen_contam_0.9-0.1.svg', width = 30, height = 8)
+AlleleFrac = Contam_func(0.9, 0.1)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_gen_contam_0.8-0.2.svg', width = 30, height = 8)
+AlleleFrac = Contam_func(0.8, 0.2)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_gen_contam_0.7-0.3.svg', width = 30, height = 8)
+AlleleFrac = Contam_func(0.7, 0.3)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_gen_contam_0.6-0.4.svg', width = 30, height = 8)
+AlleleFrac = Contam_func(0.6, 0.4)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+
+###Adding contamination from the rowMeans of all samples has a modest effect, pulling the dots closer to 0.5, but mostly maintaining the monoallelic patterns
+###I will now add in contamination from rowMeans in addition to contamination from single samples
+
+Contam_func2 = function(x, y, z){
+    g1.1_contam = x*g1.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + y*rowMeans(g1.1_new) + z*g1.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+    g2.1_contam = x*g2.1_new[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] + y*rowMeans(g2.1_new) + z*g2.1_new[,c('93','2','3','9','11','13','17','32','36','41','44','49','64','65','87')]
+    g1.1_bin_contam = round(BIN2(g1.1_contam))
+    g2.1_bin_contam = round(BIN2(g2.1_contam))
+    g1.1_frac_contam = g1.1_bin_contam/(g1.1_bin_contam + g2.1_bin_contam)
+    return(g1.1_frac_contam)
+}
+
+svg('At_sim_contam_0.9-0.085-0.015.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.9, 0.085, 0.015)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.8-0.18-0.02.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.8, 0.18, 0.02)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.7-0.26-0.04.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.7, 0.26, 0.04)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+###Also checking with reduced content coming from the correct pollen grain, since most samples had fewer UMIs
+
+svg('At_sim_contam_0.45-0.0425-0.0075.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.45, 0.0425, 0.0075)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.4-0.09-0.01.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.4, 0.09, 0.01)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.35-0.13-0.02.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.35, 0.13, 0.02)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.09-0.0085-0.0015.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.09, 0.0085, 0.0015)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.08-0.018-0.002.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.08, 0.018, 0.002)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+svg('At_sim_contam_0.07-0.026-0.004.svg', width = 30, height = 8)
+AlleleFrac = Contam_func2(0.07, 0.026, 0.004)
+ggarrange(plotCell2('2'), plotCell2('3'), plotCell2('9'), plotCell2('11'), plotCell2('13'), plotCell2('17'), plotCell2('32'), plotCell2('36'), plotCell2('41'), plotCell2('44'), plotCell2('49'), plotCell2('64'), plotCell2('65'), plotCell2('87'), plotCell2('93'), ncol = 15, align = 'v')
+dev.off()
+
+
+
+###In the final analysis, it might be helpful to rescale the spike-in concentrations detected based on the amount of UMIs for the mataching sample when calculating contamination. Based on comparing # correct and total spike-ins with head(colSums(C),10), the amount of spike-ins does not appear to be proportional to the amount of UMIs in the data. In which case it might make sense to normalize the spike-in amounts detected based on UMIs detected.
+
+
+###Produce table with all the matching spike-ins in demultiplexed files.
+cd /scratch/jms53460/4_2024_At_Spike_ins/
+#Copied over all the demultiplexed samples that were real samples over to Demultiplexed2
+mkdir spike_ins2
+for file in "Demultiplexed2/"*.fastq*
+do
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/4_2024_At_Spike_ins/24spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 22 > spike_ins2/"${file:15:-9}".txt
+done
+
+mkdir spike_ins3
+for file in spike_ins2/At*s.txt
+do
+    awk '{print $1,$2}' $file OFS="" > spike_ins3/${file:10:-4}.tsv
+done
+
+ml R/4.3.1-foss-2022a
+R
+spike_in_list = read.delim('24spike_in_barcodes.txt', header=F)
+spike_in_list = spike_in_list[c(1:24),]
+names(spike_in_list) = unlist(lapply(spike_in_list, function(xx) { xx[1] }))
+files = dir('spike_ins3')
+A = matrix(NA, nrow = length(spike_in_list), ncol = length(files))
+rownames(A) = spike_in_list
+colnames(A) = files
+for (f in files) {
+    xx = read.table(paste('spike_ins3/', f, sep = ''), sep = '', header = F, row.names = 2)
+    A[,f] = xx[match(names(spike_in_list),rownames(xx)),1]
+}
+
+load('4_2024_At_Spike_ins2.RData')
+
+B = A[,c(11,17:24,1:10,12:16,25:96)]
+C = C[,c(11,17:24,1:10,12:16,25:96)]
+
+
+for (x in 1:24) {
+    for (z in (1:24)[-x]){
+        B[z,x] = B[z,x]*sum(C[,z])/sum(C[,x])
+    }
+}
+for (x in 25:48) {
+    for (z in (1:24)[-(x-24)]){
+        B[z,x] = B[z,x]*sum(C[,(z+24)])/sum(C[,x])
+    }
+}
+for (x in 49:72) {
+    for (z in (1:24)[-(x-48)]){
+        B[z,x] = B[z,x]*sum(C[,(z+48)])/sum(C[,x])
+    }
+}
+for (x in 73:96) {
+    for (z in (1:24)[-(x-72)]){
+        B[z,x] = B[z,x]*sum(C[,(z+72)])/sum(C[,x])
+    }
+}
+
+B[is.na(B)] = 0
+colSums(B) # pasted this over to excel
+C_ordered = C
+Spike_ins = B
+Spike_ins_original = A[,c(11,17:24,1:10,12:16,25:96)]
+save(Spike_ins,C_ordered,Spike_ins_original, file = '4_2024_At_Spike_ins3.RData')
+q()
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins3.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('4_2024_At_Spike_ins3.RData')
+
+###Checking what fraction of the bins are monoallelic with a cut-off of >= 80% from one allele
+100*colMeans(abs(g1.1_frac - .5) >= .3, na.rm=T)
+which(100*colMeans(abs(g1.1_frac - .5) >= .3, na.rm=T) > 65) #This matches my monoallelic decisions from the chromosome plots with the exception that I marked #48 as somewhat monoallelic, but it makes the 65% monoallelic cutoff (it is 79.3% monoallelic based on these criteria)
+100*colMeans(abs(g1.1_frac[,c('2','3','9','11','13','17','32','36','41','44','49','64','65','87','93')] - .5) >= .3, na.rm=T)
+100*colMeans(abs(Contam_func2(0.9, 0.085, 0.015) - .5) >= .3, na.rm=T) #everything stays above the 65% cutoff
+100*colMeans(abs(Contam_func2(0.88, 0.102, 0.018) - .5) >= .3, na.rm=T) #35 at 64.94845% and everything else is above 65%
+100*colMeans(abs(Contam_func2(0.8, 0.18, 0.02) - .5) >= .3, na.rm=T) #below 65%: 11,17,36,49
+100*colMeans(abs(Contam_func2(0.7, 0.26, 0.04) - .5) >= .3, na.rm=T) #below 65%: 11,13,17,36,49,64,87,93
+100*colMeans(abs(Contam_func2(0.09, 0.0085, 0.0015) - .5) >= .3, na.rm=T) #everything stays above the 65% cutoff
+100*colMeans(abs(Contam_func2(0.088, 0.0102, 0.0018) - .5) >= .3, na.rm=T) #everything stays above the 65% cutoff
+100*colMeans(abs(Contam_func2(0.08, 0.018, 0.002) - .5) >= .3, na.rm=T) #below 65%: 17,36
+100*colMeans(abs(Contam_func2(0.07, 0.026, 0.004) - .5) >= .3, na.rm=T) #below 65%: 11,13,17,36,49
+
+###From this, it seems like samples with 12% contamination or less maintain their monoallelic patterns
+###I will therefore presume the samples with 12% or less mismatched UMI-scaled spike-ins (88% correct) are likely clean enough to use.
+###Since my simulated contamination is using samples that all appear to have at least a small amount of contamination, I will consider samples with 80-87% correct UMI-scaled spike-ins as possibly clean enough to use for now.
+
+
+###Trying to figure out which of the samples in which I can see monoallelic expression patterns are contaminated
+###Monoallelic and somewhat monoallelic samples: 2,3,9,11,13,15,17,32,36,41,44,47,48,49,54,61,64,65,76,79,83,87,88,93
+AlleleFrac = g1.1_frac
+library('ComplexHeatmap')
+
+svg('AlleleFrac_cor_blind_monoallelic_only.svg', width = 8, height = 7.5)
+Monoallelic_heatmap = Heatmap(cor(AlleleFrac[,c(2,3,9,11,13,15,17,32,36,41,44,47,48,49,54,61,64,65,76,79,83,87,88,93)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Monoallelic_heatmap
+dev.off()
+
+svg('At_monoallelic_only.svg', width = 36, height = 8)
+ggarrange(plotCell2('11'), plotCell2('49'), plotCell2('76'), plotCell2('15'), plotCell2('93'), plotCell2('64'), plotCell2('32'), plotCell2('17'), plotCell2('87'), plotCell2('47'), plotCell2('36'), plotCell2('9'), plotCell2('48'), plotCell2('61'), plotCell2('13'), plotCell2('79'), plotCell2('65'), plotCell2('54'), plotCell2('2'), plotCell2('83'), plotCell2('3'), plotCell2('88'), plotCell2('44'), plotCell2('41'), ncol = 24, align = 'v')
+dev.off()
+
