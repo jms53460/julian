@@ -17,9 +17,9 @@ for file in "hisat2_out/"*_s.bam
 do
 	file2="${file:15:-19}"
 
-    samtools index -@ 6 hisat2_out/"$file"
+    samtools index -@ 6 "$file"
 
     module load BCFtools/1.15.1-GCC-11.3.0
-    bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Ns_genome.fna "$file" | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
+    bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Ns_genome.fna "$file" | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
     bcftools index "$file2".vcf.gz
 done
