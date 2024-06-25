@@ -53,7 +53,6 @@ for file in Raw_Data/*_R1_*.gz; do
         module load fastp/0.23.2-GCC-11.3.0
 	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Mapped_Data/umi_""$file2""_R1.fastq.gz" -O "Mapped_Data/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
 
-	    find "Mapped_Data/" -name "umi_*" -delete
 	    find "Mapped_Data/" -name "*_R2*" -delete
 done
 
