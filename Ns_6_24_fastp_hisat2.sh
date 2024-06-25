@@ -11,12 +11,23 @@
 #SBATCH --mail-type=END,FAIL                                          # Mail events (BEGIN, END, FAIL, ALL)
 
 cd /scratch/jms53460/June2024Seq
-ml HISAT2/3n-20201216-gompi-2022a
-mkdir hisat2_out
 
-for file in "Mapped_Data/demultiplexed/"*.fastq*
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+        module load fastp/0.23.2-GCC-11.3.0
+	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Mapped_Data/umi_""$file2""_R1.fastq.gz" -O "Mapped_Data/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+
+	    find "Mapped_Data/" -name "umi_*" -delete
+	    find "Mapped_Data/" -name "*_R2*" -delete
+done
+
+ml HISAT2/3n-20201216-gompi-2022a
+
+for file in "Mapped_Data/"*.fastq*
 do
-	file2="${file:26:-9}"
+	file2="${file:12:-9}"
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
@@ -24,7 +35,7 @@ if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
 
 	module load SAMtools/1.16.1-GCC-11.3.0
-	hisat2 -p 6 --dta -x /home/jms53460/Ns_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	hisat2 -p 6 --dta -x Ns_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
 	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
 	
 fi
