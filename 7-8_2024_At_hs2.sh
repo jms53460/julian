@@ -13,7 +13,7 @@
 cd /scratch/jms53460/7-8_2024_At
 ml HISAT2/3n-20201216-gompi-2022a
 ml SAMtools/1.16.1-GCC-11.3.0
-for file in "hisat2_out/"*.fastq*
+for file in "hisat2_out/"*s.fastq*
 do
 	file2="${file:11:-9}"
 
