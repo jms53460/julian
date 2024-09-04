@@ -100,3 +100,35 @@ do
     bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Ns_genome.fna "$file" | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
     bcftools index "$file2".vcf.gz
 done
+
+gzip -d NTD4-3.vcf
+
+
+scp sapelo2:/scratch/jms53460/June2024Seq/NTD4-3.vcf .
+scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD4-3_S372_L006_R1_s.bam .
+scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD4-3_S372_L006_R1_s.bam.bai .
+
+
+module load BCFtools/1.15.1-GCC-11.3.0
+bcftools view -i 'GT="AA"' NTD4-3.vcf > NTD4-3_hom.vcf
+
+
+scp sapelo2:/scratch/jms53460/June2024Seq/NTD4-3_hom.vcf .
+
+
+gzip -d NTD3-3.vcf
+gzip -d NTD5-4.vcf
+module load BCFtools/1.15.1-GCC-11.3.0
+bcftools view -i 'GT="AA"' NTD3-3.vcf > NTD3-3_hom.vcf
+bcftools view -i 'GT="AA"' NTD5-4.vcf > NTD5-4_hom.vcf
+
+
+scp sapelo2:/scratch/jms53460/June2024Seq/NTD3-3.vcf .
+scp sapelo2:/scratch/jms53460/June2024Seq/NTD3-3_hom.vcf .
+scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD3-3*_s.bam* .
+
+scp sapelo2:/scratch/jms53460/June2024Seq/NTD5-4.vcf .
+scp sapelo2:/scratch/jms53460/June2024Seq/NTD5-4_hom.vcf .
+scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD5-4*_s.bam* .
+
+
