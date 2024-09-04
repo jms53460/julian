@@ -12,6 +12,12 @@
 
 cd /work/bnlab/July2024Sequencing
 sftp somers_10237@dnaseq2.igsp.duke.edu
+SMbSq52Nupbq
+get -r Somers_10237_240830A9
 
 cd /work/bnlab/Aug2024Sequencing
 sftp scroggs_10318@dnaseq2.igsp.duke.edu
+t7Chu1Nish49
+get -r Scroggs_10318_240830A9
+
+###This did not work. I instead ran these lines in the cluster terminal. (The text between the sftp and get lines are the passwords)

@@ -39,7 +39,7 @@ mkdir /scratch/jms53460/7-8_2024_At/Raw_Data
 cp /scratch/jms53460/4_2024_At_Spike_ins/TAIR10.1_Col_5.gff /scratch/jms53460/7-8_2024_At
 
 
-###Downloaded raw data from OneDrive into the Raw_Data directory on the cluster using FileZilla
+###Downloaded raw data from OneDrive into the Raw_Data directory on the cluster
 
 ###Install fastq-multx
 ml Miniconda3/23.5.2-0
@@ -196,6 +196,10 @@ done
 ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
 # Merge GTF files
 stringtie --merge -p 6 -G TAIR10.1_Col_5.gff -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
+
+
+less At_SNPsplit_stringtie.err
+#paste
 
 
 #!/bin/bash
