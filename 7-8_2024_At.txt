@@ -413,15 +413,14 @@ done
 
 ###Produce table with all the matching spike-ins in demultiplexed files.
 cd /scratch/jms53460/7-8_2024_At
-#Copied over all the demultiplexed samples that were real samples over to Demultiplexed2
 mkdir spike_ins2
-for file in "Demultiplexed2/"*.fastq*
+for file in "Demultiplexed/"*s.fastq*
 do
-    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 22 > spike_ins2/"${file:15:-9}".txt
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 22 > spike_ins2/"${file:14:-9}".txt
 done
 
 mkdir spike_ins3
-for file in spike_ins2/At*s.txt
+for file in spike_ins2/*s.txt
 do
     awk '{print $1,$2}' $file OFS="" > spike_ins3/${file:10:-4}.tsv
 done
