@@ -360,3 +360,126 @@ save(C,g1,g2,genes, file = "7-8_2024_At.RData")
 q()
 
 
+
+
+###Checking spike-in barcodes in the raw data (before demultiplexing)
+
+#!/bin/bash
+#SBATCH --job-name=At_spike-ins                                               # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=6                                                     # Number of cores per task
+#SBATCH --mem=50gb                                                            # Total memory for job
+#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7-8_2024_At/At_spike-ins.out           # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7-8_2024_At/At_spike-ins.err            # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/7-8_2024_At
+mkdir spike_ins
+for file in Raw_Data/*R1*
+do
+    file2="${file:9:-13}"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > spike_ins/raw_"$file2".txt
+done
+
+
+cd /scratch/jms53460/7-8_2024_At
+###Check demultiplexed files for matching spike-ins. I made a text file with the 24 spike-in barcode sequences (24spike_in_barcodes.txt)
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 4
+done
+
+
+###Finding how many spike-ins were detected in total and how many unique spike-ins were found for each sample
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | wc -l
+done
+
+for file in "Demultiplexed/"*.fastq*
+do
+    echo ""
+    echo "$file"
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | wc -l
+done
+
+
+###Produce table with all the matching spike-ins in demultiplexed files.
+cd /scratch/jms53460/7-8_2024_At
+#Copied over all the demultiplexed samples that were real samples over to Demultiplexed2
+mkdir spike_ins2
+for file in "Demultiplexed2/"*.fastq*
+do
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 22 > spike_ins2/"${file:15:-9}".txt
+done
+
+mkdir spike_ins3
+for file in spike_ins2/At*s.txt
+do
+    awk '{print $1,$2}' $file OFS="" > spike_ins3/${file:10:-4}.tsv
+done
+
+ml R/4.3.1-foss-2022a
+R
+spike_in_list = read.delim('96spike_in_barcodes.txt', header=F)
+spike_in_list = spike_in_list[c(1:24),]
+names(spike_in_list) = unlist(lapply(spike_in_list, function(xx) { xx[1] }))
+files = dir('spike_ins3')
+A = matrix(NA, nrow = length(spike_in_list), ncol = length(files))
+rownames(A) = spike_in_list
+colnames(A) = files
+for (f in files) {
+    xx = read.table(paste('spike_ins3/', f, sep = ''), sep = '', header = F, row.names = 2)
+    A[,f] = xx[match(names(spike_in_list),rownames(xx)),1]
+}
+
+load('4_2024_At_Spike_ins2.RData')
+
+B = A[,c(11,17:24,1:10,12:16,25:96)]
+C = C[,c(11,17:24,1:10,12:16,25:96)]
+
+
+for (x in 1:24) {
+    for (z in (1:24)[-x]){
+        B[z,x] = B[z,x]*sum(C[,z])/sum(C[,x])
+    }
+}
+for (x in 25:48) {
+    for (z in (1:24)[-(x-24)]){
+        B[z,x] = B[z,x]*sum(C[,(z+24)])/sum(C[,x])
+    }
+}
+for (x in 49:72) {
+    for (z in (1:24)[-(x-48)]){
+        B[z,x] = B[z,x]*sum(C[,(z+48)])/sum(C[,x])
+    }
+}
+for (x in 73:96) {
+    for (z in (1:24)[-(x-72)]){
+        B[z,x] = B[z,x]*sum(C[,(z+72)])/sum(C[,x])
+    }
+}
+
+B[is.na(B)] = 0
+colSums(B) # pasted this over to excel
+C_ordered = C
+Spike_ins = B
+Spike_ins_original = A[,c(11,17:24,1:10,12:16,25:96)]
+save(Spike_ins,C_ordered,Spike_ins_original, file = '4_2024_At_Spike_ins3.RData')
+q()
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins3.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('4_2024_At_Spike_ins3.RData')
