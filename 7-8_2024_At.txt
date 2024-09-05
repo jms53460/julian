@@ -206,11 +206,6 @@ stringtie --merge -p 6 -G TAIR10.1_Col_5.gff -o "stringtie_out/stringtie_merged.
 ###I realized I don't need it anyways so I stopped the script and continued with the next step
 
 
-###I had run the bash script below, but it wasn't making .tsv files because there was no UMIcounts directory
-###It finished featurecounts, so I used rm -r on bams and UMIcounts, remade the directories and reran the remaining script
-mkdir UMIcounts 
-
-
 #!/bin/bash
 #SBATCH --job-name=At_features_UMIs                                           # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
@@ -226,6 +221,9 @@ mkdir UMIcounts
 cd /scratch/jms53460/7-8_2024_At
 mkdir featurecounts
 mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
 ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate ./subread-env/
