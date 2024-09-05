@@ -110,7 +110,7 @@ fi
 done
 
 
-###Takes ~30 mins per file (set of 96)
+###Takes ~30 mins per file pair (set of 96)
 
 
 #Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
@@ -144,9 +144,10 @@ fi
 done
 
 
-less At_hs2.err
-#paste here
+###Takes ~20 mins per set of 96
 
+
+cp /scratch/jms53460/4_2024_At_Spike_ins/Ler_SNPs.tab .
 
 ###Running SNPsplit
 
@@ -201,8 +202,13 @@ ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
 stringtie --merge -p 6 -G TAIR10.1_Col_5.gff -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
 
 
-less At_SNPsplit_stringtie.err
-#paste
+###Stringtie was not working how I expected (no gtf files or mergelist were made but the merged gtf appeared)
+###I realized I don't need it anyways so I stopped the script and continued with the next step
+
+
+###I had run the bash script below, but it wasn't making .tsv files because there was no UMIcounts directory
+###It finished featurecounts, so I used rm -r on bams and UMIcounts, remade the directories and reran the remaining script
+mkdir UMIcounts 
 
 
 #!/bin/bash
