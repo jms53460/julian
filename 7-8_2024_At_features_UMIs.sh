@@ -13,15 +13,15 @@
 cd /scratch/jms53460/7-8_2024_At
 #mkdir featurecounts
 #mkdir bams
-#ml purge_dups/1.2.5-foss-2021b
-#ml Miniconda3/23.5.2-0
-#source activate ./subread-env/
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate ./subread-env/
 
-#featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
 #featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g1.bam
 #featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g2.bam
 
-#conda deactivate
+conda deactivate
 
 for file in "featurecounts/"*SNPsplit.bam*
 do
