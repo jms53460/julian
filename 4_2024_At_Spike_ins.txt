@@ -1172,13 +1172,13 @@ colnames(g2.1) = 1:ncol(UMIs)
 g1.1_new = matrix(0, nrow = nrow(genes), ncol = ncol(g1.1))
 rownames(g1.1_new) = genes[,3]
 colnames(g1.1_new) = colnames(g1.1)
-g1.1_new[which(rownames(g1.1_new) %in% rownames(g1.1)),] = g1.1[which(rownames(g1.1) %in% rownames(g1.1_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2732 in g1 down to 1416 in g1_new
+g1.1_new[which(rownames(g1.1_new) %in% rownames(g1.1)),] = g1.1[which(rownames(g1.1) %in% rownames(g1.1_new)),]
 
 
 g2.1_new = matrix(0, nrow = nrow(genes), ncol = ncol(g2.1))
 rownames(g2.1_new) = genes[,3]
 colnames(g2.1_new) = colnames(g2.1)
-g2.1_new[which(rownames(g2.1_new) %in% rownames(g2.1)),] = g2.1[which(rownames(g2.1) %in% rownames(g2.1_new)),] # I end up losing a large portion of the data reformatting to make the BIN function work, going from mean colSums 2630 in g2 down to 1498 in g2_new
+g2.1_new[which(rownames(g2.1_new) %in% rownames(g2.1)),] = g2.1[which(rownames(g2.1) %in% rownames(g2.1_new)),] 
 
 
 library(ggplot2)

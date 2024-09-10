@@ -41,6 +41,14 @@ cp /scratch/jms53460/4_2024_At_Spike_ins/TAIR10.1_Col_5.gff /scratch/jms53460/7-
 
 ###Downloaded raw data from OneDrive into the Raw_Data directory on the cluster
 
+#Checked that the i7 XGEN sequences match what I expect with zcat (R1 file) | head
+A182-193: 2H ATCCAGAG
+A194-205: 4D GATTACCG
+A206-217: 4E GCACAACT
+A218-229: 4F GCGTCATT
+A230-241: 4G ATCCGGTA
+A242-253: 4H CGTTGCAA
+
 ###Install fastq-multx
 ml Miniconda3/23.5.2-0
 conda create -p /scratch/jms53460/7-8_2024_At/Fastq-Multx -c bioconda fastq-multx -y 
@@ -360,6 +368,206 @@ save(C,g1,g2,genes, file = "7-8_2024_At.RData")
 q()
 
 
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/7-8_2024_At/7-8_2024_At.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('7-8_2024_At.RData')
+
+plotCell2 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), 
+        plotChr(cell, chr = 5), plotScaleBar, ncol = 1, nrow = 6, 
+        align = "v", heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from Col-0 allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+library(readxl)
+X7_8_2024_At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/7-8_2024_At_Stages.xlsx")
+View(X7_8_2024_At_Stages)
+
+At_Stages <- X7_8_2024_At_Stages[rep(row.names(X7_8_2024_At_Stages), times = 8), ]
+library(tidyverse)
+At_Stages = arrange(At_Stages, Bud_order)
+At_Stages$Sample = c(paste(rep('A155-168_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A182-193_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A194-205_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A206-217_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A218-229_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A230-241_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A242-253_', times = 96), 1:96, rep('s', times=96), sep=''))
+stages = as.character(At_Stages$Stage)
+stages = factor(stages, levels = c('UM', 'UM/BM', 'BM', 'Tri'))
+
+g1_new = as.data.frame(matrix(data=0, nrow = nrow(genes), ncol = ncol(C)))
+rownames(g1_new) = rownames(genes)
+colnames(g1_new) = colnames(C)
+g1_new[which(rownames(genes) %in% rownames(g1)),] = g1[which(rownames(g1) %in% rownames(genes)),]
+
+g2_new = as.data.frame(matrix(data=0, nrow = nrow(genes), ncol = ncol(C)))
+rownames(g2_new) = rownames(genes)
+colnames(g2_new) = colnames(C)
+g2_new[which(rownames(genes) %in% rownames(g2)),] = g2[which(rownames(g2) %in% rownames(genes)),]
+
+colnames(g1_new) = sub('_S94', '', colnames(g1_new))
+colnames(g1_new) = sub('_S33_L005', '', colnames(g1_new))
+colnames(g1_new) = sub('_S34_L005', '', colnames(g1_new))
+colnames(g1_new) = sub('_S35_L005', '', colnames(g1_new))
+colnames(g1_new) = sub('_S36_L005', '', colnames(g1_new))
+colnames(g1_new) = sub('_S37_L005', '', colnames(g1_new))
+colnames(g1_new) = sub('_S38_L005', '', colnames(g1_new))
+colnames(g2_new) = colnames(g1_new)
+colnames(C) = colnames(g1_new)
+g1_new = g1_new[,At_Stages$Sample]
+g2_new = g2_new[,At_Stages$Sample]
+C = C[,At_Stages$Sample]
+
+hist(colSums(C), breaks=5000) #Most samples have very few UMIs. There might be a hint of separation around 12,000 UMIs
+abline(v=12000)
+
+
+#Cells are labeled by 96-cell batch and cell barcode. (A155-168_10s)
+#Batches: A155-168, A182-193, A194-205, A206-217, A218-229, A230-241, A242-253
+
+BIN2 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_new)))
+    colnames(out2) = colnames(g1_new)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN2(g1_new)
+g2_bin = BIN2(g2_new)
+g1_frac = g1_bin/(g1_bin + g2_bin)
+AlleleFrac = g1_frac
+AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
+
+
+
+plotCell2('A155-168_61s')
+
+library('ComplexHeatmap')
+Heatmap(cor(AlleleFrac2, use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(cor(AlleleFrac2[,names(which(colSums(C) >= 10000))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(cor(AlleleFrac2[,names(which(colSums(C) >= 20000))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+svg('AlleleFrac2_cor.svg', width = 30, height = 30)
+Heatmap(cor(AlleleFrac2, use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+dev.off()
+
+#Plotting the ones that are highly correlated together. 
+svg('7-8_2024_At_correlated_AlleleFrac2.svg', width = 60, height = 8)
+ggarrange(plotCell2('A155-168_26s'), plotCell2('A218-229_68s'), plotCell2('A218-229_48s'), plotCell2('A230-241_47s'), plotCell2('A194-205_75s'), plotCell2('A194-205_7s'), plotCell2('A206-217_21s'), plotCell2('A182-193_48s'), plotCell2('A194-205_19s'), plotCell2('A242-253_5s'), plotCell2('A155-168_28s'), plotCell2('A194-205_86s'), plotCell2('A182-193_53s'), plotCell2('A218-229_44s'), plotCell2('A182-193_55s'), plotCell2('A218-229_86s'), plotCell2('A218-229_62s'), plotCell2('A218-229_60s'), plotCell2('A155-168_77s'), plotCell2('A230-241_85s'), plotCell2('A182-193_85s'), plotCell2('A194-205_77s'), plotCell2('A194-205_78s'), plotCell2('A155-168_61s'), plotCell2('A182-193_25s'), plotCell2('A218-229_12s'), plotCell2('A230-241_32s'), plotCell2('A194-205_79s'), plotCell2('A206-217_64s'), plotCell2('A182-193_60s'), plotCell2('A230-241_55s'), ncol = 31, align = 'v')
+dev.off()
+
+
+FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
+FracMono_over10000 = 100*colMeans(abs(AlleleFrac2[,names(which(colSums(C) >= 10000))] - .5) >= .3, na.rm=T)
+FracMono_over20000 =100*colMeans(abs(AlleleFrac[,names(which(colSums(C) >= 20000))] - .5) >= .3, na.rm=T)
+
+Heatmap(FracMono, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(FracMono_over10000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(FracMono_over20000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+ratio = AlleleFrac
+ratio[(g1_bin+g2_bin) < 10] = NA  # Remove measurements with under 10 genoinformative transcripts
+ord_ratio = ratio[,order(stages)]
+ord_ratio2 = ord_ratio[,which(colSums(is.na(ord_ratio)) <= 50)]
+ord_ratio_mono = 100*colMeans(abs(ord_ratio2 - .5) >= .3, na.rm=T)
+ord_ratio_mono_over10000 = 100*colMeans(abs(ord_ratio2[,names(which(colSums(C[,order(stages)]) >= 10000))] - .5) >= .3, na.rm=T)
+ord_ratio_mono_over12000 = 100*colMeans(abs(ord_ratio2[,names(which(colSums(C[,order(stages)]) >= 12000))] - .5) >= .3, na.rm=T)
+ord_ratio_mono_over20000 = 100*colMeans(abs(ord_ratio2[,names(which(colSums(C[,order(stages)]) >= 20000))] - .5) >= .3, na.rm=T)
+
+
+Heatmap(ord_ratio2, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(ord_ratio_mono, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Heatmap(ord_ratio_mono_over10000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Heatmap(ord_ratio_mono_over12000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Heatmap(ord_ratio_mono_over20000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+ord_AlleleFrac = AlleleFrac[,order(stages)]
+ord_FracMono = 100*colMeans(abs(ord_AlleleFrac - .5) >= .3, na.rm=T)
+ord_FracMono_over10000 = 100*colMeans(abs(ord_AlleleFrac[,(which(colSums(C[,order(stages)]) >= 10000))] - .5) >= .3, na.rm=T)
+ord_FracMono_over20000 =100*colMeans(abs(ord_AlleleFrac[,names(which(colSums(C[,order(stages)]) >= 20000))] - .5) >= .3, na.rm=T)
+
+Heatmap(AlleleFrac2, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+
+Heatmap(ord_AlleleFrac, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+Heatmap(cor(ord_AlleleFrac, use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(cor(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+Heatmap(ord_FracMono, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Heatmap(ord_FracMono_over10000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Heatmap(ord_FracMono_over20000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+for (x in names(ord_FracMono_over20000)){
+    print(paste('plotCell2(', x, ')', ',', sep=''))
+}
+
+
+ratio = AlleleFrac
+binUse = which(abs(rowMeans(g1_bin/(g1_bin+g2_bin), na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+
+ratioHist = function(cell = NULL, vals = NULL) {
+	if (is.null(vals)) { vals = ratio[,paste(cell)] } 
+	gghistogram(data.frame(ratio = vals[geneUse]), x = 'ratio', fill = 'black', bins = 15) + theme(strip.background = element_blank(), strip.text.x = element_blank(), legend.position = 'none') + scale_y_continuous(expand = c(0,0)) + xlab('% Transcripts with Col-0 allele') + ylab('Genes') + scale_x_continuous(breaks = seq(0,1,.1), labels=c('0', rep('',4), '0.5', rep('',4), '1.0')) }
+
+ratioHist('A242-253_13s')
+
+hist(AlleleFrac)
+hist(AlleleFrac2)
+hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])])
+hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])])
+hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])])
+
+
+
+
+Heatmap(cor(ratio[which(abs(rowMeans(g1_bin/(g1_bin+g2_bin), na.rm=T) - .5) < .4),], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(cor(ratio[which(abs(rowMeans(g1_bin/(g1_bin+g2_bin), na.rm=T) - .5) < .4),which(colSums(C) >= 10000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+
+pseudocount = 1*10^6/quantile(colSums(C), p = .1)
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+A2 = sweep(C, 2, colSums(C), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+
+Heatmap(cor(A2b, use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+Heatmap(cor(A2b[colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(cor(A2b[,names(ord_ratio_mono_over10000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+Heatmap(cor(A2b[,names(ord_ratio_mono_over12000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+Heatmap(cor(A2b[,names(ord_ratio_mono_over20000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+
+A2d = A2b[rowSums(C[,colnames(A2b)] >= 10) >= 10, ]  # For pseudotime analysis, require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,order(stages)]
+
+#fano = apply(A2b, 1, var)/rowMeans(A2b)  # fano factor is a measure of gene variance
+#hmat = A2b[rank(-fano[rownames(A2b)]) <= 500,order(stages)]
+
+Heatmap(minmax(hmat), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+Heatmap(minmax(hmat[,names(ord_ratio_mono_over10000)]), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F)
+Heatmap(minmax(hmat[,names(ord_ratio_mono_over12000)]), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F)
+Heatmap(minmax(hmat[,names(ord_ratio_mono_over20000)]), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F)
+
+Heatmap(minmax(hmat[,colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])]), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F)
+
+
+save(C, file = "7-8_2024_At_2.RData")
+
+
 
 
 ###Checking spike-in barcodes in the raw data (before demultiplexing)
@@ -386,7 +594,7 @@ done
 
 
 cd /scratch/jms53460/7-8_2024_At
-###Check demultiplexed files for matching spike-ins. I made a text file with the 24 spike-in barcode sequences (24spike_in_barcodes.txt)
+###Check demultiplexed files for matching spike-ins. I made a text file with the 96 spike-in barcode sequences (96spike_in_barcodes.txt)
 for file in "Demultiplexed/"*.fastq*
 do
     echo ""
@@ -416,7 +624,7 @@ cd /scratch/jms53460/7-8_2024_At
 mkdir spike_ins2
 for file in "Demultiplexed/"*s.fastq*
 do
-    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 22 > spike_ins2/"${file:14:-9}".txt
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 96 > spike_ins2/"${file:14:-9}".txt
 done
 
 mkdir spike_ins3
@@ -425,10 +633,11 @@ do
     awk '{print $1,$2}' $file OFS="" > spike_ins3/${file:10:-4}.tsv
 done
 
+cd /scratch/jms53460/7-8_2024_At
 ml R/4.3.1-foss-2022a
 R
 spike_in_list = read.delim('96spike_in_barcodes.txt', header=F)
-spike_in_list = spike_in_list[c(1:24),]
+spike_in_list = spike_in_list[c(1:96),]
 names(spike_in_list) = unlist(lapply(spike_in_list, function(xx) { xx[1] }))
 files = dir('spike_ins3')
 A = matrix(NA, nrow = length(spike_in_list), ncol = length(files))
@@ -439,30 +648,43 @@ for (f in files) {
     A[,f] = xx[match(names(spike_in_list),rownames(xx)),1]
 }
 
-load('4_2024_At_Spike_ins2.RData')
-
-B = A[,c(11,17:24,1:10,12:16,25:96)]
-C = C[,c(11,17:24,1:10,12:16,25:96)]
+load('7-8_2024_At_2.RData')
 
 
-for (x in 1:24) {
-    for (z in (1:24)[-x]){
+order = c(11,22,33,44,55,66,77,88,96,1:10,12:21,23:32,34:43,45:54,56:65,67:76,78:87,89:95)
+B = A[,c(order,order+96,order+96*2,order+96*3,order+96*4,order+96*5,order+96*6)]
+
+for (y in 0:6) {
+    for (x in (1+96*y):(96+96*y)) {
+        for (z in (1:96)[-(x-96*y)]){
+            B[z,x] = B[z,x]*sum(C[,(z+96*y)])/sum(C[,x])
+        }
+    }
+}
+
+for (x in 1:96) {
+    for (z in (1:96)[-x]){
         B[z,x] = B[z,x]*sum(C[,z])/sum(C[,x])
     }
 }
-for (x in 25:48) {
-    for (z in (1:24)[-(x-24)]){
-        B[z,x] = B[z,x]*sum(C[,(z+24)])/sum(C[,x])
+for (x in (1+96):(96+96)) {
+    for (z in (1:96)[-(x-96)]){
+        B[z,x] = B[z,x]*sum(C[,(z+96)])/sum(C[,x])
     }
 }
-for (x in 49:72) {
-    for (z in (1:24)[-(x-48)]){
-        B[z,x] = B[z,x]*sum(C[,(z+48)])/sum(C[,x])
+for (x in (1+96*2):(96+96*2)) {
+    for (z in (1:96)[-(x-96*2)]){
+        B[z,x] = B[z,x]*sum(C[,(z+96*2)])/sum(C[,x])
     }
 }
-for (x in 73:96) {
-    for (z in (1:24)[-(x-72)]){
-        B[z,x] = B[z,x]*sum(C[,(z+72)])/sum(C[,x])
+for (x in (1+96*3):(96+96*3)) {
+    for (z in (1:96)[-(x-96*3)]){
+        B[z,x] = B[z,x]*sum(C[,(z+96*3)])/sum(C[,x])
+    }
+}
+for (x in (1+96*3):(96+96*3)) {
+    for (z in (1:96)[-(x-96*3)]){
+        B[z,x] = B[z,x]*sum(C[,(z+96*3)])/sum(C[,x])
     }
 }
 
