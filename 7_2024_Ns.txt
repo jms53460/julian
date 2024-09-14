@@ -3,6 +3,7 @@ qlogin #I do this every time I log onto the cluster
 cd /scratch/jms53460/7_2024_Ns
 cp /home/jms53460/Ns_N-masked_genome.fa .
 cp /home/jms53460/Ns_N-masked_hisat2_index* .
+cp /home/jms53460/Ns_SNPs.tab .
 
 cp /home/jms53460/CELSeq_barcodes.txt .
 mkdir Raw_Data
@@ -84,18 +85,18 @@ done
 #Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
 
 #!/bin/bash
-#SBATCH --job-name=At_hisat2                                              # Job name
+#SBATCH --job-name=Ns_hisat2                                              # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/7-8_2024_At/At_hs2.out                 # Location of standard output file
-#SBATCH --error=/scratch/jms53460/7-8_2024_At/At_hs2.err                  # Location of error log file
+#SBATCH --time=2:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7_2024_Ns/Ns_hs2.out                 # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7_2024_Ns/Ns_hs2.err                  # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/7-8_2024_At
+cd /scratch/jms53460/7_2024_Ns
 ml HISAT2/3n-20201216-gompi-2022a
 ml SAMtools/1.16.1-GCC-11.3.0
 for file in "hisat2_out/"*s.fastq*
@@ -104,7 +105,7 @@ do
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
-	hisat2 -p 6 --dta -x Ler_0_N-masked/merged_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	hisat2 -p 6 --dta -x Ns_N-masked_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
 	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
     samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
 	
@@ -115,63 +116,62 @@ done
 ###Takes ~20 mins per set of 96
 
 
-cp /scratch/jms53460/4_2024_At_Spike_ins/Ler_SNPs.tab .
-
-###Running SNPsplit
+###Running SNPsplit and stringtie
 
 #!/bin/bash
-#SBATCH --job-name=At_SNPsplit_stringtie                                            # Job name
+#SBATCH --job-name=Ns_SNPsplit_stringtie                                            # Job name
 #SBATCH --partition=batch                                                           # Partition (queue) name
 #SBATCH --ntasks=1                                                                  # Single task job
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=50gb                                                                  # Total memory for job
-#SBATCH --time=12:00:00                                                             # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/7-8_2024_At/At_SNPsplit_stringtie.out            # Location of standard output file
-#SBATCH --error=/scratch/jms53460/7-8_2024_At/At_SNPsplit_stringtie.err             # Location of error log file
+#SBATCH --time=6:00:00                                                             # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7_2024_Ns/Ns_SNPsplit_stringtie.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7_2024_Ns/Ns_SNPsplit_stringtie.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/7-8_2024_At
+cd /scratch/jms53460/7_2024_Ns
+mkdir SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
 
-    SNPsplit --conflicting -o At_SNPsplit --snp_file Ler_SNPs.tab "$file"
-    samtools sort -@ 6 At_SNPsplit/"$file2"_s.allele_flagged.bam -o At_SNPsplit/"$file2"_SNPsplit.bam
+    SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs.tab "$file"
+    samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
     
 done
 
-for file in "At_SNPsplit/"*_s.genome1.bam
+for file in "SNPsplit/"*_s.genome1.bam
 do
-    file2="${file:12:-14}"
-    samtools sort -@ 6 "$file" -o At_SNPsplit/"$file2"_SNPsplit_g1.bam
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g1.bam
 done
 
-for file in "At_SNPsplit/"*_s.genome2.bam
+for file in "SNPsplit/"*_s.genome2.bam
 do
-    file2="${file:12:-14}"
-    samtools sort -@ 6 "$file" -o At_SNPsplit/"$file2"_SNPsplit_g2.bam
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g2.bam
 done
 
 ml StringTie/2.2.1-GCC-11.3.0
+mkdir stringtie_out
 for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
-
-    stringtie At_SNPsplit/"$file2"_SNPsplit.bam -p 6 -G TAIR10.1_Col_5.gff --rf -o stringtie_out/"$file2".gtf
+    stringtie SNPsplit/"$file2"_SNPsplit.bam -p 6 --rf -o stringtie_out/"$file2".gtf "$file"
 done    
 
 
 #Merge stringtie transcripts
 ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
 # Merge GTF files
-stringtie --merge -p 6 -G TAIR10.1_Col_5.gff -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
+stringtie --merge -p 6 -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
+rm mergelist.txt
 
 
-###Stringtie was not working how I expected (no gtf files or mergelist were made but the merged gtf appeared)
-###I realized I don't need it anyways so I stopped the script and continued with the next step
+
 
 
 #!/bin/bash
