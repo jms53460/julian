@@ -3,7 +3,7 @@ qlogin #I do this every time I log onto the cluster
 cd /scratch/jms53460/7_2024_Ns
 cp /home/jms53460/Ns_N-masked_genome.fa .
 cp /home/jms53460/Ns_N-masked_hisat2_index* .
-cp /home/jms53460/Ns_SNPs.tab .
+cp /home/jms53460/Ns_SNPs3.tab .
 
 cp /home/jms53460/CELSeq_barcodes.txt .
 mkdir Raw_Data
@@ -79,7 +79,7 @@ fi
 done
 
 
-###Takes ~30 mins per file pair (set of 96)
+###Takes ~20-30 mins per file pair (set of 96)
 
 
 #Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
@@ -113,7 +113,7 @@ fi
 done
 
 
-###Takes ~20 mins per set of 96
+###Takes ~20-30 mins per set of 96
 
 
 ###Running SNPsplit and stringtie
@@ -138,7 +138,7 @@ for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
 
-    SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs.tab "$file"
+    SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs3.tab "$file"
     samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
     
 done
@@ -168,6 +168,9 @@ ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
 # Merge GTF files
 stringtie --merge -p 6 -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
 rm mergelist.txt
+
+
+###Takes ~x mins per set of 96
 
 
 #!/bin/bash

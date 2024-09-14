@@ -18,7 +18,7 @@ for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
 
-    SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs.tab "$file"
+    SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs3.tab "$file"
     samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
     
 done
