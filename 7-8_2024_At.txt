@@ -39,7 +39,7 @@ mkdir /scratch/jms53460/7-8_2024_At/Raw_Data
 cp /scratch/jms53460/4_2024_At_Spike_ins/TAIR10.1_Col_5.gff /scratch/jms53460/7-8_2024_At
 
 
-###Downloaded raw data from OneDrive into the Raw_Data directory on the cluster
+###Downloaded raw data from Duke onto the cluster
 
 #Checked that the i7 XGEN sequences match what I expect with zcat (R1 file) | head
 A182-193: 2H ATCCAGAG
@@ -422,7 +422,7 @@ C = C[,At_Stages$Sample]
 
 hist(colSums(C), breaks=5000) #Most samples have very few UMIs. There might be a hint of separation around 12,000 UMIs
 abline(v=12000)
-
+rowSums(g1_new[c('ID=gene-AT1G01210','ID=gene-AT1G01225','ID=gene-AT1G01240','ID=gene-AT1G01260','ID=gene-AT1G01280','ID=gene-AT1G01290'),])
 
 #Cells are labeled by 96-cell batch and cell barcode. (A155-168_10s)
 #Batches: A155-168, A182-193, A194-205, A206-217, A218-229, A230-241, A242-253
@@ -451,6 +451,7 @@ AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
 plotCell2('A155-168_61s')
 
 library('ComplexHeatmap')
+
 Heatmap(cor(AlleleFrac2, use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 Heatmap(cor(AlleleFrac2[,names(which(colSums(C) >= 10000))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 Heatmap(cor(AlleleFrac2[,names(which(colSums(C) >= 20000))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
@@ -506,6 +507,9 @@ Heatmap(cor(ord_AlleleFrac, use = 'pairwise.complete.obs', method = 'pearson'), 
 Heatmap(cor(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
 
 Heatmap(ord_FracMono, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+svg('ord_FracMono_in_AlleleFrac2.svg', width = 5, height = 30)
+Heatmap(ord_FracMono[which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))], name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+dev.off()
 Heatmap(ord_FracMono_over10000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
 Heatmap(ord_FracMono_over20000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
 
@@ -519,7 +523,7 @@ binUse = which(abs(rowMeans(g1_bin/(g1_bin+g2_bin), na.rm=T) - .5) < .4)  # Excl
 
 ratioHist = function(cell = NULL, vals = NULL) {
 	if (is.null(vals)) { vals = ratio[,paste(cell)] } 
-	gghistogram(data.frame(ratio = vals[geneUse]), x = 'ratio', fill = 'black', bins = 15) + theme(strip.background = element_blank(), strip.text.x = element_blank(), legend.position = 'none') + scale_y_continuous(expand = c(0,0)) + xlab('% Transcripts with Col-0 allele') + ylab('Genes') + scale_x_continuous(breaks = seq(0,1,.1), labels=c('0', rep('',4), '0.5', rep('',4), '1.0')) }
+	gghistogram(data.frame(ratio = vals[binUse]), x = 'ratio', fill = 'black', bins = 15) + theme(strip.background = element_blank(), strip.text.x = element_blank(), legend.position = 'none') + scale_y_continuous(expand = c(0,0)) + xlab('% Transcripts with Col-0 allele') + ylab('Genes') + scale_x_continuous(breaks = seq(0,1,.1), labels=c('0', rep('',4), '0.5', rep('',4), '1.0')) }
 
 ratioHist('A242-253_13s')
 
@@ -543,10 +547,38 @@ minmax = function(x) {
 
 A2 = sweep(C, 2, colSums(C), '/')*10^6  # Transcripts per million normalization
 A2b = log(A2+pseudocount,10)  # Log transform
+A3 = A2b[rowSums(A2[,colnames(AlleleFrac2)] > 0) >= 20,colnames(AlleleFrac2)]
+A3 = A3[rank(-apply(A3,1,sd)) <= 1000,]
+PCs = prcomp(t(A3))
 
 Heatmap(cor(A2b, use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
-Heatmap(cor(A2b[colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
-Heatmap(cor(A2b[,names(ord_ratio_mono_over10000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+svg('ord_A2b_in_AlleleFrac2.svg', width = 30, height = 30)
+Heatmap(cor(A2b[,colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+dev.off()
+
+
+col = list(FracMono = colorRampPalette(c('blue2','red2'))(100),
+    UMIcounts = colorRampPalette(c('gray','black'))(100),
+    Stage = c("UM" = "#9f9f9f", "BM" = "#333333", "Tri" = "#dddddd"))),
+
+###
+ords = order(PCs$x[,1])
+svg('A2b_in_AlleleFrac2.svg', width = 35, height = 30)
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(C[,colnames(AlleleFrac2)][,ords]),10),
+    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+    col = list(Stage = c("BM" = "#9f9f9f", "Tri" = "#333333", "UM" = "#dddddd"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+dev.off()
+###
+
+
+Ambi_samples = names(which(FracMono[names(which(FracMono > 40))] < 60))
+Heatmap(AlleleFrac2[,Ambi_samples], name = 'Ambi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+###require genes to be expressed in at least 20 cells
+
+Heatmap(cor(A2b[,names(ord_ratio_mono_over10000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
 Heatmap(cor(A2b[,names(ord_ratio_mono_over12000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
 Heatmap(cor(A2b[,names(ord_ratio_mono_over20000)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
 
@@ -592,9 +624,12 @@ do
     zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | sort | uniq -c | sort -nr | head -n 100 > spike_ins/raw_"$file2".txt
 done
 
+grep -F -f /scratch/jms53460/7-8_2024_At/96spike_in_barcodes.txt spike_ins/raw_A206-217_S35_L005_R1.txt | wc -l
+#I made a text file with the 96 spike-in barcode sequences (96spike_in_barcodes.txt). 
+#Maximum found was 91 matching barcodes within the top 100 for each raw data file
 
 cd /scratch/jms53460/7-8_2024_At
-###Check demultiplexed files for matching spike-ins. I made a text file with the 96 spike-in barcode sequences (96spike_in_barcodes.txt)
+###Check demultiplexed files for matching spike-ins.
 for file in "Demultiplexed/"*.fastq*
 do
     echo ""
@@ -641,7 +676,7 @@ spike_in_list = spike_in_list[c(1:96),]
 names(spike_in_list) = unlist(lapply(spike_in_list, function(xx) { xx[1] }))
 files = dir('spike_ins3')
 A = matrix(NA, nrow = length(spike_in_list), ncol = length(files))
-rownames(A) = spike_in_list
+rownames(A) = names(spike_in_list)
 colnames(A) = files
 for (f in files) {
     xx = read.table(paste('spike_ins3/', f, sep = ''), sep = '', header = F, row.names = 2)
@@ -653,54 +688,116 @@ load('7-8_2024_At_2.RData')
 
 order = c(11,22,33,44,55,66,77,88,96,1:10,12:21,23:32,34:43,45:54,56:65,67:76,78:87,89:95)
 B = A[,c(order,order+96,order+96*2,order+96*3,order+96*4,order+96*5,order+96*6)]
+B[is.na(B)] = 0
 
+colnames(B) = colnames(C)
+
+B2 = B
 for (y in 0:6) {
     for (x in (1+96*y):(96+96*y)) {
-        for (z in (1:96)[-(x-96*y)]){
-            B[z,x] = B[z,x]*sum(C[,(z+96*y)])/sum(C[,x])
+        for (z in (1:96)){
+            B2[z,x] = B[z,x]/sum(B[,x])
         }
     }
 }
 
-for (x in 1:96) {
-    for (z in (1:96)[-x]){
-        B[z,x] = B[z,x]*sum(C[,z])/sum(C[,x])
-    }
-}
-for (x in (1+96):(96+96)) {
-    for (z in (1:96)[-(x-96)]){
-        B[z,x] = B[z,x]*sum(C[,(z+96)])/sum(C[,x])
-    }
-}
-for (x in (1+96*2):(96+96*2)) {
-    for (z in (1:96)[-(x-96*2)]){
-        B[z,x] = B[z,x]*sum(C[,(z+96*2)])/sum(C[,x])
-    }
-}
-for (x in (1+96*3):(96+96*3)) {
-    for (z in (1:96)[-(x-96*3)]){
-        B[z,x] = B[z,x]*sum(C[,(z+96*3)])/sum(C[,x])
-    }
-}
-for (x in (1+96*3):(96+96*3)) {
-    for (z in (1:96)[-(x-96*3)]){
-        B[z,x] = B[z,x]*sum(C[,(z+96*3)])/sum(C[,x])
+B3 = B[1,]
+for (x in 1:96){
+    for (y in 0:6){
+        B3[x+96*y] = B2[x,x+96*y]
     }
 }
 
-B[is.na(B)] = 0
-colSums(B) # pasted this over to excel
-C_ordered = C
+
 Spike_ins = B
-Spike_ins_original = A[,c(11,17:24,1:10,12:16,25:96)]
-save(Spike_ins,C_ordered,Spike_ins_original, file = '4_2024_At_Spike_ins3.RData')
+Spike_ins_frac = B2
+Spike_ins_frac_correct = B3
+save(Spike_ins, Spike_ins_frac, Spike_ins_frac_correct, file = '7-8_2024_At_Spike_ins.RData')
 q()
 
-
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins3.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/7-8_2024_At/7-8_2024_At_Spike_ins.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
-load('4_2024_At_Spike_ins3.RData')
+load('7-8_2024_At_Spike_ins.RData')
+
+Spike_ins_vs_UMIs = data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], colSums(C[,colnames(AlleleFrac2)]))
+plot(Spike_ins_vs_UMIs)
+hist(Spike_ins_frac)
+
+plot(data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], FracMono))
+
+
+AlleleFrac3 = AlleleFrac2[,which(colnames(AlleleFrac2) %in% names(which(Spike_ins_frac_correct > 0.85)))]
+hist(AlleleFrac3[,which(colnames(AlleleFrac3) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])])
+hist(AlleleFrac3[,which(colnames(AlleleFrac3) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])])
+hist(AlleleFrac3[,which(colnames(AlleleFrac3) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])])
+
+names(which(Spike_ins_frac_correct[colnames(AlleleFrac2)] < 0.6))
+
+
+plotCell2('A182-193_66s')
+plotCell2('A194-205_72s')
+plotCell2('A194-205_75s')
+plotCell2('A218-229_72s')
+plotCell2('A218-229_73s')
+plotCell2('A218-229_75s')
+plotCell2('A230-241_72s')
+plotCell2('A230-241_73s')
+plotCell2('A230-241_75s')
+plotCell2('A242-253_66s')
+plotCell2('A242-253_75s')
+
+#Most of these are biallelic but some are monoallelic. 
+#The barcodes for the spike-ins of 66s and 72s as well as 73s and 75s are identical pairs
+#R assigned exactly half the matching spike-ins to each of a pair, thus ~50% Spike_ins_frac_correct for these
+
+summary(Spike_ins_frac_correct) #min 0, median 0.9423, mean 0.9042, max 0.9851
+
+names(which(Spike_ins_frac_correct < 0.2))
+sum(C[,"A182-193_72s"]) #848
+sum(C[,"A182-193_80s"]) #533
+sum(C[,"A182-193_88s"]) #444
+sum(C[,"A182-193_96s"]) #331
+sum(C[,"A194-205_60s"]) #12
+sum(C[,"A242-253_56s"]) #37
+
+#The spike-ins that failed were all different ones, and based on the low UMIs, it was the library that failed
+#Interestingly, 5/6 of the failed spike-ins were the 8th of their celseq primer set.
+
+plot(data.frame(colSums(C[,colnames(AlleleFrac2)]), FracMono))
+summary(colSums(C[,which(colnames(C) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])]))
+summary(colSums(C[,which(colnames(C) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])]))
+summary(colSums(C[,which(colnames(C) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])]))
+
+
+AlleleFrac3 = AlleleFrac
+summary(colsums(is.na(AlleleFrac3))) #helpful to check before and after setting values to NA to make sure it works
+AlleleFrac3[,which(colSums(is.na(AlleleFrac)) >= 50)] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
+
+
+
+for (x in 0:83){
+    print(names(FracMono_all[(1+8*x)]))
+    print(summary(FracMono_all[(1+8*x):(8+8*x)]))
+}
+
+Anther_data = matrix(data=0, nrow = 4, ncol = 84)
+
+
+
+library(tidyverse)
+At_Size_sorted = At_Stages
+colnames(At_Size_sorted) = c('Date_collected', 'Plant', 'Sample', 'Xgen_primer', 'Bud', 'Bud_size', 'Anther_length', 'Stage', 'Bud_order')
+At_Size_sorted = arrange(At_Size_sorted, Bud_size)
+AlleleFrac_by_size = AlleleFrac[,At_Size_sorted$Sample]
+AlleleFrac_by_size = AlleleFrac_by_size[,which(colSums(is.na(AlleleFrac_by_size)) <= 50)]
+
+Heatmap(AlleleFrac_by_size, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+
+sizes = as.character(At_Size_sorted$Bud_size)
+order(sizes)
