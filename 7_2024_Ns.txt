@@ -163,15 +163,15 @@ do
 done
 
 # Merge StringTie transcripts
-ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
+ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
 
 # Merge GTF files
-stringtie --merge -p 6 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
+stringtie --merge -p 6 -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
 rm mergelist.txt
 
 
 
-###Takes ~20 mins per set of 96 for SNPsplit
+###Takes ~30 mins per set of 96
 
 
 #!/bin/bash

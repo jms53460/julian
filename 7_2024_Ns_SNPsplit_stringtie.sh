@@ -36,15 +36,15 @@ cd /scratch/jms53460/7_2024_Ns
 #done
 
 ml StringTie/2.2.1-GCC-11.3.0
-mkdir stringtie_out
-for file in "hisat2_out/"*_s.bam
-do
-	stringtie -p 6 --rf -o "stringtie_out/""${file:11:-6}"".gtf" "$file"
-done
+#mkdir stringtie_out
+#for file in "hisat2_out/"*_s.bam
+#do
+#	stringtie -p 6 --rf -o "stringtie_out/""${file:11:-6}"".gtf" "$file"
+#done
 
 # Merge StringTie transcripts
-ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
+ls -1 "stringtie_out/"*.gtf | gawk '{print $0}' > mergelist.txt
 
 # Merge GTF files
-stringtie --merge -p 6 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
+stringtie --merge -p 6 -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
 rm mergelist.txt
