@@ -20,9 +20,9 @@ ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate ./subread-env/
 
-featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a stringtie_out/stringtie_merged.gtf -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
 
 conda deactivate
 
