@@ -12,5 +12,5 @@
 
 cd /scratch/jms53460/7_2024_Ns
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 -d 1000 --min-MQ 60 --skip-indels -f Ns_genome.fna -b hisat2_out2/*_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns_2.vcf.gz
+bcftools mpileup -Ou --threads 6 -d 1000 --min-MQ 60 --skip-indels -f Ns_genome.fna -b bamlist | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns_2.vcf.gz
 bcftools index Ns_2.vcf.gz
