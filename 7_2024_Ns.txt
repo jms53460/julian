@@ -170,8 +170,8 @@ stringtie --merge -p 6 -o "stringtie_out/stringtie_merged.gtf" mergelist.txt
 rm mergelist.txt
 
 
-
 ###Takes ~30 mins per set of 96
+###I had an error when merging into one gtf file because 44s was empty. I removed 44s gtf and then it ran fine
 
 
 #!/bin/bash
@@ -248,35 +248,27 @@ done
 ml R/4.3.1-foss-2022a
 R
 annots = strsplit(read.table('stringtie_out/stringtie_merged.gtf', sep = '\t')[,9], ';')
-annots = annots[grep('ID=gene-', annots)]
+annots = annots[grep('gene_id', annots)]
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
-names(annots) = sub('ID=', '', names(annots))
+names(annots) = sub('gene_id ', '', names(annots))
 annots = annots[!duplicated(names(annots))]
 annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
 
 files = dir('UMIcounts')
 A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
+rownames(A) = names(annots)
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('L003_', '', sub('_SNPsplit.tsv', '', files))
+colnames(A) = sub('_S95_L003', '', sub('_SNPsplit.tsv', '', files))
 A[is.na(A)] = 0
-A = A[rowSums(A) > 0,]
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-D = B
+B = A
 
 files = dir('UMIcounts_g1')
 A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
+rownames(A) = names(annots)
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
@@ -284,19 +276,12 @@ for (f in files) {
 }
 colnames(A) = sub('L003_', '', sub('_SNPsplit_g1.tsv', '', files))
 A[is.na(A)] = 0
-A = A[rowSums(A) > 0,]
 
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-g1 = B
+g1 = A
 
 files = dir('UMIcounts_g2')
 A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
+rownames(A) = names(annots)
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
@@ -304,29 +289,97 @@ for (f in files) {
 }
 colnames(A) = sub('L003_', '', sub('_SNPsplit_g2.tsv', '', files))
 A[is.na(A)] = 0
-A = A[rowSums(A) > 0,]
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-g2 = B
+g2 = A
 
 genes = read.table('stringtie_out/stringtie_merged.gtf', sep = '\t')[,c(1,5)]
 annots2 = strsplit(read.table('stringtie_out/stringtie_merged.gtf', sep = '\t')[,9], ';')
 names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
-annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
-genes[,3] = annots2
-genes2 = genes[grepl('ID=gene-', genes[,3]),]
-genes = genes2[order(genes2[,3]),]
+genes[,3] = names(annots2)
+genes = genes[!duplicated(genes[,3]),]
+genes[,3] = names(annots)
 colnames(genes) = c('Chr', 'Position', 'Gene')
 rownames(genes) = genes[,3]
 
-save(D,g1,g2,genes, file = "7_2024_Ns.RData")
+save(B,g1,g2,genes, file = "7_2024_Ns.RData")
 q()
 
 
 ###Copying this to my local computer
 scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('7_2024_Ns.RData')
+
+g1[rowSums(g1) == 0] = NA
+g2[rowSums(g2) == 0] = NA
+
+
+Ns_AlleleFrac = g1/(g1+g2)
+Ns_AlleleFrac = Ns_AlleleFrac[which(rowSums(is.na(Ns_AlleleFrac)) <96),which(colSums(is.na(Ns_AlleleFrac)) < 27300)]
+
+library('ComplexHeatmap')
+Heatmap(Ns_AlleleFrac, name = 'Ns_AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+
+#Not enough data to work with at the moment. I'll try remaking the SNP table and N-masked genome using the new data
+
+
+
+cp /home/jms53460/Ns_genome.fna .
+cp /home/jms53460/Ns_genome.fna.fai .
+cp /home/jms53460/hisat2_index* .
+
+#!/bin/bash
+#SBATCH --job-name=Ns_hisat2_2                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=2:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7_2024_Ns/Ns_hs2_2.out                 # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7_2024_Ns/Ns_hs2_2.err                  # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/7_2024_Ns
+mkdir hisat2_out
+
+for file in "Demultiplexed/"*.fastq*
+do
+	file2="${file:14:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	module load fastp/0.23.2-GCC-11.3.0
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+fi
+done
+
+mkdir hisat2_out2
+cp hisat2_out/*s.fastq.gz hisat2_out2
+ml HISAT2/3n-20201216-gompi-2022a
+ml SAMtools/1.16.1-GCC-11.3.0
+for file in "hisat2_out2/"*s.fastq*
+do
+	file2="${file:12:-9}"
+
+if [ ! -f "hisat2_out2/""$file2"".bam" ]; then
+
+	hisat2 -p 6 --dta -x Ns_hisat2_index -U "hisat2_out2/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out2/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out2/""$file2""_unsorted.bam" -o "hisat2_out2/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out2/""$file2""_s.bam"
+	
+fi
+done
+
+
+
+
+module load SAMtools/1.16.1-GCC-11.3.0
+samtools index -@ 6 hisat2_out/merged_s.bam
+
+module load BCFtools/1.15.1-GCC-11.3.0
+bcftools mpileup -Ou --threads 6 -d 1000 --min-MQ 60 --skip-indels -f Ns_genome.fna -b hisat2_out/*_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Ns.vcf.gz
+bcftools index Ns.vcf.gz
