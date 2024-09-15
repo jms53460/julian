@@ -19,7 +19,7 @@ do
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
-	hisat2 -p 6 --dta -x Ns_N-masked_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	hisat2 -p 6 --dta -x Ns_2_N-masked_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
 	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
     samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
 	
