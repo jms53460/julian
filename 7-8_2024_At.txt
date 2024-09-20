@@ -395,7 +395,19 @@ library(tidyverse)
 At_Stages = arrange(At_Stages, Bud_order)
 At_Stages$Sample = c(paste(rep('A155-168_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A182-193_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A194-205_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A206-217_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A218-229_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A230-241_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A242-253_', times = 96), 1:96, rep('s', times=96), sep=''))
 stages = as.character(At_Stages$Stage)
-stages = factor(stages, levels = c('UM', 'UM/BM', 'BM', 'Tri'))
+stages = factor(stages, levels = c('UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri'))
+
+genes1 = genes[which(genes[,1] == 1),]
+genes1 = genes1[order(genes1[,2]),]
+genes2 = genes[which(genes[,1] == 2),]
+genes2 = genes2[order(genes2[,2]),]
+genes3 = genes[which(genes[,1] == 3),]
+genes3 = genes3[order(genes3[,2]),]
+genes4 = genes[which(genes[,1] == 4),]
+genes4 = genes4[order(genes4[,2]),]
+genes5 = genes[which(genes[,1] == 5),]
+genes5 = genes5[order(genes5[,2]),]
+genes = rbind(genes1, genes2, genes3, genes4, genes5)
 
 g1_new = as.data.frame(matrix(data=0, nrow = nrow(genes), ncol = ncol(C)))
 rownames(g1_new) = rownames(genes)
@@ -422,7 +434,6 @@ C = C[,At_Stages$Sample]
 
 hist(colSums(C), breaks=5000) #Most samples have very few UMIs. There might be a hint of separation around 12,000 UMIs
 abline(v=12000)
-rowSums(g1_new[c('ID=gene-AT1G01210','ID=gene-AT1G01225','ID=gene-AT1G01240','ID=gene-AT1G01260','ID=gene-AT1G01280','ID=gene-AT1G01290'),])
 
 #Cells are labeled by 96-cell batch and cell barcode. (A155-168_10s)
 #Batches: A155-168, A182-193, A194-205, A206-217, A218-229, A230-241, A242-253
@@ -446,7 +457,13 @@ AlleleFrac = g1_frac
 AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
 AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
 
+summary(colSums(C[,colnames(AlleleFrac2)])) #UMIs per sample
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   3820    6582    9224   14390   15657   88262
 
+summary(colSums(C[,colnames(AlleleFrac2)] > 0))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   1650    2596    3108    3319    3897    6357
 
 plotCell2('A155-168_61s')
 
@@ -463,6 +480,10 @@ dev.off()
 #Plotting the ones that are highly correlated together. 
 svg('7-8_2024_At_correlated_AlleleFrac2.svg', width = 60, height = 8)
 ggarrange(plotCell2('A155-168_26s'), plotCell2('A218-229_68s'), plotCell2('A218-229_48s'), plotCell2('A230-241_47s'), plotCell2('A194-205_75s'), plotCell2('A194-205_7s'), plotCell2('A206-217_21s'), plotCell2('A182-193_48s'), plotCell2('A194-205_19s'), plotCell2('A242-253_5s'), plotCell2('A155-168_28s'), plotCell2('A194-205_86s'), plotCell2('A182-193_53s'), plotCell2('A218-229_44s'), plotCell2('A182-193_55s'), plotCell2('A218-229_86s'), plotCell2('A218-229_62s'), plotCell2('A218-229_60s'), plotCell2('A155-168_77s'), plotCell2('A230-241_85s'), plotCell2('A182-193_85s'), plotCell2('A194-205_77s'), plotCell2('A194-205_78s'), plotCell2('A155-168_61s'), plotCell2('A182-193_25s'), plotCell2('A218-229_12s'), plotCell2('A230-241_32s'), plotCell2('A194-205_79s'), plotCell2('A206-217_64s'), plotCell2('A182-193_60s'), plotCell2('A230-241_55s'), ncol = 31, align = 'v')
+dev.off()
+
+svg('7-8_2024_At_example_chr_plots.svg', width = 15, height = 6)
+ggarrange(plotCell2('A242-253_61s'), plotCell2('A230-241_90s'), plotCell2('A182-193_60s'), plotCell2('A218-229_19s'), plotCell2('A194-205_44s'), plotCell2('A194-205_86s'), ncol = 6, align = 'v')
 dev.off()
 
 
@@ -496,8 +517,11 @@ ord_FracMono_over10000 = 100*colMeans(abs(ord_AlleleFrac[,(which(colSums(C[,orde
 ord_FracMono_over20000 =100*colMeans(abs(ord_AlleleFrac[,names(which(colSums(C[,order(stages)]) >= 20000))] - .5) >= .3, na.rm=T)
 
 Heatmap(AlleleFrac2, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UMe')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
 Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM/BM')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
 Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM/Tri')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
 Heatmap(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
 
 Heatmap(ord_AlleleFrac, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
@@ -512,6 +536,38 @@ Heatmap(ord_FracMono[which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))]
 dev.off()
 Heatmap(ord_FracMono_over10000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
 Heatmap(ord_FracMono_over20000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+Mono_Allele_Frac = ord_AlleleFrac[,which(names(ord_FracMono) %in% names(which(FracMono > 70)))]
+Mono_Allele_Frac_UM = Mono_Allele_Frac[,which(colnames(Mono_Allele_Frac) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])]
+Mono_Allele_Frac_BM = Mono_Allele_Frac[,which(colnames(Mono_Allele_Frac) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])]
+Mono_Allele_Frac_Tri = Mono_Allele_Frac[,which(colnames(Mono_Allele_Frac) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])]
+
+Heatmap(Mono_Allele_Frac, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(Mono_Allele_Frac_UM, name = 'AlleleFrac_UM', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(Mono_Allele_Frac_BM, name = 'AlleleFrac_BM', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(Mono_Allele_Frac_Tri, name = 'AlleleFrac_Tri', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+
+Heatmap(rowMeans(Mono_Allele_Frac, na.rm=T), name = 'Allele_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(rowMeans(Mono_Allele_Frac_UM, na.rm=T), name = 'Allele_UM_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(rowMeans(Mono_Allele_Frac_BM, na.rm=T), name = 'Allele_BM_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Heatmap(rowMeans(Mono_Allele_Frac_Tri, na.rm=T), name = 'Allele_Tri_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+Allele_bias = as.matrix(data.frame(bias = rowMeans(Mono_Allele_Frac, na.rm=T), 
+    UM_bias = rowMeans(Mono_Allele_Frac_UM, na.rm=T),
+    BM_bias = rowMeans(Mono_Allele_Frac_BM, na.rm=T),
+    Tri_bias = rowMeans(Mono_Allele_Frac_Tri, na.rm=T)))
+Heatmap(Allele_bias, name = 'Allele_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+head(200*(abs(Mono_Allele_Frac - .5)))
+Heatmap(rowMeans(200*(abs(Mono_Allele_Frac - .5)), na.rm=T), name = 'Mono_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(rowMeans(200*(abs(Mono_Allele_Frac_UM - .5)), na.rm=T), name = 'Mono_UM_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(rowMeans(200*(abs(Mono_Allele_Frac_BM - .5)), na.rm=T), name = 'Mono_BM_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(rowMeans(200*(abs(Mono_Allele_Frac_Tri - .5)), na.rm=T), name = 'Mono_Tri_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Mono_bias = as.matrix(data.frame(bias = rowMeans(200*(abs(Mono_Allele_Frac - .5)), na.rm=T), 
+    UM_bias = rowMeans(200*(abs(Mono_Allele_Frac_UM - .5)), na.rm=T),
+    BM_bias = rowMeans(200*(abs(Mono_Allele_Frac_BM - .5)), na.rm=T),
+    Tri_bias = rowMeans(200*(abs(Mono_Allele_Frac_Tri - .5)), na.rm=T)))
+Heatmap(Mono_bias, name = 'Mono_bias', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
 
 for (x in names(ord_FracMono_over20000)){
     print(paste('plotCell2(', x, ')', ',', sep=''))
@@ -528,7 +584,34 @@ ratioHist = function(cell = NULL, vals = NULL) {
 ratioHist('A242-253_13s')
 
 hist(AlleleFrac)
-hist(AlleleFrac2)
+
+svg('FracMono_hist.svg', width=3.5, height=4)
+hist(FracMono, xlab = '% of bins with monoallelic expression', ylab = '# of samples', main = 'Monoallelic expression in 
+Arabidopsis pollen precursors')
+dev.off()
+
+svg('AlleleFrac_hist.svg', width=3.5, height=4)
+hist(AlleleFrac2, xlab = 'Fraction of transcripts
+from Col-0 allele', ylab = '# of bins', main = 'All samples')
+dev.off()
+
+svg('AlleleFrac_UM_hist.svg', width=3.5, height=4)
+hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])], xlab = 'Fraction of transcripts
+from Col-0 allele', ylab = '# of bins', main = 'Unicellular microspores')
+dev.off()
+
+svg('AlleleFrac_BM_hist.svg', width=3.5, height=4)
+hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])], xlab = 'Fraction of transcripts
+from Col-0 allele', ylab = '# of bins', main = 'Bicellular microspores')
+dev.off()
+
+svg('AlleleFrac_Tri_hist.svg', width=3.5, height=4)
+hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])], xlab = 'Fraction of transcripts
+from Col-0 allele', ylab = '# of bins', main = 'Tricellular pollen')
+dev.off()
+
+
+
 hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'UM')])])
 hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'BM')])])
 hist(AlleleFrac2[,which(colnames(AlleleFrac2) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])])
@@ -556,19 +639,43 @@ svg('ord_A2b_in_AlleleFrac2.svg', width = 30, height = 30)
 Heatmap(cor(A2b[,colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
 dev.off()
 
-
-col = list(FracMono = colorRampPalette(c('blue2','red2'))(100),
-    UMIcounts = colorRampPalette(c('gray','black'))(100),
-    Stage = c("UM" = "#9f9f9f", "BM" = "#333333", "Tri" = "#dddddd"))),
-
 ###
 ords = order(PCs$x[,1])
-svg('A2b_in_AlleleFrac2.svg', width = 35, height = 30)
+library('seriation')
+
+#From Brad's code:
+o1 = seriate(dist(t(scale(t(A3[,ords]))), method = "OLO"))
+o1 = seriate(dist(A3[,ords]), method = "OLO")
+o2 = seriate(dist(t(A3[,ords])), method = "OLO")
 Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', 
     top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(C[,colnames(AlleleFrac2)][,ords]),10),
     Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
-    col = list(Stage = c("BM" = "#9f9f9f", "Tri" = "#333333", "UM" = "#dddddd"))),
-      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), row_order = get_order(t(o2)), column_order = get_order(o2), show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(C[,colnames(AlleleFrac2)][,ords]),10),
+    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), show_row_names = FALSE, show_column_names = FALSE, row_dend_reorder = TRUE, column_dend_reorder = TRUE)
+
+
+
+svg('A2b_in_AlleleFrac2.svg', width = 6, height = 5)
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(C[,colnames(AlleleFrac2)][,ords]),10),
+    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+svg('A2b_in_AlleleFrac2_names.svg', width = 35, height = 5)
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(C[,colnames(AlleleFrac2)][,ords]),10),
+    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = TRUE)
 dev.off()
 ###
 
@@ -723,9 +830,18 @@ scp sapelo2:/scratch/jms53460/7-8_2024_At/7-8_2024_At_Spike_ins.RData 'C:/Users/
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('7-8_2024_At_Spike_ins.RData')
 
+plot(data.frame(colSums(C), Spike_ins_frac_correct))
 Spike_ins_vs_UMIs = data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], colSums(C[,colnames(AlleleFrac2)]))
 plot(Spike_ins_vs_UMIs)
+plot(data.frame(colSums(C[,colnames(AlleleFrac2)]), colSums(Spike_ins[,colnames(AlleleFrac2)])))
 hist(Spike_ins_frac)
+
+z = Spike_ins
+svg('Spike_ins_cor.svg', width=10, height=80)
+Heatmap(cor(Spike_ins), name = 'cor(Spike_ins)', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+Heatmap(cor(log(z+1)))
 
 plot(data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], FracMono))
 
@@ -757,15 +873,41 @@ plotCell2('A242-253_75s')
 summary(Spike_ins_frac_correct) #min 0, median 0.9423, mean 0.9042, max 0.9851
 
 names(which(Spike_ins_frac_correct < 0.2))
-sum(C[,"A182-193_72s"]) #848
-sum(C[,"A182-193_80s"]) #533
-sum(C[,"A182-193_88s"]) #444
-sum(C[,"A182-193_96s"]) #331
-sum(C[,"A194-205_60s"]) #12
-sum(C[,"A242-253_56s"]) #37
+sum(C[,"A182-193_72s"]) #848 UMIs, 0.096 Spike_ins_frac_correct
+sum(C[,"A182-193_80s"]) #533 UMIs, 0.043 Spike_ins_frac_correct
+sum(C[,"A182-193_88s"]) #444 UMIs, 0.039 Spike_ins_frac_correct
+sum(C[,"A182-193_96s"]) #331 UMIs, 0.044 Spike_ins_frac_correct
+sum(C[,"A194-205_60s"]) #12 UMIs, 0.0 Spike_ins_frac_correct
+sum(C[,"A242-253_56s"]) #37 UMIs, 0.0 Spike_ins_frac_correct
 
 #The spike-ins that failed were all different ones, and based on the low UMIs, it was the library that failed
 #Interestingly, 5/6 of the failed spike-ins were the 8th of their celseq primer set.
+
+colnames(Spike_ins[,seq(67,ncol(Spike_ins),96)])
+Heatmap(Spike_ins[,c(seq(67,ncol(Spike_ins),96),seq(69,ncol(Spike_ins),96))], name = 'Spike_ins', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(AlleleFrac[,seq(67,ncol(Spike_ins),96)], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+primer_order = order(rep(1:96, 7))
+AlleleFrac_by_primer = AlleleFrac[,primer_order]
+
+svg('AlleleFrac_by_primer.svg', width=60, height=10)
+Heatmap(AlleleFrac_by_primer[,which(colnames(AlleleFrac_by_primer) %in% colnames(AlleleFrac2))], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+dev.off()
+
+svg('AlleleFrac_by_primer_cor.svg', width=60, height=10)
+Heatmap(cor(AlleleFrac_by_primer[,which(colnames(AlleleFrac_by_primer) %in% colnames(AlleleFrac2))], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+dev.off()
+
+
+Heatmap(colSums(C[,primer_order]), cluster_rows=F)
+
+for (x in 0:95){
+    print(names(FracMono_all[primer_order[(1+7*x)]]))
+    print(summary(colSums(C[,primer_order[(1+7*x):(7+7*x)]])))
+}
+
+
+
 
 plot(data.frame(colSums(C[,colnames(AlleleFrac2)]), FracMono))
 summary(colSums(C[,which(colnames(C) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])]))

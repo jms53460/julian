@@ -427,22 +427,29 @@ source activate /scratch/jms53460/7_2024_Ns/vcf2tsvpy
 vcf2tsvpy --input_vcf Ns_2.vcf.gz --out_tsv Ns_2.vcf_table.tsv 
 conda deactivate
 
+#This failed because vcf2tsvpy is not working how it did before. The error suggests it's a problem with the python version or something like that.
+#I found online that vcf files are basically already in tsv format but with headers, so I will try using the vcf file directly
 
 
-###Selected columns from the vcf_table
-awk '{print $1,$2,$3,$4,$5,$16}' Ns_2.vcf_table.tsv OFS="\t" > Ns_2_variants.tsv
-grep F Ns_2_variants.tsv > Ns_2_SNPs.tsv
-awk '{print $6,$1,$2,$3,$4,$5}' Ns_2_SNPs.tsv OFS="\t" > Ns_2_SNPs_alt.tsv
+zcat Ns_2.vcf.gz | grep -v "#" > Ns_2.tsv
+awk '{print $1,$2,$3,$4,$5,$16}' Ns_2.tsv OFS="\t" > Ns_2_variants.tsv
+awk '{print $6,$1,$2,$3,$4,$5}' Ns_2_variants.tsv OFS="\t" > Ns_2_SNPs.tsv
+
 
 ml R/4.3.2-foss-2022b
 R
-Ns_SNPs_alt <- read.csv("/scratch/jms53460/7_2024_Ns/Ns_2_SNPs_alt.tsv", sep="")
+Ns_SNPs_alt <- read.csv("/scratch/jms53460/7_2024_Ns/Ns_2_SNPs.tsv", sep="", header=FALSE)
 Ns_SNPs = Ns_SNPs_alt[,(1:4)]
 Ns_SNPs[,5] = paste(Ns_SNPs_alt[,5], "/", Ns_SNPs_alt[,6], sep = "")
 colnames(Ns_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
 Ns_SNPs$"ID" = "."
 Ns_SNPs$"SNP value" = 1
-dim(Ns_SNPs) #
+dim(Ns_SNPs) # 14726 rows 5 columns
+dim(Ns_SNPs[!duplicated(Ns_SNPs[,3]),]) #14725 rows 5 columns
+which(duplicated(Ns_SNPs[,3])) #6559
+Ns_SNPs[6559,] #Position is 131737018
+which(Ns_SNPs[,3] == 131737018) #988 and 6559
+Ns_SNPs[c(988,6559),] #The position number is the same but Chr is different, so there are no duplicate rows :)
 write.table(Ns_SNPs, file = 'Ns_2_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 q()
 
@@ -466,6 +473,20 @@ bedtools maskfasta -fi Ns_genome.fna -fo Ns_2_N-masked_genome.fa -bed Ns_2.vcf.g
 
 ml HISAT2/3n-20201216-gompi-2022a
 hisat2-build Ns_2_N-masked_genome.fa Ns_2_N-masked_hisat2_index
+
+
+#Chromosome names
+grep 'chr' Ns_2_N-masked_genome.fa | head
+>CM066003.1 Nicotiana sylvestris chromosome 1, whole genome shotgun sequence
+>CM066004.1 Nicotiana sylvestris chromosome 2, whole genome shotgun sequence
+>CM066005.1 Nicotiana sylvestris chromosome 3, whole genome shotgun sequence
+>CM066006.1 Nicotiana sylvestris chromosome 4, whole genome shotgun sequence
+>CM066007.1 Nicotiana sylvestris chromosome 5, whole genome shotgun sequence
+>CM066008.1 Nicotiana sylvestris chromosome 6, whole genome shotgun sequence
+>CM066009.1 Nicotiana sylvestris chromosome 7, whole genome shotgun sequence
+>CM066010.1 Nicotiana sylvestris chromosome 8, whole genome shotgun sequence
+>CM066011.1 Nicotiana sylvestris chromosome 9, whole genome shotgun sequence
+>CM066012.1 Nicotiana sylvestris chromosome 10, whole genome shotgun sequence
 
 
 #Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
@@ -685,13 +706,116 @@ genes = genes[!duplicated(genes[,3]),]
 genes[,3] = names(annots)
 colnames(genes) = c('Chr', 'Position', 'Gene')
 rownames(genes) = genes[,3]
+genes = genes[order(genes[,1]),]
+genes[,1] = sub('CM06600', '', genes[,1])
+genes[,1] = sub('CM0660', '', genes[,1])
+
+
+genes1 = genes[which(genes[,1] == 3.1),]
+genes1 = genes1[order(genes1[,2]),]
+genes1[,1] = 1
+genes2 = genes[which(genes[,1] == 4.1),]
+genes2 = genes2[order(genes2[,2]),]
+genes2[,1] = 2
+genes3 = genes[which(genes[,1] == 5.1),]
+genes3 = genes3[order(genes3[,2]),]
+genes3[,1] = 3
+genes4 = genes[which(genes[,1] == 6.1),]
+genes4 = genes4[order(genes4[,2]),]
+genes4[,1] = 4
+genes5 = genes[which(genes[,1] == 7.1),]
+genes5 = genes5[order(genes5[,2]),]
+genes5[,1] = 5
+genes6 = genes[which(genes[,1] == 8.1),]
+genes6 = genes6[order(genes6[,2]),]
+genes6[,1] = 6
+genes7 = genes[which(genes[,1] == 9.1),]
+genes7 = genes7[order(genes7[,2]),]
+genes7[,1] = 7
+genes8 = genes[which(genes[,1] == 10.1),]
+genes8 = genes8[order(genes8[,2]),]
+genes8[,1] = 8
+genes9 = genes[which(genes[,1] == 11.1),]
+genes9 = genes9[order(genes9[,2]),]
+genes9[,1] = 9
+genes10 = genes[which(genes[,1] == 12.1),]
+genes10 = genes10[order(genes10[,2]),]
+genes10[,1] = 10
+
+genes = rbind(genes1, genes2, genes3, genes4, genes5, genes6, genes7, genes8, genes9, genes10)
+B = B[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
 
 save(B,g1,g2,genes, file = "7_2024_Ns_2.RData")
 q()
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns_2.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('7_2024_Ns_2.RData')
+
+> summary(colSums(B))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    3.0   811.8  1441.0  2737.8  3260.2 22528.0
+
+> summary(colSums(g1))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    1.0   328.5   594.0  1181.8  1338.8 11762.0
+
+> summary(colSums(g2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+    0.0    30.0    61.5   148.0   220.2  1348.0
+
+BIN2 = function (xx, bin = 10^7) 
+{
+    bin = as.numeric(genes[, 1]) * 10^7 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN2(g1)
+g2_bin = BIN2(g2)
+g1_frac = g1_bin/(g1_bin + g2_bin*8) #Multiplying g2_bin amounts by 8 to account for huge difference in g1 and g2 colSums ~8-10 fold difference
+AlleleFrac = g1_frac
+AlleleFrac[(g1_bin+g2_bin) < 3] = NA #remove bins with <3 genoinformative transcripts
+AlleleFrac[(g2_bin < 1)] = NA
+AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 150)]
+
+
+library('ComplexHeatmap')
+
+Heatmap(AlleleFrac2, name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=T)
+
+
+
+###Make a merged bam file and index file to load into IGV
+
+#!/bin/bash
+#SBATCH --job-name=Ns_samtools_merge                                      # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=2:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7_2024_Ns/Ns_samtools_merge.out        # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7_2024_Ns/Ns_samtools_merge.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/7_2024_Ns
+module load SAMtools/1.16.1-GCC-11.3.0
+samtools merge -@ 6 -o 7_2024_Ns_merged.bam -b bamlist
+samtools sort -@ 6 7_2024_Ns_merged.bam -o 7_2024_Ns_merged_s.bam
+samtools index 7_2024_Ns_merged_s.bam
 
 
