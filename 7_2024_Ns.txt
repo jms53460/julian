@@ -819,3 +819,107 @@ samtools sort -@ 6 7_2024_Ns_merged.bam -o 7_2024_Ns_merged_s.bam
 samtools index 7_2024_Ns_merged_s.bam
 
 
+grep 'alignment' Ns_hs2_2.err
+4.83% overall alignment rate
+56.95% overall alignment rate
+34.01% overall alignment rate
+37.55% overall alignment rate
+11.09% overall alignment rate
+9.39% overall alignment rate
+33.36% overall alignment rate
+22.81% overall alignment rate
+57.11% overall alignment rate
+32.18% overall alignment rate
+3.91% overall alignment rate
+60.86% overall alignment rate
+33.92% overall alignment rate
+47.67% overall alignment rate
+35.48% overall alignment rate
+66.19% overall alignment rate
+70.43% overall alignment rate
+25.86% overall alignment rate
+23.45% overall alignment rate
+51.56% overall alignment rate
+45.37% overall alignment rate
+2.69% overall alignment rate
+73.05% overall alignment rate
+73.40% overall alignment rate
+19.95% overall alignment rate
+18.08% overall alignment rate
+18.45% overall alignment rate
+8.71% overall alignment rate
+40.65% overall alignment rate
+31.58% overall alignment rate
+45.86% overall alignment rate
+54.51% overall alignment rate
+2.19% overall alignment rate
+46.54% overall alignment rate
+14.66% overall alignment rate
+3.19% overall alignment rate
+5.61% overall alignment rate
+11.42% overall alignment rate
+3.08% overall alignment rate
+2.21% overall alignment rate
+5.46% overall alignment rate
+11.88% overall alignment rate
+13.48% overall alignment rate
+6.31% overall alignment rate
+7.04% overall alignment rate
+7.00% overall alignment rate
+31.01% overall alignment rate
+69.72% overall alignment rate
+27.14% overall alignment rate
+60.69% overall alignment rate
+76.91% overall alignment rate
+1.59% overall alignment rate
+0.95% overall alignment rate
+53.30% overall alignment rate
+50.33% overall alignment rate
+65.57% overall alignment rate
+26.38% overall alignment rate
+1.95% overall alignment rate
+11.02% overall alignment rate
+7.82% overall alignment rate
+4.09% overall alignment rate
+12.66% overall alignment rate
+13.11% overall alignment rate
+15.50% overall alignment rate
+24.47% overall alignment rate
+20.44% overall alignment rate
+15.28% overall alignment rate
+35.44% overall alignment rate
+14.40% overall alignment rate
+18.45% overall alignment rate
+46.11% overall alignment rate
+55.65% overall alignment rate
+46.74% overall alignment rate
+63.49% overall alignment rate
+72.11% overall alignment rate
+71.63% overall alignment rate
+14.43% overall alignment rate
+78.02% overall alignment rate
+23.97% overall alignment rate
+11.01% overall alignment rate
+32.31% overall alignment rate
+29.91% overall alignment rate
+33.07% overall alignment rate
+16.79% overall alignment rate
+44.90% overall alignment rate
+34.66% overall alignment rate
+2.09% overall alignment rate
+12.48% overall alignment rate
+4.36% overall alignment rate
+77.56% overall alignment rate
+10.41% overall alignment rate
+46.48% overall alignment rate
+5.72% overall alignment rate
+69.42% overall alignment rate
+47.06% overall alignment rate
+29.82% overall alignment rate
+
+
+
+###Copying to my local computer
+scp sapelo2:/home/jms53460/Ns_genome.fna 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
+scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns_merged_s.bam 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
+scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns_merged_s.bam.bai 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
