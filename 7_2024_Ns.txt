@@ -923,3 +923,29 @@ grep 'alignment' Ns_hs2_2.err
 scp sapelo2:/home/jms53460/Ns_genome.fna 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
 scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns_merged_s.bam 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
 scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns_merged_s.bam.bai 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
+
+
+
+sed 's/Chr01/CM066003.1/' nsyl.gtf > nsyl_1.gtf
+sed 's/Chr02/CM066004.1/' nsyl_1.gtf > nsyl_2.gtf
+sed 's/Chr03/CM066005.1/' nsyl_2.gtf > nsyl_3.gtf
+sed 's/Chr04/CM066006.1/' nsyl_3.gtf > nsyl_4.gtf
+sed 's/Chr05/CM066007.1/' nsyl_4.gtf > nsyl_5.gtf
+sed 's/Chr06/CM066008.1/' nsyl_5.gtf > nsyl_6.gtf
+sed 's/Chr07/CM066009.1/' nsyl_6.gtf > nsyl_7.gtf
+sed 's/Chr08/CM066010.1/' nsyl_7.gtf > nsyl_8.gtf
+sed 's/Chr09/CM066011.1/' nsyl_8.gtf > nsyl_9.gtf
+sed 's/Chr10/CM066012.1/' nsyl_9.gtf > nsyl_10.gtf
+
+
+
+>CM066003.1 Nicotiana sylvestris chromosome 1, whole genome shotgun sequence
+>CM066004.1 Nicotiana sylvestris chromosome 2, whole genome shotgun sequence
+>CM066005.1 Nicotiana sylvestris chromosome 3, whole genome shotgun sequence
+>CM066006.1 Nicotiana sylvestris chromosome 4, whole genome shotgun sequence
+>CM066007.1 Nicotiana sylvestris chromosome 5, whole genome shotgun sequence
+>CM066008.1 Nicotiana sylvestris chromosome 6, whole genome shotgun sequence
+>CM066009.1 Nicotiana sylvestris chromosome 7, whole genome shotgun sequence
+>CM066010.1 Nicotiana sylvestris chromosome 8, whole genome shotgun sequence
+>CM066011.1 Nicotiana sylvestris chromosome 9, whole genome shotgun sequence
+>CM066012.1 Nicotiana sylvestris chromosome 10, whole genome shotgun sequence

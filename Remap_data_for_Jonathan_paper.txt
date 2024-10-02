@@ -1,0 +1,310 @@
+###First, must download the maize pollen timecourse and seedling data. I took the accession lists for the two data sets from NCBI SRA Run Selector, combined them, and used Filezilla to upload the combined list to the cluster.
+
+#!/bin/bash
+#SBATCH --job-name=fastq-dump  # Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=80gb                       # Job memory request
+#SBATCH --time=72:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=fastq_dump.out         # Standard output log
+#SBATCH --error=fastq_dump.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+ml SRA-Toolkit/3.0.1-centos_linux64
+output_dir="/scratch/jms53460/2022_SGT_paper_JG_Pollen/demultiplexed"
+# Loop through the SRA accession numbers in the list
+while read -r sra_accession; do
+  prefetch "$sra_accession"
+  fastq-dump --outdir "$output_dir" --gzip "$sra_accession"
+done < sra_accessions.txt
+
+
+###Download the B73 v5 genome and gff3 files from maizegdb.
+
+#!/bin/bash
+#SBATCH --job-name=download_genome_gff3  # Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=20gb                       # Job memory request
+#SBATCH --time=12:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=download_genome_gff3.out         # Standard output log
+#SBATCH --error=download_genome_gff3.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+ml wget/1.21.3-GCCcore-11.3.0
+wget --no-check-certificate https://download.maizegdb.org/Zm-B73-REFERENCE-NAM-5.0/Zm-B73-REFERENCE-NAM-5.0.fa.gz
+wget --no-check-certificate https://download.maizegdb.org/Zm-B73-REFERENCE-NAM-5.0/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3.gz
+
+
+###Un-gzip the genome and gff3 files
+gzip -d Zm-B73-REFERENCE-NAM-5.0.fa.gz
+gzip -d Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3.gz
+
+
+###Build hisat2 index
+
+#!/bin/bash
+#SBATCH --job-name=hisat2build  	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=20gb                       # Job memory request
+#SBATCH --time=12:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=hisat2build.out         # Standard output log
+#SBATCH --error=hisat2build.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build Zm-B73-REFERENCE-NAM-5.0.fa B73_v5_hisat2_index
+
+
+###Trim and filter sequences based on quality scores and repeat content
+###Map to genome using HiSat2
+
+mkdir hisat2_out
+
+#!/bin/bash
+#SBATCH --job-name=hisat2       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=80gb                       # Job memory request
+#SBATCH --time=12:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=hisat2.out         # Standard output log
+#SBATCH --error=hisat2.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+for file in "demultiplexed/"*.fastq*
+do
+	file2="${file:14:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	module load fastp/0.23.2-GCC-11.2.0
+	fastp -w 4 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+	module load HISAT2/2.2.1-gompi-2022a
+	module load SAMtools/1.16.1-GCC-11.3.0
+	hisat2 -p 4 --dta -x B73_v5_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	
+	samtools sort -@ 8 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2"".bam"
+	
+fi
+done
+
+
+#!/bin/bash
+#SBATCH --job-name=odd_sample       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=40gb                       # Job memory request
+#SBATCH --time=12:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=odd_sample.out         # Standard output log
+#SBATCH --error=odd_sample.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+ml SRA-Toolkit/3.0.1-centos_linux64
+prefetch SRR14640056
+  fastq-dump --outdir demultiplexed --gzip SRR14640056
+module load fastp/0.23.2-GCC-11.2.0
+fastp -w 4 -i demultiplexed/SRR14640056.fastq.gz -o hisat2_out/SRR14640056.fastq.gz -y -x -3 -a AAAAAAAAAAAA
+module load HISAT2/2.2.1-gompi-2022a
+module load SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 4 --dta -x B73_v5_hisat2_index -U hisat2_out/SRR14640056.fastq.gz | samtools view -bS -> hisat2_out/SRR14640056_unsorted.bam
+samtools sort -@ 8 hisat2_out/SRR14640056_unsorted.bam -o hisat2_out/SRR14640056.bam
+
+
+#!/bin/bash
+#SBATCH --job-name=49       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=40gb                       # Job memory request
+#SBATCH --time=12:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=49.out         # Standard output log
+#SBATCH --error=49.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+module load fastp/0.23.2-GCC-11.2.0
+fastp -w 4 -i demultiplexed/JG_Pollen_S5_L004_dT-49s.fastq.gz -o hisat2_out/JG_Pollen_S5_L004_dT-49s.fastq.gz -y -x -3 -a AAAAAAAAAAAA
+
+module load HISAT2/2.2.1-gompi-2022a
+module load SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 4 --dta -x B73_v5_hisat2_index -U hisat2_out/JG_Pollen_S5_L004_dT-49s.fastq.gz | samtools view -bS -> hisat2_out/JG_Pollen_S5_L004_dT-49s_unsorted.bam
+samtools sort -@ 8 hisat2_out/JG_Pollen_S5_L004_dT-49s_unsorted.bam -o hisat2_out/JG_Pollen_S5_L004_dT-49s.bam
+
+
+cd /scratch/jms53460/2022_SGT_paper_JG_Pollen/hisat2_out
+mv *unsorted.bam /scratch/jms53460/2022_SGT_paper_JG_Pollen/unsorted
+
+
+
+###Assemble new transcripts with stringtie
+
+mkdir stringtie_out
+
+#!/bin/bash
+#SBATCH --job-name=stringtie       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=40gb                       # Job memory request
+#SBATCH --time=4:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=stringtie.out         # Standard output log
+#SBATCH --error=stringtie.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+for file in "hisat2_out/"*.bam
+do
+	ml StringTie/2.2.1-GCC-11.3.0
+	stringtie -p 4 -G /scratch/jms53460/2022_SGT_paper_JG_Pollen/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 --rf -o "stringtie_out2/""${file:11:-4}"".gtf" "$file"
+done
+
+# Merge StringTie transcripts
+
+cd $SLURM_SUBMIT_DIR
+ls -1 "stringtie_out2/"*.gtf | gawk '{print $0}' > mergelist.txt
+
+# Load StringTie module
+ml StringTie/2.2.1-GCC-11.3.0
+
+# Merge GTF files
+stringtie --merge -p 8 -G /scratch/jms53460/2022_SGT_paper_JG_Pollen/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -o "stringtie_out2/stringtie_merged.gtf" mergelist.txt
+
+# Remove mergelist.txt
+rm mergelist.txt
+
+
+interact -c 4 --mem 8gb
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+conda create -p subread-env -y
+source activate ./subread-env/
+conda install -c bioconda subread -y
+subread-align [your options and arguments]
+
+
+### Ran featurecounts by itself 
+
+#!/bin/bash
+#SBATCH --job-name=featurecounts       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=4                  # Number of CPU cores per task
+#SBATCH --mem=50gb                       # Job memory request
+#SBATCH --time=4:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=featurecounts.out         # Standard output log
+#SBATCH --error=featurecounts.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate /scratch/jms53460/2022_SGT_paper_JG_Pollen/subread-env
+
+featureCounts -T 4 -s 1 -a "/scratch/jms53460/2022_SGT_paper_JG_Pollen/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3" -t 'gene' -g 'ID' -o "stringtie_out2/read_counts.tab" --readExtension5 500 -R BAM "hisat2_out/"*.bam
+
+featureCounts -T 4 -s 1 -a "stringtie_out2/stringtie_merged.gtf" -o "stringtie_out2/read_counts.tab" --readExtension5 500 -R BAM "hisat2_out/"*.bam
+
+conda deactivate
+
+
+###Check on the fastq files I need to send to Jonathan:
+zcat hisat2_out/SRR14640056.fastq.gz | head
+zcat hisat2_out/SRR14640056.fastq.gz | sed -n '2~4p' | head
+zcat hisat2_out/SRR14640056.fastq.gz | sed -n '2~4p' | wc
+zcat demultiplexed/SRR14640056.fastq.gz | head
+zcat demultiplexed/SRR14640056.fastq.gz | sed -n '2~4p' | head
+zcat demultiplexed/SRR14640056.fastq.gz | sed -n '2~4p' | wc
+
+###The umi headers are gone! :( I'll still continue moving forward with the mdr1/dng102 data though)
+zcat hisat2_out/SRR14640050.fastq.gz | head
+zcat hisat2_out/SRR14640050.fastq.gz | sed -n '2~4p' | head
+zcat hisat2_out/SRR14640050.fastq.gz | sed -n '2~4p' | wc
+zcat demultiplexed/SRR14640050.fastq.gz | head
+zcat demultiplexed/SRR14640050.fastq.gz | sed -n '2~4p' | head
+zcat demultiplexed/SRR14640050.fastq.gz | sed -n '2~4p' | wc
+
+
+#### Count UMIs
+
+mkdir "bams"
+mkdir "UMIcounts"
+
+#!/bin/bash
+#SBATCH --job-name=UMIcounts       	# Job name
+#SBATCH --partition=batch              # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                          # Run a single task
+#SBATCH --cpus-per-task=28                  # Number of CPU cores per task
+#SBATCH --mem=40gb                       # Job memory request
+#SBATCH --time=4:00:00                     # Time limit hrs:min:sec
+#SBATCH --output=UMIcounts.out         # Standard output log
+#SBATCH --error=UMIcounts.err          # Standard error log
+#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu   # Where to send mail
+#SBATCH --export=NONE                       # do not load any env variables to compute node
+
+cd $SLURM_SUBMIT_DIR
+
+for file in "stringtie_out2/"JG*.bam
+do
+    file2="${file:15:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 8 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+        # rm "$file"
+    fi
+done
+
+
+
+ml R/4.3.1-foss-2022a
+
+R
+
+annots = strsplit(read.table('stringtie_out2/stringtie_merged.gtf', sep = '\t')[,9], '; ')
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('gene_id ', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_S.+L004_', '', sub('.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+
+save(B, file = "v5_Jonathan_data")
+
+
+
+

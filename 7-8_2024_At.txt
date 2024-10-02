@@ -483,7 +483,7 @@ ggarrange(plotCell2('A155-168_26s'), plotCell2('A218-229_68s'), plotCell2('A218-
 dev.off()
 
 svg('7-8_2024_At_example_chr_plots.svg', width = 15, height = 6)
-ggarrange(plotCell2('A242-253_61s'), plotCell2('A230-241_90s'), plotCell2('A182-193_60s'), plotCell2('A218-229_19s'), plotCell2('A194-205_44s'), plotCell2('A194-205_86s'), ncol = 6, align = 'v')
+ggarrange(plotCell2('A194-205_44s'), plotCell2('A194-205_86s'), plotCell2('A182-193_60s'), plotCell2('A218-229_19s'), plotCell2('A242-253_61s'), plotCell2('A230-241_90s'), ncol = 6, align = 'v')
 dev.off()
 
 
@@ -510,6 +510,8 @@ Heatmap(ord_ratio_mono, name = 'FracMono', col = colorRampPalette(c('#0571b0','#
 Heatmap(ord_ratio_mono_over10000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
 Heatmap(ord_ratio_mono_over12000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
 Heatmap(ord_ratio_mono_over20000, name = 'FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
 
 ord_AlleleFrac = AlleleFrac[,order(stages)]
 ord_FracMono = 100*colMeans(abs(ord_AlleleFrac - .5) >= .3, na.rm=T)
@@ -682,6 +684,12 @@ dev.off()
 
 Ambi_samples = names(which(FracMono[names(which(FracMono > 40))] < 60))
 Heatmap(AlleleFrac2[,Ambi_samples], name = 'Ambi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Mono_samples = names(which(FracMono >= 70))
+Heatmap(AlleleFrac2[,Mono_samples], name = 'Mono_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Bi_samples = names(which(FracMono <= 30))
+Heatmap(AlleleFrac2[,Bi_samples], name = 'Bi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+
 
 ###require genes to be expressed in at least 20 cells
 
@@ -830,20 +838,27 @@ scp sapelo2:/scratch/jms53460/7-8_2024_At/7-8_2024_At_Spike_ins.RData 'C:/Users/
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('7-8_2024_At_Spike_ins.RData')
 
-plot(data.frame(colSums(C), Spike_ins_frac_correct))
-Spike_ins_vs_UMIs = data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], colSums(C[,colnames(AlleleFrac2)]))
+plot(data.frame(Spike_ins_frac_correct, colSums(D)))
+Spike_ins_vs_UMIs = data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], colSums(D[,colnames(AlleleFrac2)]))
 plot(Spike_ins_vs_UMIs)
-plot(data.frame(colSums(C[,colnames(AlleleFrac2)]), colSums(Spike_ins[,colnames(AlleleFrac2)])))
-hist(Spike_ins_frac)
+plot(data.frame(colSums(D[,colnames(AlleleFrac2)]), colSums(Spike_ins[,colnames(AlleleFrac2)])))
+hist(Spike_ins_frac[which(Spike_ins_frac > 0.1)])
 
 z = Spike_ins
 svg('Spike_ins_cor.svg', width=10, height=80)
 Heatmap(cor(Spike_ins), name = 'cor(Spike_ins)', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 dev.off()
 
-Heatmap(cor(log(z+1)))
+Heatmap(cor(log(Spike_ins+1)))
 
 plot(data.frame(Spike_ins_frac_correct[colnames(AlleleFrac2)], FracMono))
+
+Spike_ins_d = Spike_ins
+rownames(Spike_ins_d) = c(1:96)
+for (x in 1:672){
+    Spike_ins_d[,x] = Spike_ins[order(Spike_ins[,x], decreasing=TRUE),x]
+}
+Spike_ins_d[,1] = Spike_ins[order(Spike_ins[,1], decreasing=TRUE),1]
 
 
 AlleleFrac3 = AlleleFrac2[,which(colnames(AlleleFrac2) %in% names(which(Spike_ins_frac_correct > 0.85)))]
@@ -885,7 +900,7 @@ sum(C[,"A242-253_56s"]) #37 UMIs, 0.0 Spike_ins_frac_correct
 
 colnames(Spike_ins[,seq(67,ncol(Spike_ins),96)])
 Heatmap(Spike_ins[,c(seq(67,ncol(Spike_ins),96),seq(69,ncol(Spike_ins),96))], name = 'Spike_ins', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
-Heatmap(AlleleFrac[,seq(67,ncol(Spike_ins),96)], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+Heatmap(AlleleFrac[,c(seq(67,ncol(Spike_ins),96),seq(69,ncol(Spike_ins),96))], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
 
 primer_order = order(rep(1:96, 7))
 AlleleFrac_by_primer = AlleleFrac[,primer_order]
@@ -1005,7 +1020,373 @@ done
 conda deactivate
 
 
-scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/A* 'D:\7-8_2024_At_Data'
-scp sapelo2:/scratch/jms53460/7_2024_Ns/Demultiplexed2/T* 'D:\7_2024_Ns_Data'
+scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/*001.fastq.gz 'C:\Users\julia\OneDrive\Desktop\Grad School\Nelms lab\Bioinformatics\7-8_2024_At_Data'
+
+
+scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/*001.fastq.gz 'D:\7-8_2024_At_Data'
+scp sapelo2:/scratch/jms53460/7_2024_Ns/Demultiplexed2/*001.fastq.gz 'D:\7_2024_Ns_Data'
+
+
+ml R/4.3.1-foss-2022a
+R
+annots = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=gene-', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('ID=', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit.tsv', '', files))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit_g1.tsv', '', files))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit_g2.tsv', '', files))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2 = B
+
+genes = read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes2 = genes[grepl('ID=gene-', genes[,3]),]
+genes = genes2[order(genes2[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+genes = genes[!duplicated(genes[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+
+save(D,g1,g2,genes, file = "7-8_2024_At_3.RData")
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/7-8_2024_At/7-8_2024_At_3.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('7-8_2024_At_3.RData')
+
+plotCell2 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), 
+        plotChr(cell, chr = 5), plotScaleBar, ncol = 1, nrow = 6, 
+        align = "v", heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from Col-0 allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+library(readxl)
+X7_8_2024_At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/7-8_2024_At_Stages.xlsx")
+View(X7_8_2024_At_Stages)
+
+At_Stages <- X7_8_2024_At_Stages[rep(row.names(X7_8_2024_At_Stages), times = 8), ]
+library(tidyverse)
+At_Stages = arrange(At_Stages, Bud_order)
+At_Stages$Sample = c(paste(rep('A155-168_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A182-193_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A194-205_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A206-217_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A218-229_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A230-241_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A242-253_', times = 96), 1:96, rep('s', times=96), sep=''))
+stages = as.character(At_Stages$Stage)
+stages = factor(stages, levels = c('UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri'))
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+
+colnames(D) = sub('_S94', '', colnames(D))
+colnames(D) = sub('_S33_L005', '', colnames(D))
+colnames(D) = sub('_S34_L005', '', colnames(D))
+colnames(D) = sub('_S35_L005', '', colnames(D))
+colnames(D) = sub('_S36_L005', '', colnames(D))
+colnames(D) = sub('_S37_L005', '', colnames(D))
+colnames(D) = sub('_S38_L005', '', colnames(D))
+colnames(g1) = colnames(D)
+colnames(g2) = colnames(D)
+D = D[,At_Stages$Sample]
+g1 = g1[,At_Stages$Sample]
+g2 = g2[,At_Stages$Sample]
+
+hist(colSums(D), breaks=5000) #Most samples have very few UMIs. There might be a hint of separation around 25,000 UMIs
+abline(v=26000)
+
+#Cells are labeled by 96-cell batch and cell barcode. (A155-168_10s)
+#Batches: A155-168, A182-193, A194-205, A206-217, A218-229, A230-241, A242-253
+
+BIN2 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN2(g1)
+g2_bin = BIN2(g2)
+g1_frac = g1_bin/(g1_bin + g2_bin)
+AlleleFrac = g1_frac
+AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+#AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)]
+
+summary(colSums(D[,colnames(AlleleFrac2)])) #UMIs per sample
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  10000   13556   19442   30119   31591  194326 
+
+summary(colSums(D[,colnames(AlleleFrac2)] > 0))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   2591    4437    5472    5945    7195   12263
+
+plotCell2('A155-168_61s')
+
+library('ComplexHeatmap')
+
+
+FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
+
+ord_AlleleFrac = AlleleFrac[,order(stages)]
+ord_FracMono = 100*colMeans(abs(ord_AlleleFrac - .5) >= .3, na.rm=T)
+
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A3 = A2b[rowSums(A2[,colnames(AlleleFrac2)] > 0) >= 20,colnames(AlleleFrac2)]
+A3 = A3[rank(-apply(A3,1,sd)) <= 1000,]
+PCs = prcomp(t(A3))
+
+Heatmap(cor(A2b, use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+svg('ord_A2b_in_AlleleFrac2.svg', width = 30, height = 30)
+Heatmap(cor(A2b[,colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])], use = 'pairwise.complete.obs', method = 'pearson'), name = 'norm_log_UMIs', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+dev.off()
+
+###
+ords = order(PCs$x[,1])
+
+svg('A2b_in_AlleleFrac2.svg', width = 6, height = 5)
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(D[,colnames(AlleleFrac2)][,ords]),10),
+    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+ord_AlleleFrac2 = ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))]
+At_Stages2 = as.matrix(At_Stages)
+rownames(At_Stages2) = At_Stages$Sample
+
+Heatmap(cor(A3[,colnames(ord_AlleleFrac2)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[colnames(ord_AlleleFrac2)], UMIcounts = log(colSums(D[,colnames(ord_AlleleFrac2)]),10),
+    Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+#svg('A2b_in_AlleleFrac2_names.svg', width = 35, height = 5)
+#Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+#    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(C[,colnames(AlleleFrac2)][,ords]),10),
+#    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+#    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+#      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = TRUE)
+#dev.off()
+###
+
+
+
+AlleleFrac3 = AlleleFrac
+summary(colsums(is.na(AlleleFrac3))) #helpful to check before and after setting values to NA to make sure it works
+AlleleFrac3[,which(colSums(is.na(AlleleFrac)) >= 50)] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
+
+
+Anther_data = matrix(data=0, nrow = 84, ncol = 5)
+colnames(Anther_data) = c('Fail_QC', 'Monoallelic', 'Biallelic', 'Ambiguous', 'Bud')
+batch = c(rep('A155-168', times = 12), rep('A182-193', times = 12), rep('A194-205', times = 12), rep('A206-217', times = 12), rep('A218-229', times = 12), rep('A230-241', times = 12), rep('A242-253', times = 12))
+celseq_primer = rep(c('1-8s', '9-16s', '17-24s', '25-32s', '33-40s', '41-48s', '49-56s', '57-64s', '65-72s', '73-80s', '81-88s', '89-96s'), times = 7)
+rownames(Anther_data) = paste(batch, '_', celseq_primer, sep = '')
+Anther_data[,5] = X7_8_2024_At_Stages$Bud
+
+for (x in 0:83){
+    Anther_data[x+1,1] = sum(is.na(FracMono_all[(1+8*x):(8+8*x)]))
+}
+for (x in 0:83){
+    Anther_data[x+1,2] = sum((FracMono_all[(1+8*x):(8+8*x)] > 70), na.rm=TRUE)
+}
+for (x in 0:83){
+    Anther_data[x+1,3] = sum((FracMono_all[(1+8*x):(8+8*x)] < 30), na.rm=TRUE)
+}
+for (x in 0:83){
+    Anther_data[x+1,4] = sum(FracMono_all[(names(which(FracMono_all[(1+8*x):(8+8*x)] >= 30)))] <= 70, na.rm=TRUE)
+}
+
+sum(rowSums(Anther_data[,1:4]) == 8) #84, so it looks like this worked okay
+
+
+Bud_stages = as.character(X7_8_2024_At_Stages$Stage)
+Bud_stages = factor(Bud_stages, levels = c('UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri'))
+order(Bud_stages)
+
+Heatmap(Anther_data[,1:4], name = '#samples', 
+    right_annotation = rowAnnotation(Stage = X7_8_2024_At_Stages$Stage,
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, row_order = order(Bud_stages), cluster_columns=F, show_row_names = TRUE, show_column_names = TRUE)
+
+
+
+Ambi_samples = names(which(FracMono[names(which(FracMono > 40))] < 60))
+Heatmap(AlleleFrac2[,Ambi_samples], name = 'Ambi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Mono_samples = names(which(FracMono >= 50))
+Heatmap(AlleleFrac2[,Mono_samples], name = 'Mono_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Bi_samples = names(which(FracMono <= 10))
+Heatmap(AlleleFrac2[,Bi_samples], name = 'Bi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+
+svg('7-8_2024_ord_AlleleFrac2.svg', width = 9, height = 5)
+Heatmap(ord_AlleleFrac2, name = 'Fraction of 
+Col-0 Allele', top_annotation = HeatmapAnnotation(FracMono = ord_FracMono[colnames(ord_AlleleFrac2)], 
+    UMIcounts = log(colSums(D[,colnames(ord_AlleleFrac2)]),10),
+    Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_column_names=F, show_row_names=F)
+dev.off()
+
+
+
+Heatmap(ord_FracMono, name = 'ord_FracMono', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+FracMono2 = 100*colMeans(abs(AlleleFrac2 - .5) >= .2, na.rm=T)
+Ambi_samples2 = names(which(FracMono2[names(which(FracMono2 > 30))] < 70))
+Heatmap(AlleleFrac2[,Ambi_samples2], name = 'Ambi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Mono_samples2 = names(which(FracMono2 >= 70))
+Heatmap(AlleleFrac2[,Mono_samples2], name = 'Mono_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+Bi_samples2 = names(which(FracMono2 <= 30))
+Heatmap(AlleleFrac2[,Bi_samples2], name = 'Bi_samples_Allele_Frac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F)
+
+
+
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono2[ords], UMIcounts = log(colSums(D[,colnames(AlleleFrac2)][,ords]),10),
+    Stage = At_Stages$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+
+
+Heatmap(cor(A3[,colnames(ord_AlleleFrac2)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono2[colnames(ord_AlleleFrac2)], UMIcounts = log(colSums(D[,colnames(ord_AlleleFrac2)]),10),
+    Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # For pseudotime analysis, require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,order(stages)]
+A3 = A2b[rowSums(A2[,colnames(AlleleFrac2)] > 0) >= 20,colnames(AlleleFrac2)]
+A3 = A3[rank(-apply(A3,1,sd)) <= 1000,]
+PCs = prcomp(t(A3))
+ords = order(PCs$x[,1])
+
+A4 = A2b[rowSums(A2[,colnames(ord_AlleleFrac2)] > 0) >= 20,colnames(ord_AlleleFrac2)]
+A4 = A4[rank(-apply(A4,1,sd)) <= 1000,]
+PCs2 = prcomp(t(A4))
+ords2 = order(PCs$x[,1])
+hmat2 = A2d[rank(-fano[rownames(A2d)]) <= 500,ords2]
+
+
+Heatmap(minmax(hmat), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+Heatmap(cor(minmax(hmat), use = 'pairwise.complete.obs', method = 'pearson'), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+
+###
+svg('7-8_2024_At_express_heatmap_Stages_UMIs_FracMono.svg', width = 7, height = 5)
+Heatmap(minmax(hmat[,colnames(ord_AlleleFrac2)]), name = 'expression
+level (TPM)', 
+top_annotation = HeatmapAnnotation(FracMono = ord_FracMono[colnames(ord_AlleleFrac2)], UMIcounts = log(colSums(D[,colnames(ord_AlleleFrac2)]),10),
+    Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_column_names=F, show_row_names=F)
+dev.off()
+
+svg('7-8_2024_At_express_heatmap_Stages.svg', width = 7, height = 5)
+Heatmap(minmax(hmat[,colnames(ord_AlleleFrac2)]), name = 'expression
+level (TPM)', 
+top_annotation = HeatmapAnnotation(Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_column_names=F, show_row_names=F)
+dev.off()
+
+
+
+
+Heatmap(minmax(hmat[,colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])]), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F)
+
+Heatmap(cor(minmax(hmat[,colnames(ord_AlleleFrac[,which(colnames(ord_AlleleFrac) %in% colnames(AlleleFrac2))])]), use = 'pairwise.complete.obs', method = 'pearson'), name = 'hmat', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+
+###Download bam and bai to load into IGV
+scp sapelo2:/scratch/jms53460/7-8_2024_At/hisat2_out/A242-253_S38_L005_59s_s.bam 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
+scp sapelo2:/scratch/jms53460/7-8_2024_At/hisat2_out/A242-253_S38_L005_59s_s.bam.bai 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
 
 
