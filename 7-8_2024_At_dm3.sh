@@ -22,7 +22,7 @@ for file in Raw_Data/*_R1_*.gz; do
 	    #fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Raw_Data/""$file2""_R2_001.fastq.gz" "Raw_Data/""$file2""_R1_001.fastq.gz" -o "Demultiplexed2/""$file2""_%_R2_001.fastq.gz" "Demultiplexed2/""$file2""_%_R1_001.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 	    
         module load fastp/0.23.2-GCC-11.3.0
-        fastp -w 6 -i "Demultiplexed2/""$file2""*_R1_001.fastq.gz" -I "Demultiplexed2/""$file2""*_R2_001.fastq.gz" -o "Demultiplexed2/""$file2""_R1.fastq.gz" -O "Demultiplexed2/""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        fastp -w 6 -i Demultiplexed2/"$file2"*_R1_001.fastq.gz -I Demultiplexed2/"$file2"*_R2_001.fastq.gz -o "Demultiplexed2/""$file2""_R1.fastq.gz" -O "Demultiplexed2/""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
 
 done
 conda deactivate
