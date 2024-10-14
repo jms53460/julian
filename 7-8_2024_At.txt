@@ -859,7 +859,46 @@ for (x in 1:672){
     Spike_ins_d[,x] = Spike_ins[order(Spike_ins[,x], decreasing=TRUE),x]
 }
 Spike_ins_d[,1] = Spike_ins[order(Spike_ins[,1], decreasing=TRUE),1]
+second_spike_in = Spike_ins_d[2,]/Spike_ins_d[1,]
 
+sus_spike_ins = names(which(second_spike_in[which(second_spike_in > 0.01)] < 1))
+second_spike_in[sus_spike_ins]
+sus_spike_ins[which(sus_spike_ins %in% colnames(AlleleFrac2))]
+
+colnames(Spike_ins[,seq(67,ncol(Spike_ins),96)])
+
+Heatmap(Spike_ins[,c(seq(4,ncol(Spike_ins),96), seq(11,ncol(Spike_ins),96), seq(13,ncol(Spike_ins),96), seq(20,ncol(Spike_ins),96), seq(24,ncol(Spike_ins),96), seq(26,ncol(Spike_ins),96), seq(35,ncol(Spike_ins),96), seq(44,ncol(Spike_ins),96), seq(55,ncol(Spike_ins),96), seq(67,ncol(Spike_ins),96), seq(69,ncol(Spike_ins),96), seq(76,ncol(Spike_ins),96), seq(88,ncol(Spike_ins),96))], name = 'Spike_ins', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+Spike_ins[,seq(20,ncol(Spike_ins),96)] #20 has somewhat low spike-in amounts, inconsistent contamination
+Heatmap(Spike_ins[,seq(20,ncol(Spike_ins),96)], name = 'Spike_ins', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+Spike_ins[23,seq(24,ncol(Spike_ins),96)]/Spike_ins[24,seq(24,ncol(Spike_ins),96)]
+second_spike_in[seq(24,ncol(Spike_ins),96)]
+Spike_ins[78,seq(35,ncol(Spike_ins),96)]/Spike_ins[35,seq(35,ncol(Spike_ins),96)]
+second_spike_in[seq(35,ncol(Spike_ins),96)] #Not perfectly consistent, maybe spike-in cross contam happened during prep for A182-193 and A194-205, which I prepped same day?
+Spike_ins[94,seq(55,ncol(Spike_ins),96)]/Spike_ins[55,seq(55,ncol(Spike_ins),96)]
+second_spike_in[seq(55,ncol(Spike_ins),96)]
+Spike_ins[69,seq(67,ncol(Spike_ins),96)]/Spike_ins[67,seq(67,ncol(Spike_ins),96)]
+second_spike_in[seq(67,ncol(Spike_ins),96)]
+Spike_ins[84,seq(76,ncol(Spike_ins),96)]/Spike_ins[76,seq(76,ncol(Spike_ins),96)]
+second_spike_in[seq(76,ncol(Spike_ins),96)]
+
+plot(colSums(Spike_ins[,sus_spike_ins]), colSums(D[,sus_spike_ins]))
+#remove samples whose spike-ins are consistently contaminated by the same spike-in:
+#24 (except A155-168_24s), 55, 67, 76
+sus_spike_ins2 = sus_spike_ins[-c(17,21,29,31:33,40:42,44:47,49:52,54:57,61,63,64)] 
+plot(colSums(Spike_ins[,sus_spike_ins2]), colSums(D[,sus_spike_ins2]))
+sus_spike_ins3 = names(which(colSums(D[,sus_spike_ins2]) > 10000))
+plot(colSums(Spike_ins[,sus_spike_ins3]), colSums(D[,sus_spike_ins3]))
+plot(colSums(Spike_ins[,sus_spike_ins3]), second_spike_in[sus_spike_ins3])
+plot(colSums(D[,sus_spike_ins3]), second_spike_in[sus_spike_ins3])
+plot(colSums(Spike_ins), second_spike_in)
+
+Heatmap(AlleleFrac[,sus_spike_ins3], name = 'Spike_ins', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+Heatmap(AlleleFrac[,c('A155-168_3s', 'A155-168_2s', 'A155-168_4s', 'A155-168_13s', 'A155-168_12s', 'A155-168_26s', 'A155-168_73s', 'A155-168_75s', 'A155-168_44s', 'A155-168_92s', 'A155-168_69s', 'A155-168_14s', 'A155-168_88s', 'A182-193_11s', 'A182-193_20s', 'A182-193_35s', 'A182-193_78s', 'A194-205_35s', 'A194-205_78s', 'A206-217_20s', 'A206-217_22s', 'A218-229_20s', 'A230-241_20s', 'A230-241_23s')], col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
+sus_spike_ins4 = 
 
 AlleleFrac3 = AlleleFrac2[,which(colnames(AlleleFrac2) %in% names(which(Spike_ins_frac_correct > 0.85)))]
 hist(AlleleFrac3[,which(colnames(AlleleFrac3) %in% At_Stages$Sample[which(At_Stages$Stage == 'Tri')])])
@@ -881,6 +920,8 @@ plotCell2('A230-241_75s')
 plotCell2('A242-253_66s')
 plotCell2('A242-253_75s')
 
+"A155-168_20s", "A242-253_89s"
+
 #Most of these are biallelic but some are monoallelic. 
 #The barcodes for the spike-ins of 66s and 72s as well as 73s and 75s are identical pairs
 #R assigned exactly half the matching spike-ins to each of a pair, thus ~50% Spike_ins_frac_correct for these
@@ -888,18 +929,17 @@ plotCell2('A242-253_75s')
 summary(Spike_ins_frac_correct) #min 0, median 0.9423, mean 0.9042, max 0.9851
 
 names(which(Spike_ins_frac_correct < 0.2))
-sum(C[,"A182-193_72s"]) #848 UMIs, 0.096 Spike_ins_frac_correct
-sum(C[,"A182-193_80s"]) #533 UMIs, 0.043 Spike_ins_frac_correct
-sum(C[,"A182-193_88s"]) #444 UMIs, 0.039 Spike_ins_frac_correct
-sum(C[,"A182-193_96s"]) #331 UMIs, 0.044 Spike_ins_frac_correct
-sum(C[,"A194-205_60s"]) #12 UMIs, 0.0 Spike_ins_frac_correct
-sum(C[,"A242-253_56s"]) #37 UMIs, 0.0 Spike_ins_frac_correct
+sum(C[,"A182-193_72s"]) #2186 UMIs, 0.096 Spike_ins_frac_correct
+sum(C[,"A182-193_80s"]) #1292 UMIs, 0.043 Spike_ins_frac_correct
+sum(C[,"A182-193_88s"]) #973 UMIs, 0.039 Spike_ins_frac_correct
+sum(C[,"A182-193_96s"]) #718 UMIs, 0.044 Spike_ins_frac_correct
+sum(C[,"A194-205_60s"]) #48 UMIs, 0.0 Spike_ins_frac_correct
+sum(C[,"A242-253_56s"]) #80 UMIs, 0.0 Spike_ins_frac_correct
 
 #The spike-ins that failed were all different ones, and based on the low UMIs, it was the library that failed
 #Interestingly, 5/6 of the failed spike-ins were the 8th of their celseq primer set.
 
-colnames(Spike_ins[,seq(67,ncol(Spike_ins),96)])
-Heatmap(Spike_ins[,c(seq(67,ncol(Spike_ins),96),seq(69,ncol(Spike_ins),96))], name = 'Spike_ins', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
+
 Heatmap(AlleleFrac[,c(seq(67,ncol(Spike_ins),96),seq(69,ncol(Spike_ins),96))], name = 'AlleleFrac', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F)
 
 primer_order = order(rep(1:96, 7))
@@ -1020,11 +1060,40 @@ done
 conda deactivate
 
 
+#!/bin/bash
+#SBATCH --job-name=At_demultiplex                                         # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=100gb                                                       # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7-8_2024_At/At_dm3.out                  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7-8_2024_At/At_dm3.err                   # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/7-8_2024_At
+#mkdir Demultiplexed2
+ml Miniconda3/23.5.2-0
+source activate /scratch/jms53460/7-8_2024_At/Fastq-Multx
+
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+	    #fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Raw_Data/""$file2""_R2_001.fastq.gz" "Raw_Data/""$file2""_R1_001.fastq.gz" -o "Demultiplexed2/""$file2""_%_R2_001.fastq.gz" "Demultiplexed2/""$file2""_%_R1_001.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    
+        module load fastp/0.23.2-GCC-11.3.0
+        fastp -w 6 -i "Demultiplexed2/""$file2""*_R1_001.fastq.gz" -I "Demultiplexed2/""$file2""*_R2_001.fastq.gz" -o "Demultiplexed2/""$file2""_R1.fastq.gz" -O "Demultiplexed2/""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+
+done
+conda deactivate
+
+
 scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/*001.fastq.gz 'C:\Users\julia\OneDrive\Desktop\Grad School\Nelms lab\Bioinformatics\7-8_2024_At_Data'
 
 
 scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/*001.fastq.gz 'D:\7-8_2024_At_Data'
-scp sapelo2:/scratch/jms53460/7_2024_Ns/Demultiplexed2/*001.fastq.gz 'D:\7_2024_Ns_Data'
 
 
 ml R/4.3.1-foss-2022a
@@ -1390,3 +1459,5 @@ scp sapelo2:/scratch/jms53460/7-8_2024_At/hisat2_out/A242-253_S38_L005_59s_s.bam
 scp sapelo2:/scratch/jms53460/7-8_2024_At/hisat2_out/A242-253_S38_L005_59s_s.bam.bai 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics'
 
 
+
+save(D,g1,g2,genes,At_Stages, file = "7-8_2024_At_4.RData")

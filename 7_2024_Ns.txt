@@ -1044,6 +1044,24 @@ Unassigned_Ambiguity    24      53      138     13      55      13      51      
      1187    1784    1141    20      817     96      75      20      60      74      12      35      30      3       15    
       8       3261    38      401     25      705     102     139
 
+#wrong strand:
+Assigned        371     718     1462    953     367     150     863     1854    5724    2182    222     4283    1450    3995    2979    3916    3920    684     593     7       1061    117     6195    21650   295     299     411     367     509   
+     531     1487    3910    50      2325    233     98      109     0       137     63      105     322     162     214   
+     134     277     138     6269    572     1344    1589    27      44      1967    1572    3868    517     78      86    
+      76      54      224     92      52      482     560     238     643     227     1195    1842    2059    4363    2311 
+    7524    3473    325     4392    701     350     1154    645     1356    569     637     570     41      131     131    
+     8658    303     1732    362     2682    482     1473
+Unassigned_MultiMapping 103398  270136  420553  345183  134314  131336  321837  495866  1246210 611402  20668   992131  336310  872746  756538  993416  1494162 405445  225726  488     658450  23762   2576836 2051716 116383  107780  153047  64165 
+   193974  279634  696731  626189  13189   457202  120605  15379   30065   178     40393   17697   25674   136360  64527   78548   75254   45390   20835   1166112 91704   401484  409142  4441    2149    284188  927764  479607  180947  9119    29387   29807   17945   89945   38973   8986    256670  319759  130204  359264  112091  370860  507854  475696  664135  604223  2089719 1139246 133710  1058153 381829  151668  567711  391543  986602  247680  417707  334037  7400    63753   15774   1609637 72774   267247  29216   663775  75076   464710
+Unassigned_NoFeatures   15842   55680   62825   36142   16206   9047    35546   60798   192707  71220   9053    176265  59265   123575  114347  117545  314461  19656   16646   149     23244   5469    76487   81439   11962   27215   29594   23212 
+   34549   42522   75199   275312  3323    171095  12966   3744    6464    43      7052    6691    6197    8943    17047   7120    10048   9612    11817   535785  46516   129210  152626  1448    1311    144067  71028   152393  48243   2750    5488    7367    3150    10810   5099    1704    26725   35748   16696   19894   9733    134219  169926  217842  171392  267794  675784  312400  13132   291707  48029   13592   35184   28981   57466   16855   29542   24420   2800    9449    4978    898471  22913   155190  9050    206532  43550   127586
+Unassigned_Ambiguity    7       14      4       4       9       2       12      49      51      92      0       202     14 
+      82      43      9       62      17      4       0       30      25      828     112     12      4       1       0    
+       4       24      91      4       1       19      0       0       6       0       0       1       0       2       13  
+      5       0       0       0       67      0       15      16      0       0       36      45      3       2       0    
+       0       0       0       0       2       0       2       22      0       34      15      2       3       5       157 
+     30      282     0       2       77      4       151     23      27      153     1       44      55      0       4     
+       4       93      2       4       0       7       0       9
 
 
 ml R/4.3.1-foss-2022a
@@ -1106,3 +1124,59 @@ genes[,1] = sub('Chr', '', genes[,1])
 
 save(B,g1,g2,genes, file = "7_2024_Ns_3.RData")
 q()
+
+
+scp sapelo2:/scratch/jms53460/7_2024_Ns/7_2024_Ns_3.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('7_2024_Ns_3.RData')
+
+
+B2 = B[,which(colSums(B) > 5000)]
+
+library('ComplexHeatmap')
+Heatmap(cor(B2, use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+
+Ns_Stages = data.frame(Sample = colnames(B2), Stage = c(rep('tetrad', times=6), rep('UM', times=3), rep('UM/BM', times=4), rep('BM', times=5), rep('UM_early', times=8), rep('BM', times=3), 'UM'))
+stage_order = c(1:6, 19:26, 30, 7:13, 27:29, 17:18, 14:16)
+Ns_Stages = Ns_Stages[stage_order,]
+Heatmap(cor(B2[,stage_order], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(B2[,stage_order]),10),
+        Stage = Ns_Stages[,2],
+        col = list(Stage = c("tetrad" = "#eeeeee", "UM_early" = "#cccccc", "UM" = "#777777", "UM/BM" = "#444444", "BM" = "#111111"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T)
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Ns_demultiplex                                         # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                       # Total memory for job
+#SBATCH --time=2:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/7_2024_Ns/Ns_dm2.out                  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/7_2024_Ns/Ns_dm2.err                   # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/7_2024_Ns
+mkdir Demultiplexed2
+ml Miniconda3/23.5.2-0
+source activate /scratch/jms53460/7_2024_Ns/Fastq-Multx
+
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Raw_Data/""$file2""_R2_001.fastq.gz" "Raw_Data/""$file2""_R1_001.fastq.gz" -o "Demultiplexed2/""$file2""_%_R2_001.fastq.gz" "Demultiplexed2/""$file2""_%_R1_001.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    
+        module load fastp/0.23.2-GCC-11.3.0
+        fastp -w 6 -i "Demultiplexed2/""$file2""*_R1_001.fastq.gz" -I "Demultiplexed2/""$file2""*_R2_001.fastq.gz" -o "Demultiplexed2/""$file2""_R1.fastq.gz" -O "Demultiplexed2/""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+
+done
+conda deactivate
+
+
+scp sapelo2:/scratch/jms53460/7_2024_Ns/Demultiplexed2/*001.fastq.gz 'D:\7_2024_Ns_Data'
