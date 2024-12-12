@@ -26,7 +26,7 @@ if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
 	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/fastp_""$file2""_R2.fastq.gz" "Demultiplexed/fastp_""$file2""_R1.fastq.gz" -o "Demultiplexed/""$file2""_%_R2_dm.fastq.gz" "Demultiplexed/""$file2""_%_R1_dm.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
     done
 
-    for file in Demultiplexed/*dm.fastq.gz; do
+    for file in Demultiplexed/*_R1_dm.fastq.gz; do
         file2="${file:0:-15}"
         fastp -w 6 -i "$file" -I "$file2""_R2_dm.fastq.gz" -o "$file2"".fastq.gz" -O "$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
         
