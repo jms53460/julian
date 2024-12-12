@@ -186,6 +186,8 @@ done
 
 #Retrying doing demultiplexing first with modified code
 
+rm -r Demultiplexed
+
 #!/bin/bash
 #SBATCH --job-name=At_Sl_demultiplex                                         # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
