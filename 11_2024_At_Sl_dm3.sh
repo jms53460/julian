@@ -15,22 +15,18 @@ mkdir Demultiplexed3
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/Fastq-Multx
 
-module load fastp/0.23.2-GCC-11.3.0
-if [ ! -f "Demultiplexed3/""$file2""_1s.fastq.gz" ]; then
-    for file in Raw_Data/*_R1_*.gz; do
-        filename=$(basename "$file")
-        file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
 
-	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Raw_Data/""$file2""_R2_001.fastq.gz" "$file" -o "Demultiplexed3/""$file2""_%_R2_dm.fastq.gz" "Demultiplexed3/""$file2""_%_R1_dm.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
-    done
+    if [ ! -f "Demultiplexed3/""$file2""_1s.fastq.gz" ]; then
+        module load fastp/0.23.2-GCC-11.3.0
+	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed3/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed2/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
 
-    for file in Demultiplexed3/*_R1_dm.fastq.gz; do
-        file2="${file:0:-15}"
-        fastp -w 6 -i "$file" -I "$file2""_R2_dm.fastq.gz" -o "$file2"".fastq.gz" -O "$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
-        
-        #find "Demultiplexed/" -name "*_dm*" -delete
-        #find "Demultiplexed/" -name "fastp_*" -delete
-    done
-fi
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed3/umi_""$file2""_R2.fastq.gz" "Demultiplexed3/umi_""$file2""_R1.fastq.gz" -o "Demultiplexed3/""$file2""_%_R2.fastq.gz" "Demultiplexed3/""$file2""_%.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 
+	    find "Demultiplexed3/" -name "umi_*" -delete
+
+    fi
+done
 conda deactivate
