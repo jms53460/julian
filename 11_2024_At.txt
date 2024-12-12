@@ -293,7 +293,7 @@ for file in Raw_Data/*_R1_*.gz; do
 
     if [ ! -f "Demultiplexed3/""$file2""_1s.fastq.gz" ]; then
       
-	    demultiplex match -m 0 BARCODES "CELSeq_barcodes.txt" -m 0 "$file" "Raw_Data/""$file2""_R2_001.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    demultiplex match -m 0 "CELSeq_barcodes.txt" "$file" "Raw_Data/""$file2""_R2_001.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 
     fi
 done
