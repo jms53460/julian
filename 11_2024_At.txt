@@ -21,9 +21,12 @@ cp /home/jms53460/Ler_SNPs.tab /scratch/jms53460/11_2024_At/
 cp /home/jms53460/TAIR10.1_Col_5.gff /scratch/jms53460/11_2024_At/
 
 
+#Backup raw data
+scp sapelo2:/scratch/jms53460/7-8_2024_At/Raw_Data/*.fastq.gz 'D:\7-8_2024_At_Data'
 
 
-#Prepare demultiplexed data so it is ready for upload with SRA. Backup data on external hard drive
+
+#Prepare demultiplexed data so it is ready for upload with SRA.
 
 #!/bin/bash
 #SBATCH --job-name=At_Sl_demultiplex                                         # Job name
@@ -61,27 +64,6 @@ done
 conda deactivate
 
 #21 mins for 2 sets of 96
-#In future remove extra _ before R1 and R2 of fastp output
-
-
-#Move the tomato data to a different directory
-mkdir /scratch/jms53460/11_2024_Sl
-mkdir /scratch/jms53460/11_2024_Sl/Demultiplexed
-cd Demultiplexed
-mv S1-8_A267-277_S3_L002_1* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_2* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_4s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_5s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_6s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_7s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_8s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_9s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_30s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_31s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_32s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-cp S1-8_A267-277_S3_L002_unmatched* /scratch/jms53460/11_2024_Sl/Demultiplexed
 
 
 #Map to genome (hisat2), .bam output (samtools view), sort (samtools sort), index (samtools index)
@@ -267,10 +249,36 @@ conda deactivate
 
 #Trying to similuate losing the header and then trying to run fastp to readd UMI info.
 cp Demultiplexed3/A254-266_S2_L002_1s.fastq.gz .
+cp Demultiplexed3/A254-266_S2_L002_1s_R2.fastq.gz .
 zcat A254-266_S2_L002_1s.fastq.gz | sed 's/UMI_.* / /' | head
 zcat A254-266_S2_L002_1s.fastq.gz | sed 's/@.*/@/' > A254-266_S2_L002_1s_stripped.fastq
+zcat A254-266_S2_L002_1s_R2.fastq.gz | sed 's/@.*/@/' > A254-266_S2_L002_1s_R2_stripped.fastq
 gzip A254-266_S2_L002_1s_stripped.fastq
-fastp -w 6 -i A254-266_S2_L002_1s_stripped.fastq.gz -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed2/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed2/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+gzip A254-266_S2_L002_1s_R2_stripped.fastq
+fastp -w 6 -i A254-266_S2_L002_1s_stripped.fastq.gz -I A254-266_S2_L002_1s_R2_stripped.fastq.gz -o A254-266_S2_L002_1s_umi.fastq.gz -O A254-266_S2_L002_1s_R2_umi.fastq.gz -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+
+37606
+3673
+
+#Move the tomato data to a different directory
+mkdir /scratch/jms53460/11_2024_Sl
+mkdir /scratch/jms53460/11_2024_Sl/Demultiplexed
+cd Demultiplexed
+mv S1-8_A267-277_S3_L002_1* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_2* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_4s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_5s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_6s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_7s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_8s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_9s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_30s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_31s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_32s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+cp S1-8_A267-277_S3_L002_unmatched* /scratch/jms53460/11_2024_Sl/Demultiplexed
+
 
 
 

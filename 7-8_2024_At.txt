@@ -1083,11 +1083,8 @@ done
 conda deactivate
 
 
-
-scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/*.fastq.gz 'C:\Users\julia\OneDrive\Desktop\Grad School\Nelms lab\Bioinformatics\7-8_2024_At_Data'
-
-
-scp sapelo2:/scratch/jms53460/7-8_2024_At/Demultiplexed2/*.fastq.gz 'D:\7-8_2024_At_Data'
+#Backup raw data
+scp sapelo2:/scratch/jms53460/7-8_2024_At/Raw_Data/*.fastq.gz 'D:\7-8_2024_At_Data'
 
 
 ml R/4.3.1-foss-2022a
