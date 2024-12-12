@@ -11,7 +11,7 @@
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
 cd /scratch/jms53460/11_2024_At/
-mkdir Demultiplexed3
+mkdir Demultiplexed
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/Fastq-Multx
 
