@@ -15,19 +15,24 @@ mkdir Demultiplexed
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/Fastq-Multx
 
-for file in Raw_Data/*_R1_*.gz; do
-    filename=$(basename "$file")
-    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
-
-	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Raw_Data/""$file2""_R2_001.fastq.gz" "Raw_Data/""$file2""_R1_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2_001.fastq.gz" "Demultiplexed/""$file2""_%_R1_001.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
-	
-done
-
 module load fastp/0.23.2-GCC-11.3.0
-for file in Demultiplexed/*_R1_*.gz; do
-    file2="${file:0:-15}"
+if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
+    for file in Raw_Data/*_R1_*.gz; do
+        filename=$(basename "$file")
+        file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
 
-        fastp -w 6 -i $file -I "$file2""R2_001.fastq.gz" -o "$file2""_R1.fastq.gz" -O "$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/fastp_""$file2""_R1.fastq.gz" -O "Demultiplexed/fastp_""$file2""_R2.fastq.gz" -A -Q -L -G
 
-done
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/fastp_""$file2""_R2.fastq.gz" "Demultiplexed/fastp_""$file2""_R1.fastq.gz" -o "Demultiplexed/""$file2""_%_R2_dm.fastq.gz" "Demultiplexed/""$file2""_%_R1_dm.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+    done
+
+    for file in Demultiplexed/*dm.fastq.gz; do
+        file2="${file:0:-15}
+        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_dm.fastq.gz" -o "Demultiplexed/""$file2"".fastq.gz" -O "Demultiplexed/""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        
+        find "Demultiplexed/" -name "*_dm*" -delete
+        find "Demultiplexed/" -name "fastp_*" -delete
+    done
+fi
+
 conda deactivate
