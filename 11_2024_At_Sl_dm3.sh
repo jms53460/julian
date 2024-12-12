@@ -21,7 +21,7 @@ for file in Raw_Data/*_R1_*.gz; do
 
     if [ ! -f "Demultiplexed3/""$file2""_1s.fastq.gz" ]; then
         module load fastp/0.23.2-GCC-11.3.0
-	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed3/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed2/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed3/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed3/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
 
 	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed3/umi_""$file2""_R2.fastq.gz" "Demultiplexed3/umi_""$file2""_R1.fastq.gz" -o "Demultiplexed3/""$file2""_%_R2.fastq.gz" "Demultiplexed3/""$file2""_%.fastq.gz"  # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 
