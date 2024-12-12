@@ -28,7 +28,7 @@ if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
 
     for file in Demultiplexed/*dm.fastq.gz; do
         file2="${file:0:-15}"
-        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_dm.fastq.gz" -o "Demultiplexed/""$file2"".fastq.gz" -O "Demultiplexed/""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        fastp -w 6 -i "$file" -I "$file2""_R2_dm.fastq.gz" -o "$file2"".fastq.gz" -O "$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
         
         find "Demultiplexed/" -name "*_dm*" -delete
         find "Demultiplexed/" -name "fastp_*" -delete
