@@ -1189,5 +1189,5 @@ mkdir Demultiplexed_unmatched
 mv Demultiplexed2/*unmatched* Demultiplexed_unmatched
 
 
-scp sapelo2:/scratch/jms53460/7_2024_Ns/Demultiplexed2/*001.fastq.gz 'D:\7_2024_Ns_Data'
+scp sapelo2:/scratch/jms53460/7_2024_Ns/Raw_Data/*.fastq.gz 'D:\7_2024_Ns_Data'
 
