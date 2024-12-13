@@ -22,7 +22,7 @@ cp /home/jms53460/TAIR10.1_Col_5.gff /scratch/jms53460/11_2024_At/
 
 
 #Backup raw data
-scp sapelo2:/scratch/jms53460/7-8_2024_At/Raw_Data/*.fastq.gz 'D:\7-8_2024_At_Data'
+scp sapelo2:/scratch/jms53460/11_2024_At/Raw_Data/*.fastq.gz 'D:\11_2024_At_Sl_Data'
 
 
 
@@ -256,10 +256,7 @@ zcat A254-266_S2_L002_1s_R2.fastq.gz | sed 's/@.*/@/' > A254-266_S2_L002_1s_R2_s
 gzip A254-266_S2_L002_1s_stripped.fastq
 gzip A254-266_S2_L002_1s_R2_stripped.fastq
 fastp -w 6 -i A254-266_S2_L002_1s_stripped.fastq.gz -I A254-266_S2_L002_1s_R2_stripped.fastq.gz -o A254-266_S2_L002_1s_umi.fastq.gz -O A254-266_S2_L002_1s_R2_umi.fastq.gz -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
-
-37606
-3673
-
+#fastp deletes the UMIs from the read sequence when it moves them to the header
 
 
 conda create -p /home/jms53460/demultiplex -y
@@ -274,9 +271,9 @@ conda deactivate
 #SBATCH --job-name=At_Sl_demultiplex                                         # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                       # Total memory for job
-#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=100gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/11_2024_At/At_Sl_dm3.out                  # Location of standard output file
 #SBATCH --error=/scratch/jms53460/11_2024_At/At_Sl_dm3.err                   # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
@@ -293,7 +290,7 @@ for file in Raw_Data/*_R1_*.gz; do
 
     if [ ! -f "Demultiplexed3/""$file2""_1s.fastq.gz" ]; then
       
-	    demultiplex match -m 0 "CELSeq_barcodes.txt" "$file" "Raw_Data/""$file2""_R2_001.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    demultiplex demux -r -s 10 -e 18 -m 0 -p Demultiplexed3 "CELSeq_barcodes.txt" "$file" "Raw_Data/""$file2""_R2_001.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 
     fi
 done
@@ -302,18 +299,14 @@ conda deactivate
 
 
 
-module load fastp/0.23.2-GCC-11.3.0
-fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed3/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed3/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
 
 
 
-
-
-
+mv *fastq.gz Demultiplexed3
 #Move the tomato data to a different directory
 mkdir /scratch/jms53460/11_2024_Sl
 mkdir /scratch/jms53460/11_2024_Sl/Demultiplexed
-cd Demultiplexed
+cd Demultiplexed3
 mv S1-8_A267-277_S3_L002_1* /scratch/jms53460/11_2024_Sl/Demultiplexed
 mv S1-8_A267-277_S3_L002_2* /scratch/jms53460/11_2024_Sl/Demultiplexed
 mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
@@ -328,6 +321,94 @@ mv S1-8_A267-277_S3_L002_30s* /scratch/jms53460/11_2024_Sl/Demultiplexed
 mv S1-8_A267-277_S3_L002_31s* /scratch/jms53460/11_2024_Sl/Demultiplexed
 mv S1-8_A267-277_S3_L002_32s* /scratch/jms53460/11_2024_Sl/Demultiplexed
 cp S1-8_A267-277_S3_L002_unmatched* /scratch/jms53460/11_2024_Sl/Demultiplexed
+
+
+rm -r hisat2_out
+
+
+#!/bin/bash
+#SBATCH --job-name=At_Sl_hisat2                                         # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=100gb                                                       # Total memory for job
+#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_At/At_Sl_hs2.out                  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_At/At_Sl_hs2.err                   # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_At/
+
+module load fastp/0.23.2-GCC-11.3.0
+for file in Demultiplexed3/A254-266*R1*s.fastq.gz; do
+        file2="${file:24:-9}"
+        fastp -w 6 -i "$file" -I "A254-266_S2_L002_R2_001_""$file2"".fastq.gz" -o "A254-266_"$file2"".fastq.gz" -O "A254-266_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+    done
+for file in Demultiplexed3/S1-8_A267-277*R1*s.fastq.gz; do
+        file2="${file:24:-9}"
+        fastp -w 6 -i "$file" -I "A254-266_S2_L002_R2_001_""$file2"".fastq.gz" -o "A254-266_"$file2"".fastq.gz" -O "A254-266_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+    done
+
+
+
+
+ml HISAT2/3n-20201216-gompi-2022a
+mkdir hisat2_out
+
+for file in "Demultiplexed2/"*.fastq*
+do
+	file2="${file:15:-9}"
+
+if [ ! -f "hisat2_out2/""$file2"".bam" ]; then
+
+	module load fastp/0.23.2-GCC-11.3.0
+	fastp -w 6 -i "$file" -o "hisat2_out2/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+fi
+done
+
+ml SAMtools/1.16.1-GCC-11.3.0
+for file in "hisat2_out2/"*s.fastq*
+do
+	file2="${file:12:-9}"
+
+if [ ! -f "hisat2_out2/""$file2"".bam" ]; then
+
+	hisat2 -p 6 --dta -x Ler_0_N-masked/merged_hisat2_index -U "hisat2_out2/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out2/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out2/""$file2""_unsorted.bam" -o "hisat2_out2/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out2/""$file2""_s.bam"
+	
+fi
+done
+
+
+
+A155-168_S94_L003_R1_001.fastq.gz                                                        100% 5686MB  11.5MB/s   08:16    
+A155-168_S94_L003_R2_001.fastq.gz                                                        100% 5512MB  11.4MB/s   08:02    
+A182-193_S33_L005_R1_001.fastq.gz                                                        100% 4339MB   8.9MB/s   08:07    
+A182-193_S33_L005_R2_001.fastq.gz                                                        100% 4324MB   8.5MB/s   08:31    
+A194-205_S34_L005_R1_001.fastq.gz                                                        100% 3957MB   9.8MB/s   06:44    
+A194-205_S34_L005_R2_001.fastq.gz                                                        100% 4002MB  12.2MB/s   05:28    
+A206-217_S35_L005_R1_001.fastq.gz                                                        100% 2183MB  12.5MB/s   02:54    
+A206-217_S35_L005_R2_001.fastq.gz                                                        100% 2174MB  12.8MB/s   02:49    
+A218-229_S36_L005_R1_001.fastq.gz                                                        100% 3374MB  12.9MB/s   04:21    
+A218-229_S36_L005_R2_001.fastq.gz                                                        100% 3267MB  12.0MB/s   04:32    
+A230-241_S37_L005_R1_001.fastq.gz                                                        100% 4296MB  13.3MB/s   05:23    
+A230-241_S37_L005_R2_001.fastq.gz                                                        100% 4370MB  13.2MB/s   05:31    
+A242-253_S38_L005_R1_001.fastq.gz                                                        100% 3699MB  12.9MB/s   04:47    
+A242-253_S38_L005_R2_001.fastq.gz                                                        100% 3821MB  13.2MB/s   04:50    
+PS C:\Users\julia\OneDrive\Documents\GitHub\julian> scp sapelo2:/scratch/jms53460/7_2024_Ns/Raw_Data/*.fastq.gz 'D:\7_2024_Ns_Data'
+T104-115_S95_L003_R1_001.fastq.gz                                                        100% 5221MB  11.3MB/s   07:42    
+T104-115_S95_L003_R2_001.fastq.gz                                                        100% 5351MB  11.2MB/s   07:56    
+PS C:\Users\julia\OneDrive\Documents\GitHub\julian> scp sapelo2:/scratch/jms53460/11_2024_At/Raw_Data/*.fastq.gz 'D:\11_2024_At_Sl_Data'
+A254-266_S2_L002_R1_001.fastq.gz                                                         100% 1420MB  10.6MB/s   02:14    
+A254-266_S2_L002_R2_001.fastq.gz                                                         100% 1370MB  11.1MB/s   02:03    
+S1-8_A267-277_S3_L002_R1_001.fastq.gz                                                    100% 1455MB  11.0MB/s   02:11    
+S1-8_A267-277_S3_L002_R2_001.fastq.gz                                                    100% 1384MB  12.0MB/s   01:55
+
+
+
 
 
 

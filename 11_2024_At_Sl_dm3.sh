@@ -2,9 +2,9 @@
 #SBATCH --job-name=At_Sl_demultiplex                                         # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                       # Total memory for job
-#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=100gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/11_2024_At/At_Sl_dm3.out                  # Location of standard output file
 #SBATCH --error=/scratch/jms53460/11_2024_At/At_Sl_dm3.err                   # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
@@ -21,7 +21,7 @@ for file in Raw_Data/*_R1_*.gz; do
 
     if [ ! -f "Demultiplexed3/""$file2""_1s.fastq.gz" ]; then
       
-	    demultiplex match -m 0 "CELSeq_barcodes.txt" "$file" "Raw_Data/""$file2""_R2_001.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    demultiplex demux -r -s 10 -e 18 -m 0 -p Demultiplexed3 "CELSeq_barcodes.txt" "$file" "Raw_Data/""$file2""_R2_001.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
 
     fi
 done
