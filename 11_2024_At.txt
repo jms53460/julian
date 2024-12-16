@@ -298,42 +298,37 @@ conda deactivate
 
 
 
-
-
-
-mv *fastq.gz Demultiplexed3
 #Move the tomato data to a different directory
 mkdir /scratch/jms53460/11_2024_Sl
 mkdir /scratch/jms53460/11_2024_Sl/Demultiplexed
 cd Demultiplexed3
-mv S1-8_A267-277_S3_L002_1* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_2* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_4s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_5s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_6s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_7s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_8s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_9s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_30s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_31s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-mv S1-8_A267-277_S3_L002_32s* /scratch/jms53460/11_2024_Sl/Demultiplexed
-cp S1-8_A267-277_S3_L002_unmatched* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_1* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_2* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_3s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_4s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_5s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_6s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_7s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_8s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_9s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_30s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_31s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+mv S1-8_A267-277_S3_L002_R*_001_32s* /scratch/jms53460/11_2024_Sl/Demultiplexed
+cp S1-8_A267-277_S3_L002_R*_001_UNKNOWN.fastq.gz /scratch/jms53460/11_2024_Sl/Demultiplexed
 
-
+cd ..
 rm -r hisat2_out
 
 
 #!/bin/bash
-#SBATCH --job-name=At_Sl_hisat2                                         # Job name
+#SBATCH --job-name=At_hisat2                                         # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=100gb                                                       # Total memory for job
-#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_At/At_Sl_hs2.out                  # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_At/At_Sl_hs2.err                   # Location of error log file
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_At/At_hs2.out                  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_At/At_hs2.err                   # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
@@ -341,45 +336,43 @@ cd /scratch/jms53460/11_2024_At/
 
 module load fastp/0.23.2-GCC-11.3.0
 for file in Demultiplexed3/A254-266*R1*s.fastq.gz; do
-        file2="${file:24:-9}"
+        file2="${file:39:-9}"
         fastp -w 6 -i "$file" -I "A254-266_S2_L002_R2_001_""$file2"".fastq.gz" -o "A254-266_"$file2"".fastq.gz" -O "A254-266_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
     done
 for file in Demultiplexed3/S1-8_A267-277*R1*s.fastq.gz; do
-        file2="${file:24:-9}"
-        fastp -w 6 -i "$file" -I "A254-266_S2_L002_R2_001_""$file2"".fastq.gz" -o "A254-266_"$file2"".fastq.gz" -O "A254-266_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        file2="${file:44:-9}"
+        fastp -w 6 -i "$file" -I "S1-8_A267-277_S3_L002_R2_001_""$file2"".fastq.gz" -o "S1-8_A267-277_"$file2"".fastq.gz" -O "S1-8_A267-277_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
     done
 
-
-
-
-ml HISAT2/3n-20201216-gompi-2022a
 mkdir hisat2_out
 
-for file in "Demultiplexed2/"*.fastq*
+for file in "Demultiplexed3/"*.fastq*
 do
 	file2="${file:15:-9}"
 
-if [ ! -f "hisat2_out2/""$file2"".bam" ]; then
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
-	module load fastp/0.23.2-GCC-11.3.0
-	fastp -w 6 -i "$file" -o "hisat2_out2/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
 
 fi
 done
 
+ml HISAT2/3n-20201216-gompi-2022a
 ml SAMtools/1.16.1-GCC-11.3.0
-for file in "hisat2_out2/"*s.fastq*
+for file in "hisat2_out/"*s.fastq.gz
 do
-	file2="${file:12:-9}"
+	file2="${file:11:-9}"
 
-if [ ! -f "hisat2_out2/""$file2"".bam" ]; then
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
-	hisat2 -p 6 --dta -x Ler_0_N-masked/merged_hisat2_index -U "hisat2_out2/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out2/""$file2""_unsorted.bam"
-	samtools sort -@ 6 "hisat2_out2/""$file2""_unsorted.bam" -o "hisat2_out2/""$file2""_s.bam"
-    samtools index -@ 6 "hisat2_out2/""$file2""_s.bam"
+	hisat2 -p 6 --dta -x Ler_0_N-masked/merged_hisat2_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
 	
 fi
 done
+
+
 
 
 
@@ -406,7 +399,10 @@ A254-266_S2_L002_R2_001.fastq.gz                                                
 S1-8_A267-277_S3_L002_R1_001.fastq.gz                                                    100% 1455MB  11.0MB/s   02:11    
 S1-8_A267-277_S3_L002_R2_001.fastq.gz                                                    100% 1384MB  12.0MB/s   01:55
 
-
+~72 GB of data currently. For future runs, each set of 96 (one plate) will probably take 3-5 GB of data.
+In addition to the current data, I'll be getting sequencing data from 6 plates Arabidopsis, 10 tomato, 10 tobacco, 10 rice
+Assuming 5 GB of data per plate, 36 plates should take 180 GB. 
+In total, I probably need about 252 GB of data storage.
 
 
 
