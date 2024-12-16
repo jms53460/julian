@@ -13,20 +13,21 @@
 cd /scratch/jms53460/11_2024_At/
 
 module load fastp/0.23.2-GCC-11.3.0
+mkdir UMI_moved
 for file in Demultiplexed3/A254-266*R1*s.fastq.gz; do
         file2="${file:39:-9}"
-        fastp -w 6 -i "$file" -I "A254-266_S2_L002_R2_001_""$file2"".fastq.gz" -o "A254-266_"$file2"".fastq.gz" -O "A254-266_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        fastp -w 6 -i "$file" -I "Demultiplexed3/A254-266_S2_L002_R2_001_""$file2"".fastq.gz" -o "UMI_moved/A254-266_"$file2"".fastq.gz" -O "UMI_moved/A254-266_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
     done
 for file in Demultiplexed3/S1-8_A267-277*R1*s.fastq.gz; do
         file2="${file:44:-9}"
-        fastp -w 6 -i "$file" -I "S1-8_A267-277_S3_L002_R2_001_""$file2"".fastq.gz" -o "S1-8_A267-277_"$file2"".fastq.gz" -O "S1-8_A267-277_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        fastp -w 6 -i "$file" -I "Demultiplexed3/S1-8_A267-277_S3_L002_R2_001_""$file2"".fastq.gz" -o "UMI_moved/S1-8_A267-277_"$file2"".fastq.gz" -O "UMI_moved/S1-8_A267-277_"$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
     done
 
 mkdir hisat2_out
 
-for file in "Demultiplexed3/"*.fastq*
+for file in "UMI_moved/"*s.fastq*
 do
-	file2="${file:15:-9}"
+	file2="${file:10:-9}"
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
