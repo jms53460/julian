@@ -413,6 +413,162 @@ do
 done
 
 
+#!/bin/bash
+#SBATCH --job-name=At_features_UMIs                                           # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=6                                                     # Number of cores per task
+#SBATCH --mem=50gb                                                            # Total memory for job
+#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_At/At_features_UMIs.out           # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_At/At_features_UMIs.err            # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_At/
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
+done
+
+
+ml R/4.3.1-foss-2022a
+R
+annots = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t')[,9], ';')
+annots = annots[grep('ID=gene-', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('ID=', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+C = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit_g1.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('L003_', '', sub('_SNPsplit_g2.tsv', '', files))
+A[is.na(A)] = 0
+A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2 = B
+
+genes = read.table('TAIR10.1_Col_5.gff', sep = '\t')[,c(1,5)]
+annots2 = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t')[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes2 = genes[grepl('ID=gene-', genes[,3]),]
+genes = genes2[order(genes2[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+
+save(C,g1,g2,genes, file = "7-8_2024_At.RData")
+q()
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/7-8_2024_At/7-8_2024_At.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 
 
