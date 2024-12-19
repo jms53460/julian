@@ -1,0 +1,10 @@
+Transfer tobacco DNA sequencing data onto the cluster and back it up
+ssh jms53460@xfer.gacrc.uga.edu
+cd /work/bnlab
+mkdir AzentaDNASeq
+cd AzentaDNASeq
+sftp jms53460_uga@sftp.genewiz.com
+#enter the password: 4VOFc2xnTVtsUVKkCvbN
+get -r 30-1113073614
+
+scp sapelo2:/work/bnlab/AzentaDNASeq/30-1113073614/00_fastq/*.fastq.gz 'D:\AzentaDNASeq'
