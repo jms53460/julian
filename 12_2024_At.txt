@@ -83,7 +83,7 @@ get S72-21-7-no3_S150_L007_R1_001.fastq.gz
 get S72-21-2-no3_S129_L007_R1_001.fastq.gz
 get NE56-3-S1_S173_L007_R1_001.fastq.gz
 get S72-21-8-no3_S155_L007_R1_001.fastq.gz
-get NE56-12-S11_S175_L007_R1_001.fastq.gz #
+get NE56-12-S11_S175_L007_R1_001.fastq.gz 
 get A288-301_S188_L007_R1_001.fastq.gz
 get S72-21-18_S157_L007_R1_001.fastq.gz
 get S72-21-7-no3_S150_L007_R2_001.fastq.gz
@@ -118,19 +118,19 @@ get M72-21-2_S148_L007_R2_001.fastq.gz
 get NE56-14-S4_S163_L007_R2_001.fastq.gz
 get NE56-12-S16_S183_L007_R1_001.fastq.gz
 get S72-21-12-no2_S152_L007_R1_001.fastq.gz
-get S72-21-3-no3_S149_L007_R2_001.fastq.gz
+get S72-21-3-no3_S149_L007_R2_001.fastq.gz 
 get S72-21-1-no3_S151_L007_R1_001.fastq.gz
 get NE56-14-S4_S163_L007_R1_001.fastq.gz
 get M72-21-2_S148_L007_R1_001.fastq.gz
 get S72-21-8_S145_L007_R1_001.fastq.gz
 get NE56-12-S14_S172_L007_R1_001.fastq.gz
-get S14-25_S189_L007_R2_001.fastq.gz
+get S14-25_S189_L007_R2_001.fastq.gz 
 get NE56-14-S6_S176_L007_R1_001.fastq.gz
 get S72-21-7_S153_L007_R1_001.fastq.gz
 get NE56-12-S15_S167_L007_R2_001.fastq.gz
 get S72-21-18-no2_S139_L007_R2_001.fastq.gz
 get NE56-3-S19_S184_L007_R1_001.fastq.gz
-get S72-21-15_S142_L007_R1_001.fastq.gz
+get S72-21-15_S142_L007_R1_001.fastq.gz 
 get NE56-3-S3_S185_L007_R1_001.fastq.gz
 get S72-21-6-no2_S125_L007_R1_001.fastq.gz
 get NE56-12-S15_S167_L007_R1_001.fastq.gz
@@ -143,3 +143,13 @@ get S72-21-15_S142_L007_R2_001.fastq.gz
 get S72-21-18-no2_S139_L007_R1_001.fastq.gz
 get NE56-3-S19_S184_L007_R2_001.fastq.gz
 
+mkdir 12_2024_At
+mkdir 12_2024_At/Raw_Data
+cp /work/bnlab/Dec2024seq/A* /scratch/jms53460/12_2024_At
+mkdir 12_2024_Sl
+mkdir 12_2024_Sl/Raw_Data
+cp /work/bnlab/Dec2024seq/S14* /scratch/jms53460/12_2024_Sl/Raw_Data
+cp /work/bnlab/Dec2024seq/S26* /scratch/jms53460/12_2024_Sl/Raw_Data
+
+scp sapelo2:/scratch/jms53460/12_2024_At/Raw_Data/*.fastq.gz 'D:\12_2024_At_Data'
+scp sapelo2:/scratch/jms53460/12_2024_Sl/Raw_Data/*.fastq.gz 'D:\12_2024_Sl_Data'
