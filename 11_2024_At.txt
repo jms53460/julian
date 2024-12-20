@@ -380,12 +380,14 @@ g1_frac = g1_bin/(g1_bin + g2_bin)
 AlleleFrac = g1_frac
 AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
 #AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
-AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)]
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 5000)] #68/160 pass this threshold. 25/160 pass >= 10000
+###478/672 passed >=10000, 318/672 passed >=10000 with the last data set
 
 library('ComplexHeatmap')
 
-FracMono_all = 100*colMeans(abs(AlleleFrac - .5) >= .3, na.rm=T)
+FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
 
+Heatmap(AlleleFrac2, cluster_rows=F)                   
 
 
 
