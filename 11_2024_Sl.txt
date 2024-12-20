@@ -40,6 +40,11 @@ sed 's/CM067873.*/chr10/' Sp_genome_9.fa > Sp_genome_10.fa
 sed 's/CM067874.*/chr11/' Sp_genome_10.fa > Sp_genome_11.fa
 sed 's/CM067875.*/chr12/' Sp_genome_11.fa > Sp_genome_12.fa
 
+cp /home/jms53460/Sl.gff.gz /scratch/jms53460/11_2024_Sl/
+cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/11_2024_Sl/
+cp /home/jms53460/Sp_genome_12.fa /scratch/jms53460/11_2024_Sl/
+cp /home/jms53460/Sl_genome_12.fa /scratch/jms53460/11_2024_Sl/
+
 
 #!/bin/bash
 #SBATCH --job-name=Sl_minimap_syri                                         # Job name
@@ -55,45 +60,48 @@ sed 's/CM067875.*/chr12/' Sp_genome_11.fa > Sp_genome_12.fa
 
 cd /scratch/jms53460/11_2024_Sl
 
-ml minimap2/2.26-GCCcore-12.2.0
+ml minimap2/2.28-GCCcore-12.3.0
 minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
 
 ml SyRI/1.6.3
 syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
 
 
-###This seems to have worked! Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
+###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
 
 #!/bin/bash
-#SBATCH --job-name=Zm_vcf2tsvpy                                           # Job name
+#SBATCH --job-name=Sl_vcf2tsvpy                                           # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=1                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_vcf2tsvpy.err         # Location of error log file
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.out        # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.err         # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/Maize_SGT_2022
+cd /scratch/jms53460/11_2024_Sl
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf syri.vcf --out_tsv Zm_vcf_table.tsv 
+vcf2tsvpy --input_vcf syri.vcf --out_tsv Sl_vcf_table.tsv 
 conda deactivate
 
 
+
 ###Selected columns from the vcf_table
-awk '{print $3,$1,$2,$6,$4,$5}' Zm_vcf_table.tsv OFS="\t" > Zm_variants.tsv
-grep -i "chr" Zm_variants.tsv > Zm_variants2.tsv
+awk '{print $3,$1,$2,$6,$4,$5}' Sl_vcf_table.tsv OFS="\t" > Sl_variants.tsv
+grep -i "chr" Sl_variants.tsv > Sl_variants2.tsv
 
 ###Alter the table to match required SNP file format
 ml R/4.3.2-foss-2022b
 R
-Zm_variants2 <- read.csv("/scratch/jms53460/Maize_SGT_2022/Zm_variants2.tsv", sep="")
-Zm_SNPs = Zm_variants2[,(1:4)]
-Zm_SNPs[,5] = paste(Zm_variants2[,5], "/", Zm_variants2[,6], sep = "")
-colnames(Zm_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
-Zm_SNPs$"SNP value" = 1
-write.table(Zm_SNPs, file = 'Zm_variants.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+Sl_variants2 <- read.csv("/scratch/jms53460/11_2024_Sl/Sl_variants2.tsv", sep="")
+Sl_SNPs = Sl_variants2[,(1:4)]
+Sl_SNPs[,5] = paste(Sl_variants2[,5], "/", Sl_variants2[,6], sep = "")
+colnames(Sl_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Sl_SNPs$"SNP value" = 1
+write.table(Sl_SNPs, file = 'Sl_variants.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 q()
+
+
