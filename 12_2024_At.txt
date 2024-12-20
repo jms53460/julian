@@ -438,18 +438,18 @@ D = D[rownames(genes),]
 g1 = g1[rownames(genes),]
 g2 = g2[rownames(genes),]
 
-save(D,g1,g2,genes, file = "11_2024_At.RData")
+save(D,g1,g2,genes, file = "12_2024_At.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/11_2024_At/11_2024_At.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/12_2024_At/12_2024_At.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
-load('11_2024_At.RData')
+load('12_2024_At.RData')
 
 
 plotCell2 = function (cell) 
@@ -480,8 +480,10 @@ g1_frac = g1_bin/(g1_bin + g2_bin)
 AlleleFrac = g1_frac
 AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
 #AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
-AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 5000)] #68/160 pass this threshold. 25/160 pass >= 10000
-###478/672 passed >=10000, 318/672 passed >=10000 with the last data set
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###124/192 passed >5000 89/192 passed >= 10000 from 12_2024_At
+###478/672 passed >=5000, 318/672 passed >=10000 with the first big data set
+###68/160 passed >5000 25/160 passed >= 10000 from 11_2024_At
+###124/192 passed >5000 89/192 passed >= 10000 from 12_2024_At
 
 library('ComplexHeatmap')
 

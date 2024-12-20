@@ -1,0 +1,99 @@
+###Processing and analyzing the tomato sequencing data from 11_2024
+
+#download Solanum lycopersicum and Solanum pimpinellifolium genomes
+#downloaded Sl genome and gff and Sp genome from NCBI
+ssh jms53460@xfer.gacrc.uga.edu
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/036/512/215/GCF_036512215.1_SLM_r2.1/GCF_036512215.1_SLM_r2.1_genomic.fna.gz > Sl_genome.fa.gz
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/036/512/215/GCF_036512215.1_SLM_r2.1/GCF_036512215.1_SLM_r2.1_genomic.gff.gz > Sl.gff.gz
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/034/621/305/GCA_034621305.1_SDAU_Spim_LA1589_1.0/GCA_034621305.1_SDAU_Spim_LA1589_1.0_genomic.fna.gz > Sp_genome.fa.gz
+
+ssh sapelo2
+zcat Sl_genome.fa.gz | grep -n Solanum
+#10409686:>NC_035963.1 Solanum lycopersicum bio-material TGRC:LA1421 mitochondrion, complete genome 
+zcat Sl_genome.fa.gz | head -10409685 > Sl_genome_trim.fa
+sed 's/NC_090800.*/chr1/' Sl_genome_trim.fa > Sl_genome_1.fa
+sed 's/NC_090801.*/chr2/' Sl_genome_1.fa > Sl_genome_2.fa
+sed 's/NC_090802.*/chr3/' Sl_genome_2.fa > Sl_genome_3.fa
+sed 's/NC_090803.*/chr4/' Sl_genome_3.fa > Sl_genome_4.fa
+sed 's/NC_090804.*/chr5/' Sl_genome_4.fa > Sl_genome_5.fa
+sed 's/NC_090805.*/chr6/' Sl_genome_5.fa > Sl_genome_6.fa
+sed 's/NC_090806.*/chr7/' Sl_genome_6.fa > Sl_genome_7.fa
+sed 's/NC_090807.*/chr8/' Sl_genome_7.fa > Sl_genome_8.fa
+sed 's/NC_090808.*/chr9/' Sl_genome_8.fa > Sl_genome_9.fa
+sed 's/NC_090809.*/chr10/' Sl_genome_9.fa > Sl_genome_10.fa
+sed 's/NC_090810.*/chr11/' Sl_genome_10.fa > Sl_genome_11.fa
+sed 's/NC_090811.*/chr12/' Sl_genome_11.fa > Sl_genome_12.fa
+
+zcat Sp_genome.fa.gz | grep -n Solanum
+#10296895:>JAWZUQ010000013.1 Solanum pimpinellifolium cultivar LA1589 Unplaced_contig_1, whole genome shotgun sequence
+zcat Sp_genome.fa.gz | head -10296894 > Sp_genome_trim.fa
+sed 's/CM067864.*/chr1/' Sp_genome_trim.fa > Sp_genome_1.fa
+sed 's/CM067865.*/chr2/' Sp_genome_1.fa > Sp_genome_2.fa
+sed 's/CM067866.*/chr3/' Sp_genome_2.fa > Sp_genome_3.fa
+sed 's/CM067867.*/chr4/' Sp_genome_3.fa > Sp_genome_4.fa
+sed 's/CM067868.*/chr5/' Sp_genome_4.fa > Sp_genome_5.fa
+sed 's/CM067869.*/chr6/' Sp_genome_5.fa > Sp_genome_6.fa
+sed 's/CM067870.*/chr7/' Sp_genome_6.fa > Sp_genome_7.fa
+sed 's/CM067871.*/chr8/' Sp_genome_7.fa > Sp_genome_8.fa
+sed 's/CM067872.*/chr9/' Sp_genome_8.fa > Sp_genome_9.fa
+sed 's/CM067873.*/chr10/' Sp_genome_9.fa > Sp_genome_10.fa
+sed 's/CM067874.*/chr11/' Sp_genome_10.fa > Sp_genome_11.fa
+sed 's/CM067875.*/chr12/' Sp_genome_11.fa > Sp_genome_12.fa
+
+
+#!/bin/bash
+#SBATCH --job-name=Sl_minimap_syri                                         # Job name
+#SBATCH --partition=batch                                                  # Partition (queue) name
+#SBATCH --ntasks=1                                                         # Single task job
+#SBATCH --cpus-per-task=6                                                  # Number of cores per task
+#SBATCH --mem=350gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_minimap_syri.out          # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_minimap_syri.err           # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                       # Where to send mail
+#SBATCH --mail-type=END,FAIL                                               # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+
+ml minimap2/2.26-GCCcore-12.2.0
+minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
+
+ml SyRI/1.6.3
+syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
+
+
+###This seems to have worked! Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=Zm_vcf2tsvpy                                           # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Maize_SGT_2022/Zm_vcf2tsvpy.out        # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_SGT_2022/Zm_vcf2tsvpy.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Maize_SGT_2022
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/vcf2tsvpy
+vcf2tsvpy --input_vcf syri.vcf --out_tsv Zm_vcf_table.tsv 
+conda deactivate
+
+
+###Selected columns from the vcf_table
+awk '{print $3,$1,$2,$6,$4,$5}' Zm_vcf_table.tsv OFS="\t" > Zm_variants.tsv
+grep -i "chr" Zm_variants.tsv > Zm_variants2.tsv
+
+###Alter the table to match required SNP file format
+ml R/4.3.2-foss-2022b
+R
+Zm_variants2 <- read.csv("/scratch/jms53460/Maize_SGT_2022/Zm_variants2.tsv", sep="")
+Zm_SNPs = Zm_variants2[,(1:4)]
+Zm_SNPs[,5] = paste(Zm_variants2[,5], "/", Zm_variants2[,6], sep = "")
+colnames(Zm_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Zm_SNPs$"SNP value" = 1
+write.table(Zm_SNPs, file = 'Zm_variants.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
