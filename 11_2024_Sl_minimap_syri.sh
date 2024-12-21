@@ -10,10 +10,9 @@
 #SBATCH --mail-user=jms53460@uga.edu                                       # Where to send mail
 #SBATCH --mail-type=END,FAIL                                               # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+#ml minimap2/2.28-GCCcore-12.3.0
+#minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
 
-ml minimap2/2.26-GCCcore-12.2.0
-minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
-
+ml Miniconda3/23.5.2-0
 ml SyRI/1.6.3
 syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
