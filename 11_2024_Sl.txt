@@ -45,6 +45,19 @@ cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/11_2024_Sl/
 cp /home/jms53460/Sp_genome_12.fa /scratch/jms53460/11_2024_Sl/
 cp /home/jms53460/Sl_genome_12.fa /scratch/jms53460/11_2024_Sl/
 
+###Install syri
+ml Miniconda3/4.10.3
+conda create -p /home/jms53460/syri_env -c bioconda syri -y 
+source activate /home/jms53460/syri_env
+syri
+conda deactivate
+
+Miniconda3/4.7.10
+        Miniconda3/4.9.2
+        Miniconda3/4.10.3
+        Miniconda3/4.12.0
+        Miniconda3/22.11.1-1
+        Miniconda3/23.5.2-0
 
 #!/bin/bash
 #SBATCH --job-name=Sl_minimap_syri                                         # Job name
@@ -63,7 +76,7 @@ cd /scratch/jms53460/11_2024_Sl
 #ml minimap2/2.28-GCCcore-12.3.0
 #minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
 
-ml numpy/1.9.2-intel-2021b-Python-2.7.18
+ml SciPy-bundle/2023.11-gfbf-2023b
 ml SyRI/1.6.3
 syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
 
