@@ -13,7 +13,8 @@
 cd /scratch/jms53460/11_2024_Sl
 
 ml SAMtools/1.18-GCC-12.3.0
-samtools view -bS Sp_aligned_to_Sl_trim.sam > Sp_aligned_to_Sl.bam
+samtools view -bS Sp_aligned_to_Sl_trim.sam > Sp_aligned_to_Sl_trim.bam
+samtools sort Sp_aligned_to_Sl.bam 
 
 ml BCFtools/1.18-GCC-12.3.0
 bcftools mpileup -Ou --threads 6 --min-MQ 60 -f Sl_genome_12.fa Sp_aligned_to_Sl.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > Sl.vcf.gz
