@@ -98,7 +98,7 @@ syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
 cd /scratch/jms53460/11_2024_Sl
 
 ml SAMtools/1.18-GCC-12.3.0
-samtools view -bS Sp_aligned_to_Sl_trim.sam > Sp_aligned_to_Sl_trim.bam
+samtools view -bS Sp_aligned_to_Sl_trim.sam > Sp_aligned_to_Sl.bam
 samtools sort Sp_aligned_to_Sl.bam 
 
 ml BCFtools/1.18-GCC-12.3.0
