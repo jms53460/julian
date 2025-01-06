@@ -16,5 +16,4 @@ cd /scratch/jms53460/11_2024_Sl
 #minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
 
 ml SyRI/1.6.3
-ml numpy/1.9.2-intel-2021b-Python-2.7.18
 syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
