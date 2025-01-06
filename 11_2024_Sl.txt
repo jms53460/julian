@@ -218,18 +218,18 @@ done
 
 
 #!/bin/bash
-#SBATCH --job-name=At_features_UMIs                                           # Job name
+#SBATCH --job-name=Features_UMIs                                           # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
 #SBATCH --ntasks=1                                                            # Single task job
 #SBATCH --cpus-per-task=6                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
 #SBATCH --time=6:00:00                                                       # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/12_2024_At/At_features_UMIs.out            # Location of standard output file
-#SBATCH --error=/scratch/jms53460/12_2024_At/At_features_UMIs.err             # Location of error log file
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/12_2024_At/
+cd /scratch/jms53460/11_2024_Sl
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
@@ -239,9 +239,9 @@ ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM At_SNPsplit/*_SNPsplit_g2.bam
+featureCounts -T 6 -s 1 -a Sl.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Sl.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Sl.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
 
 conda deactivate
 
