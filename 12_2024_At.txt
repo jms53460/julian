@@ -164,7 +164,6 @@ cp /home/jms53460/TAIR10.1_Col_5.gff /scratch/jms53460/12_2024_At/
 
 #Demultiplex data in a way that it is nearly ready for upload with SRA.
 
-
 #!/bin/bash
 #SBATCH --job-name=At_dm                                                  # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name

@@ -1,162 +1,65 @@
-###Processing and analyzing the tomato sequencing data from 11_2024
+###Processing and analyzing the tomato sequencing data from 12_2024
 
-#download Solanum lycopersicum and Solanum pimpinellifolium genomes
-#downloaded Sl genome and gff and Sp genome from NCBI
-ssh jms53460@xfer.gacrc.uga.edu
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/036/512/215/GCF_036512215.1_SLM_r2.1/GCF_036512215.1_SLM_r2.1_genomic.fna.gz > Sl_genome.fa.gz
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/036/512/215/GCF_036512215.1_SLM_r2.1/GCF_036512215.1_SLM_r2.1_genomic.gff.gz > Sl.gff.gz
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/034/621/305/GCA_034621305.1_SDAU_Spim_LA1589_1.0/GCA_034621305.1_SDAU_Spim_LA1589_1.0_genomic.fna.gz > Sp_genome.fa.gz
+mkdir 12_2024_Sl/Raw_Data
+cp /work/bnlab/Dec2024seq/S14* /scratch/jms53460/12_2024_Sl/Raw_Data
+cp /work/bnlab/Dec2024seq/S26* /scratch/jms53460/12_2024_Sl/Raw_Data
 
-ssh sapelo2
-zcat Sl_genome.fa.gz | grep -n Solanum
-#10409686:>NC_035963.1 Solanum lycopersicum bio-material TGRC:LA1421 mitochondrion, complete genome 
-zcat Sl_genome.fa.gz | head -10409685 > Sl_genome_trim.fa
-sed 's/NC_090800.*/chr1/' Sl_genome_trim.fa > Sl_genome_1.fa
-sed 's/NC_090801.*/chr2/' Sl_genome_1.fa > Sl_genome_2.fa
-sed 's/NC_090802.*/chr3/' Sl_genome_2.fa > Sl_genome_3.fa
-sed 's/NC_090803.*/chr4/' Sl_genome_3.fa > Sl_genome_4.fa
-sed 's/NC_090804.*/chr5/' Sl_genome_4.fa > Sl_genome_5.fa
-sed 's/NC_090805.*/chr6/' Sl_genome_5.fa > Sl_genome_6.fa
-sed 's/NC_090806.*/chr7/' Sl_genome_6.fa > Sl_genome_7.fa
-sed 's/NC_090807.*/chr8/' Sl_genome_7.fa > Sl_genome_8.fa
-sed 's/NC_090808.*/chr9/' Sl_genome_8.fa > Sl_genome_9.fa
-sed 's/NC_090809.*/chr10/' Sl_genome_9.fa > Sl_genome_10.fa
-sed 's/NC_090810.*/chr11/' Sl_genome_10.fa > Sl_genome_11.fa
-sed 's/NC_090811.*/chr12/' Sl_genome_11.fa > Sl_genome_12.fa
+scp sapelo2:/scratch/jms53460/12_2024_Sl/Raw_Data/*.fastq.gz 'D:\12_2024_Sl_Data'
 
-zcat Sp_genome.fa.gz | grep -n Solanum
-#10296895:>JAWZUQ010000013.1 Solanum pimpinellifolium cultivar LA1589 Unplaced_contig_1, whole genome shotgun sequence
-zcat Sp_genome.fa.gz | head -10296894 > Sp_genome_trim.fa
-sed 's/CM067864.*/chr1/' Sp_genome_trim.fa > Sp_genome_1.fa
-sed 's/CM067865.*/chr2/' Sp_genome_1.fa > Sp_genome_2.fa
-sed 's/CM067866.*/chr3/' Sp_genome_2.fa > Sp_genome_3.fa
-sed 's/CM067867.*/chr4/' Sp_genome_3.fa > Sp_genome_4.fa
-sed 's/CM067868.*/chr5/' Sp_genome_4.fa > Sp_genome_5.fa
-sed 's/CM067869.*/chr6/' Sp_genome_5.fa > Sp_genome_6.fa
-sed 's/CM067870.*/chr7/' Sp_genome_6.fa > Sp_genome_7.fa
-sed 's/CM067871.*/chr8/' Sp_genome_7.fa > Sp_genome_8.fa
-sed 's/CM067872.*/chr9/' Sp_genome_8.fa > Sp_genome_9.fa
-sed 's/CM067873.*/chr10/' Sp_genome_9.fa > Sp_genome_10.fa
-sed 's/CM067874.*/chr11/' Sp_genome_10.fa > Sp_genome_11.fa
-sed 's/CM067875.*/chr12/' Sp_genome_11.fa > Sp_genome_12.fa
+cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/12_2024_Sl/
+cp /home/jms53460/Sl_12.gff /scratch/jms53460/12_2024_Sl/
+cp /home/jms53460/Sl_N-masked_genome* /scratch/jms53460/12_2024_Sl/
+cp /home/jms53460/Sl_SNPs.tab /scratch/jms53460/12_2024_Sl/
 
-cp /home/jms53460/Sl.gff.gz /scratch/jms53460/11_2024_Sl/
-cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/11_2024_Sl/
-cp /home/jms53460/Sp_genome_12.fa /scratch/jms53460/11_2024_Sl/
-cp /home/jms53460/Sl_genome_12.fa /scratch/jms53460/11_2024_Sl/
 
-gzip -d Sl.gff.gz
-sed 's/NC_090800.1/chr1/' Sl.gff > Sl_1.gff
-sed 's/NC_090801.1/chr2/' Sl_1.gff > Sl_2.gff
-sed 's/NC_090802.1/chr3/' Sl_2.gff > Sl_3.gff
-sed 's/NC_090803.1/chr4/' Sl_3.gff > Sl_4.gff
-sed 's/NC_090804.1/chr5/' Sl_4.gff > Sl_5.gff
-sed 's/NC_090805.1/chr6/' Sl_5.gff > Sl_6.gff
-sed 's/NC_090806.1/chr7/' Sl_6.gff > Sl_7.gff
-sed 's/NC_090807.1/chr8/' Sl_7.gff > Sl_8.gff
-sed 's/NC_090808.1/chr9/' Sl_8.gff > Sl_9.gff
-sed 's/NC_090809.1/chr10/' Sl_9.gff > Sl_10.gff
-sed 's/NC_090810.1/chr11/' Sl_10.gff > Sl_11.gff
-sed 's/NC_090811.1/chr12/' Sl_11.gff > Sl_12.gff
-cp Sl_12.gff /home/jms53460
 
+#Demultiplex data in a way that it is nearly ready for upload with SRA.
 
 #!/bin/bash
-#SBATCH --job-name=Sl_minimap_syri                                         # Job name
-#SBATCH --partition=batch                                                  # Partition (queue) name
-#SBATCH --ntasks=1                                                         # Single task job
-#SBATCH --cpus-per-task=6                                                  # Number of cores per task
-#SBATCH --mem=350gb                                                        # Total memory for job
-#SBATCH --time=24:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_minimap_syri.out          # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_minimap_syri.err           # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                                       # Where to send mail
-#SBATCH --mail-type=END,FAIL                                               # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /scratch/jms53460/11_2024_Sl
-
-ml minimap2/2.28-GCCcore-12.3.0
-minimap2 -t 6 -ax asm10 --eqx Sl_genome_12.fa Sp_genome_12.fa > Sp_aligned_to_Sl_trim.sam
-
-ml SyRI/1.6.3
-syri -c Sp_aligned_to_Sl_trim.sam -r Sl_genome_12.fa -q Sp_genome_12.fa -k -F S
-
-
-###Syri was not working when I was trying to run it before the break, but when I tried it again after returning, it worked. Maybe there was something in my environment messing things up before?
-
-###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
-
-#!/bin/bash
-#SBATCH --job-name=Sl_vcf2tsvpy                                           # Job name
-#SBATCH --partition=batch                                                 # Partition (queue) name
-#SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=1                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
-#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /scratch/jms53460/11_2024_Sl
-ml Miniconda3/23.5.2-0
-source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf syri.vcf --out_tsv Sl_vcf_table.tsv 
-conda deactivate
-
-
-###Selected columns from the vcf_table
-awk '{print $3,$1,$2,$6,$4,$5}' Sl_vcf_table.tsv OFS="\t" > Sl_variants.tsv
-grep -i "chr" Sl_variants.tsv > Sl_variants2.tsv
-grep -i "SNP" Sl_variants2.tsv > Sl_snps.tsv
-
-###Alter the table to match required SNP file format
-ml R/4.3.2-foss-2022b
-R
-Sl_snps <- read.csv("/scratch/jms53460/11_2024_Sl/Sl_snps.tsv", sep="")
-Sl_SNPs = Sl_snps[,(1:4)]
-Sl_SNPs[,5] = paste(Sl_snps[,5], "/", Sl_snps[,6], sep = "")
-colnames(Sl_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
-Sl_SNPs$"SNP value" = 1
-write.table(Sl_SNPs, file = 'Sl_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
-q()
-
-
-
-#!/bin/bash
-#SBATCH --job-name=Sl_nmask                                               # Job name
-#SBATCH --partition=batch                                                 # Partition (queue) name
-#SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=1                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_nmask.out                # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_nmask.err                 # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
-#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /scratch/jms53460/11_2024_Sl
-ml BEDTools/2.30.0-GCC-12.2.0
-bedtools maskfasta -fi Sl_genome_12.fa -fo Sl_N-masked_genome.fa -bed syri.vcf -fullHeader
-
-
-cp Sl_N-masked_genome.fa /home/jms53460
-cp Sl_SNPs.tab /home/jms53460
-
-
-#!/bin/bash
-#SBATCH --job-name=Sl_hisat2                                              # Job name
+#SBATCH --job-name=Dm                                                     # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                       # Total memory for job
-#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_hs2.out                  # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_hs2.err                   # Location of error log file
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/12_2024_Sl/Dm.out                      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_2024_Sl/Dm.err                       # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/12_2024_Sl/
+mkdir Demultiplexed
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/Fastq-Multx
+
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+    if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
+        module load fastp/0.23.2-GCC-11.3.0
+	    fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/umi_""$file2""_R2.fastq.gz" "Demultiplexed/umi_""$file2""_R1.fastq.gz" "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2.fastq.gz" "Demultiplexed/""$file2""_%.fastq.gz" "Demultiplexed/""$file2""_%_umi.fastq.gz" # Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+
+    fi
+done
+conda deactivate
+
+
+#!/bin/bash
+#SBATCH --job-name=Hisat2                                                 # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/12_2024_Sl/Hs2.out                     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_2024_Sl/Hs2.err                      # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/12_2024_Sl
 
 module load fastp/0.23.2-GCC-11.3.0
 mkdir hisat2_out
@@ -171,8 +74,6 @@ fi
 done
 
 ml HISAT2/3n-20201216-gompi-2022a
-hisat2-build -p 6 Sl_N-masked_genome.fa Sl_N-masked_genome_index
-
 ml SAMtools/1.16.1-GCC-11.3.0
 for file in hisat2_out/*s.fastq.gz
 do
@@ -188,9 +89,6 @@ fi
 done
 
 
-cp Sl_N-masked_genome_index* /home/jms53460
-
-
 ###Running SNPsplit
 
 #!/bin/bash
@@ -200,12 +98,12 @@ cp Sl_N-masked_genome_index* /home/jms53460
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=50gb                                                                  # Total memory for job
 #SBATCH --time=6:00:00                                                              # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/SNPsplit.out                       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/SNPsplit.err                        # Location of error log file
+#SBATCH --output=/scratch/jms53460/12_2024_Sl/SNPsplit.out                       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_2024_Sl/SNPsplit.err                        # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/12_2024_Sl
 mkdir SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
@@ -238,12 +136,12 @@ done
 #SBATCH --cpus-per-task=6                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
 #SBATCH --time=6:00:00                                                       # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Features_UMIs.out            # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Features_UMIs.err             # Location of error log file
+#SBATCH --output=/scratch/jms53460/12_2024_Sl/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_2024_Sl/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/12_2024_Sl
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
@@ -387,18 +285,18 @@ D = D[rownames(genes),]
 g1 = g1[rownames(genes),]
 g2 = g2[rownames(genes),]
 
-save(D,g1,g2,genes, file = "11_2024_Sl.RData")
+save(D,g1,g2,genes, file = "12_2024_Sl.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/11_2024_Sl/11_2024_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/12_2024_Sl/12_2024_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
-load('11_2024_Sl.RData')
+load('12_2024_Sl.RData')
 
 
 plotCell2 = function (cell) 
