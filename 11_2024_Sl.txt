@@ -45,6 +45,20 @@ cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/11_2024_Sl/
 cp /home/jms53460/Sp_genome_12.fa /scratch/jms53460/11_2024_Sl/
 cp /home/jms53460/Sl_genome_12.fa /scratch/jms53460/11_2024_Sl/
 
+gzip -d Sl.gff.gz
+sed 's/NC_090800.1/chr1/' Sl.gff > Sl_1.gff
+sed 's/NC_090801.1/chr2/' Sl_1.gff > Sl_2.gff
+sed 's/NC_090802.1/chr3/' Sl_2.gff > Sl_3.gff
+sed 's/NC_090803.1/chr4/' Sl_3.gff > Sl_4.gff
+sed 's/NC_090804.1/chr5/' Sl_4.gff > Sl_5.gff
+sed 's/NC_090805.1/chr6/' Sl_5.gff > Sl_6.gff
+sed 's/NC_090806.1/chr7/' Sl_6.gff > Sl_7.gff
+sed 's/NC_090807.1/chr8/' Sl_7.gff > Sl_8.gff
+sed 's/NC_090808.1/chr9/' Sl_8.gff > Sl_9.gff
+sed 's/NC_090809.1/chr10/' Sl_9.gff > Sl_10.gff
+sed 's/NC_090810.1/chr11/' Sl_10.gff > Sl_11.gff
+sed 's/NC_090811.1/chr12/' Sl_11.gff > Sl_12.gff
+
 
 
 #!/bin/bash
@@ -239,9 +253,9 @@ ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a Sl.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a Sl.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a Sl.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
 
 conda deactivate
 
@@ -290,7 +304,7 @@ done
 
 ml R/4.3.1-foss-2022a
 R
-annots = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,9], ';')
+annots = strsplit(read.table('Sl.gff', sep = '\t', quote = "")[,9], ';')
 annots = annots[grep('ID=gene-', annots)]
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
 names(annots) = sub('ID=', '', names(annots))
