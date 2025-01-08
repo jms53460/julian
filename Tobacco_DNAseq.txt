@@ -71,32 +71,33 @@ done
 
 
 #!/bin/bash
-#SBATCH --job-name=Ns_6_24_vcf                                     # Job name
+#SBATCH --job-name=Ns_DNA_vcf                                      # Job name
 #SBATCH --partition=batch                                          # Partition (queue) name
 #SBATCH --ntasks=1                                                 # Single task job
 #SBATCH --cpus-per-task=6                                          # Number of cores per task
 #SBATCH --mem=50gb                                                 # Total memory for job
 #SBATCH --time=12:00:00                                            # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/June2024Seq/Ns_vcf.out          # Location of standard output file
-#SBATCH --error=/scratch/jms53460/June2024Seq/Ns_vcf.err           # Location of error log file
+#SBATCH --output=/scratch/jms53460/Tobacco_DNAseq/Ns_vcf.out          # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNAseq/Ns_vcf.err           # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
 #SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/June2024Seq
+cd /scratch/jms53460/Tobacco_DNAseq
 module load SAMtools/1.16.1-GCC-11.3.0
+samtools index -@ 6 TW136_s.bam
+samtools index -@ 6 TW137_s.bam
 
-for file in "hisat2_out/"*_s.bam
-do
-	file2="${file:15:-19}"
+module load BCFtools/1.15.1-GCC-11.3.0
+bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Ns_genome.fna TW136_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > TW136.vcf.gz
+bcftools index TW136.vcf.gz
 
-    samtools index -@ 6 "$file"
+bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Ns_genome.fna TW137_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > TW137.vcf.gz
+bcftools index TW137.vcf.gz
 
-    module load BCFtools/1.15.1-GCC-11.3.0
-    bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Ns_genome.fna "$file" | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
-    bcftools index "$file2".vcf.gz
-done
 
-gzip -d NTD4-3.vcf
+
+
+gzip -d TW137.vcf.gz
 
 
 scp sapelo2:/scratch/jms53460/June2024Seq/NTD4-3.vcf .
