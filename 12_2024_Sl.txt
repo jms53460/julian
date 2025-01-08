@@ -217,7 +217,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit.tsv', '', files))
+colnames(A) = sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit.tsv', '', files)))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -237,7 +237,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit_g1.tsv', '', files))
+colnames(A) = sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit_g1.tsv', '', files)))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -257,7 +257,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit_g2.tsv', '', files))
+colnames(A) = sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit_g2.tsv', '', files)))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -298,6 +298,9 @@ setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
 load('12_2024_Sl.RData')
 
+summary(colSums(D))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#   1201    3070    3998   19824    6302  374652
 
 plotCell2 = function (cell) 
 {
@@ -331,11 +334,17 @@ g1_frac = g1_bin/(g1_bin + g2_bin)
 AlleleFrac = g1_frac
 AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
 #AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
-AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 5000)] ###5/32 pass >= 5000 or 10000
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
 
 library('ComplexHeatmap')
 
 FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
 
-Heatmap(AlleleFrac2, cluster_rows=F)                   
-Heatmap(cor(D))
+D_subset = D[, which(colSums(D) >= 10000)]
+
+Heatmap(AlleleFrac2, cluster_rows=F, cluster_columns=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+Heatmap(cor(D_subset, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+
