@@ -19,7 +19,7 @@ do
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
 	module load fastp/0.23.2-GCC-11.3.0
-	fastp -w 6 -i "$file" -I "$file2""_R2_001.fastq.gz" -o "hisat2_out/""$file2""_R1_001.fastq.gz" -O "hisat2_out/""$file2""_R2_001.fastq.gz"
+	fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "hisat2_out/""$file2""_R1_001.fastq.gz" -O "hisat2_out/""$file2""_R2_001.fastq.gz"
 
     ml HISAT2/3n-20201216-gompi-2022a
 	module load SAMtools/1.16.1-GCC-11.3.0
