@@ -98,6 +98,14 @@ mv Empty/S74-79_7s* Demultiplexed
 mv Empty/S74-79_8s* Demultiplexed
 mv Empty/S74-79_9s* Demultiplexed
 
+#Move the files with Arabidopsis meiocyte data (81s to 96s)
+mkdir /scratch/jms53460/12_18_2024_At
+mkdir /scratch/jms53460/12_18_2024_At/Demultiplexed
+mv Demultiplexed/Meiocytes_8* /scratch/jms53460/12_18_2024_At/Demultiplexed
+mv Demultiplexed/Meiocytes_9* /scratch/jms53460/12_18_2024_At/Demultiplexed
+mv /scratch/jms53460/12_18_2024_At/Demultiplexed/Meiocytes_80s* Demultiplexed
+
+
 #!/bin/bash
 #SBATCH --job-name=Hisat2                                                 # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
@@ -143,18 +151,18 @@ done
 ###Running SNPsplit
 
 #!/bin/bash
-#SBATCH --job-name=SNPsplit                                                      # Job name
+#SBATCH --job-name=SNPsplit                                                         # Job name
 #SBATCH --partition=batch                                                           # Partition (queue) name
 #SBATCH --ntasks=1                                                                  # Single task job
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=50gb                                                                  # Total memory for job
 #SBATCH --time=6:00:00                                                              # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/12_2024_Sl/SNPsplit.out                       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/12_2024_Sl/SNPsplit.err                        # Location of error log file
+#SBATCH --output=/scratch/jms53460/12_18_2024_Sl/SNPsplit.out                       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_18_2024_Sl/SNPsplit.err                        # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/12_2024_Sl
+cd /scratch/jms53460/12_18_2024_Sl
 mkdir SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
