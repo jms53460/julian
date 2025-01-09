@@ -1,16 +1,36 @@
-###Processing and analyzing the tomato sequencing data from 12_2024
+#Processing and analyzing data from Dec 18th 2024 sequencing run
+ssh jms53460@xfer.gacrc.uga.edu
+mkdir /scratch/jms53460/12_18_2024_Sl
+cd /scratch/jms53460/12_18_2024_Sl
+mkdir Raw_Data
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-112* .
+mv 24323FL-02-01-112_S111_L003_R1_001.fastq.gz Raw_Data/S62-73_R1_001.fastq.gz
+mv 24323FL-02-01-112_S111_L003_R2_001.fastq.gz Raw_Data/S62-73_R2_001.fastq.gz
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-113* .
+mv 24323FL-02-01-113_S112_L003_R1_001.fastq.gz Raw_Data/S74-79_R1_001.fastq.gz
+mv 24323FL-02-01-113_S112_L003_R2_001.fastq.gz Raw_Data/S74-79_R2_001.fastq.gz
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-114* .
+mv 24323FL-02-01-114_S113_L003_R1_001.fastq.gz Raw_Data/Meiocytes_R1_001.fastq.gz
+mv 24323FL-02-01-114_S113_L003_R2_001.fastq.gz Raw_Data/Meiocytes_R2_001.fastq.gz
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-115* .
+mv 24323FL-02-01-115_S114_L003_R1_001.fastq.gz Raw_Data/S80-91_R1_001.fastq.gz
+mv 24323FL-02-01-115_S114_L003_R2_001.fastq.gz Raw_Data/S80-91_R2_001.fastq.gz
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-116* .
+mv 24323FL-02-01-116_S115_L003_R1_001.fastq.gz Raw_Data/S92-103_R1_001.fastq.gz
+mv 24323FL-02-01-116_S115_L003_R2_001.fastq.gz Raw_Data/S92-103_R2_001.fastq.gz
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-117* .
+mv 24323FL-02-01-117_S116_L003_R1_001.fastq.gz Raw_Data/S104-115_R1_001.fastq.gz
+mv 24323FL-02-01-117_S116_L003_R2_001.fastq.gz Raw_Data/S104-115_R2_001.fastq.gz
+cp /work/bnlab/Dec18th2024seq/24323FL-02-01-118* .
+mv 24323FL-02-01-118_S117_L003_R1_001.fastq.gz Raw_Data/S116-127_R1_001.fastq.gz
+mv 24323FL-02-01-118_S117_L003_R2_001.fastq.gz Raw_Data/S116-127_R2_001.fastq.gz
 
-mkdir 12_2024_Sl/Raw_Data
-cp /work/bnlab/Dec2024seq/S14* /scratch/jms53460/12_2024_Sl/Raw_Data
-cp /work/bnlab/Dec2024seq/S26* /scratch/jms53460/12_2024_Sl/Raw_Data
 
-scp sapelo2:/scratch/jms53460/12_2024_Sl/Raw_Data/*.fastq.gz 'D:\12_2024_Sl_Data'
 
-cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/12_2024_Sl/
-cp /home/jms53460/Sl_12.gff /scratch/jms53460/12_2024_Sl/
-cp /home/jms53460/Sl_N-masked_genome* /scratch/jms53460/12_2024_Sl/
-cp /home/jms53460/Sl_SNPs.tab /scratch/jms53460/12_2024_Sl/
-
+cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/12_18_2024_Sl/
+cp /home/jms53460/Sl_12.gff /scratch/jms53460/12_18_2024_Sl/
+cp /home/jms53460/Sl_N-masked_genome* /scratch/jms53460/12_18_2024_Sl/
+cp /home/jms53460/Sl_SNPs.tab /scratch/jms53460/12_18_2024_Sl/
 
 
 #Demultiplex data in a way that it is nearly ready for upload with SRA.
@@ -21,13 +41,13 @@ cp /home/jms53460/Sl_SNPs.tab /scratch/jms53460/12_2024_Sl/
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/12_2024_Sl/Dm.out                      # Location of standard output file
-#SBATCH --error=/scratch/jms53460/12_2024_Sl/Dm.err                       # Location of error log file
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/12_18_2024_Sl/Dm.out                   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_18_2024_Sl/Dm.err                    # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/12_2024_Sl/
+cd /scratch/jms53460/12_18_2024_Sl/
 mkdir Demultiplexed
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/Fastq-Multx
