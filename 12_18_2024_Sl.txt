@@ -25,7 +25,14 @@ cp /work/bnlab/Dec18th2024seq/24323FL-02-01-118* .
 mv 24323FL-02-01-118_S117_L003_R1_001.fastq.gz Raw_Data/S116-127_R1_001.fastq.gz
 mv 24323FL-02-01-118_S117_L003_R2_001.fastq.gz Raw_Data/S116-127_R2_001.fastq.gz
 
-
+#checking that the renamed files are what I think they are using zcat | head and looking at the indexes
+ S62-73 ACTCCATC+GATCAAGG
+ S74-79 GTTGACCT+CAGTGCTT
+ Meiocytes CGTGTGTA+CCAACGAA
+ S80-91 ACGACTTG+AACAGCGA
+ S92-103 CACTAGCT+TCGGATTC
+ S104-115 ACTAGGAG+TATGGCAC
+ S116-127 GTAGGAGT+GTCCTAAG
 
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/12_18_2024_Sl/
 cp /home/jms53460/Sl_12.gff /scratch/jms53460/12_18_2024_Sl/
@@ -67,19 +74,43 @@ done
 conda deactivate
 
 
+#Move the empty files
+mkdir Empty
+mv Demultiplexed/Meiocytes_1* Empty
+mv Demultiplexed/Meiocytes_2* Empty
+mv Demultiplexed/Meiocytes_3* Empty
+mv Demultiplexed/Meiocytes_4* Empty
+mv Empty/Meiocytes_49s* Demultiplexed
+mv Demultiplexed/Meiocytes_5s* Empty
+mv Demultiplexed/Meiocytes_6s* Empty
+mv Demultiplexed/Meiocytes_7s* Empty
+mv Demultiplexed/Meiocytes_8s* Empty
+mv Demultiplexed/Meiocytes_9s* Empty
+mv Demultiplexed/S74-79_49s* Empty
+mv Demultiplexed/S74-79_5* Empty
+mv Demultiplexed/S74-79_6* Empty
+mv Demultiplexed/S74-79_7* Empty
+mv Demultiplexed/S74-79_8* Empty
+mv Demultiplexed/S74-79_9* Empty
+mv Empty/S74-79_5s* Demultiplexed
+mv Empty/S74-79_6s* Demultiplexed
+mv Empty/S74-79_7s* Demultiplexed
+mv Empty/S74-79_8s* Demultiplexed
+mv Empty/S74-79_9s* Demultiplexed
+
 #!/bin/bash
 #SBATCH --job-name=Hisat2                                                 # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/12_2024_Sl/Hs2.out                     # Location of standard output file
-#SBATCH --error=/scratch/jms53460/12_2024_Sl/Hs2.err                      # Location of error log file
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/12_18_2024_Sl/Hs2.out                  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_18_2024_Sl/Hs2.err                   # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/12_2024_Sl
+cd /scratch/jms53460/12_18_2024_Sl
 
 module load fastp/0.23.2-GCC-11.3.0
 mkdir hisat2_out
