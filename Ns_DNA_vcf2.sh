@@ -11,6 +11,7 @@
 #SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
 
 cd /scratch/jms53460/Tobacco_DNAseq
+module load BCFtools/1.15.1-GCC-11.3.0
 # normalize indels
 bcftools norm -f Ns_genome.fna TW136.vcf.gz -Ob -o TW136.norm.bcf 
 
