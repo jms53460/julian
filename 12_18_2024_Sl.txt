@@ -423,7 +423,7 @@ AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no 
 
 g1_gene_frac = g1/(g1+g2)
 AlleleFrac = g1_gene_frac
-AlleleFrac[(g1+g2) < 3] = NA #remove genes with <5 genoinformative transcripts
+AlleleFrac[(g1+g2) < 10] = NA #remove genes with <10 genoinformative transcripts
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
 plotAlleles('Meiocytes_49s')
 
@@ -487,6 +487,7 @@ FracMono2 = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
 
 
 Heatmap(cor(D_subset, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(cor(D_subset[,18:80], use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 
 
