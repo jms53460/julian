@@ -1,0 +1,88 @@
+#Making N-masked genome for analyzing corn mill data, using W22 as reference and B73 for masking
+mkdir /scratch/jms53460/Corn_mill
+cd /scratch/jms53460/Corn_mill
+cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0.fa .
+curl -s https://download.maizegdb.org/Zm-W22-REFERENCE-NRGENE-2.0/Zm-W22-REFERENCE-NRGENE-2.0.fa.gz > Zm_W22.fa.gz
+gzip -d Zm_W22.fa.gz
+
+#!/bin/bash
+#SBATCH --job-name=Zm_minimap_syri                                         # Job name
+#SBATCH --partition=batch                                                  # Partition (queue) name
+#SBATCH --ntasks=1                                                         # Single task job
+#SBATCH --cpus-per-task=6                                                  # Number of cores per task
+#SBATCH --mem=100gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Corn_mill/Zm_minimap_syri.out           # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Corn_mill/Zm_minimap_syri.err            # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                       # Where to send mail
+#SBATCH --mail-type=END,FAIL                                               # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Corn_mill
+
+ml minimap2/2.28-GCCcore-12.3.0
+minimap2 -t 6 -ax asm10 --eqx Zm_W22.fa Zm-B73-REFERENCE-NAM-5.0.fa > B73_aligned_to_W22.sam
+
+ml SyRI/1.6.3
+syri -c B73_aligned_to_W22.sam -r Zm_W22.fa -q Zm-B73-REFERENCE-NAM-5.0.fa -k -F S
+
+
+###Syri was not working when I was trying to run it before the break, but when I tried it again after returning, it worked. Maybe there was something in my environment messing things up before?
+
+###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=Sl_vcf2tsvpy                                           # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.out        # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/vcf2tsvpy
+vcf2tsvpy --input_vcf syri.vcf --out_tsv Sl_vcf_table.tsv 
+conda deactivate
+
+
+###Selected columns from the vcf_table
+awk '{print $3,$1,$2,$6,$4,$5}' Sl_vcf_table.tsv OFS="\t" > Sl_variants.tsv
+grep -i "chr" Sl_variants.tsv > Sl_variants2.tsv
+grep -i "SNP" Sl_variants2.tsv > Sl_snps.tsv
+
+###Alter the table to match required SNP file format
+ml R/4.3.2-foss-2022b
+R
+Sl_snps <- read.csv("/scratch/jms53460/11_2024_Sl/Sl_snps.tsv", sep="")
+Sl_SNPs = Sl_snps[,(1:4)]
+Sl_SNPs[,5] = paste(Sl_snps[,5], "/", Sl_snps[,6], sep = "")
+colnames(Sl_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Sl_SNPs$"SNP value" = 1
+write.table(Sl_SNPs, file = 'Sl_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Sl_nmask                                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_nmask.out                # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_nmask.err                 # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+ml BEDTools/2.30.0-GCC-12.2.0
+bedtools maskfasta -fi Sl_genome_12.fa -fo Sl_N-masked_genome.fa -bed syri.vcf -fullHeader
+
+
+cp Sl_N-masked_genome.fa /home/jms53460
+cp Sl_SNPs.tab /home/jms53460
