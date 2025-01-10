@@ -276,7 +276,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit.tsv', '', files)))
+colnames(A) = sub('_SNPsplit.tsv', '', files)
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -296,7 +296,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit_g1.tsv', '', files)))
+colnames(A) = sub('_SNPsplit_g1.tsv', '', files)
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -316,7 +316,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit_g2.tsv', '', files)))
+colnames(A) = sub('_SNPsplit_g2.tsv', '', files)
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -340,26 +340,30 @@ genes = genes[!duplicated(genes[,3]),]
 colnames(genes) = c('Chr', 'Position', 'Gene')
 rownames(genes) = genes[,3]
 
-D = D[rownames(genes),]
-g1 = g1[rownames(genes),]
-g2 = g2[rownames(genes),]
 
-save(D,g1,g2,genes, file = "12_2024_Sl.RData")
+save(D,g1,g2,genes, file = "12_18_2024_Sl.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/12_2024_Sl/12_2024_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/12_18_2024_Sl/12_18_2024_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
-load('12_2024_Sl.RData')
+load('12_18_2024_Sl.RData')
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
 
 summary(colSums(D))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-#   1201    3070    3998   19824    6302  374652
+#   1201    3070    3998   19824    6302  374652 #192
+summary(colSums(D))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    38    1097    1858   10089    4197  295550  #560
 
 plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
 plotChr2 = function (cell, chr = 1, pad = 3) 
@@ -421,7 +425,7 @@ g1_gene_frac = g1/(g1+g2)
 AlleleFrac = g1_gene_frac
 AlleleFrac[(g1+g2) < 3] = NA #remove genes with <5 genoinformative transcripts
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
-plotAlleles('S14-25_10s')
+plotAlleles('Meiocytes_49s')
 
 
 plotChr2 = function (cell, chr = 1, pad = 3) 
@@ -455,7 +459,8 @@ plotCell3 = function (cell)
         rot = 90, size = 10), top = cell)
 }
 
-plotCell3('S14-25_10s')
+plotCell3('Meiocytes_49s')
+
 
 summary(colSums(D > 5))
 > summary(colSums(D > 5))
