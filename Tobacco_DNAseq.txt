@@ -170,36 +170,92 @@ bcftools index TW137_consensus.vcf.gz
 bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f TW136_consensus.fa hisat2_out2/TW136_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > TW136_consensus.vcf.gz
 bcftools index TW136_consensus.vcf.gz
 
+###Ran out of run time after finishing TW137_consensus.vcf.gz. 
 
 
 
-
-gzip -d TW137.vcf.gz
-
-
-scp sapelo2:/scratch/jms53460/June2024Seq/NTD4-3.vcf .
-scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD4-3_S372_L006_R1_s.bam .
-scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD4-3_S372_L006_R1_s.bam.bai .
+gzip -d TW137_consensus.vcf.gz
 
 
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools view -i 'GT="AA"' NTD4-3.vcf > NTD4-3_hom.vcf
+bcftools view -i 'GT="AA"' TW137_consensus.vcf > TW137_hom.vcf
+bcftools view -i 'TYPE="snp"' TW137_hom.vcf > TW137_hom_SNPs.vcf
+wc -l TW137_hom_SNPs.vcf
+#30729 TW137_hom_SNPs.vcf #not a lot of SNPs to work with still
 
 
-scp sapelo2:/scratch/jms53460/June2024Seq/NTD4-3_hom.vcf .
+###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=Ns_vcf2tsvpy                                           # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Tobacco_DNAseq/Ns_vcf2tsvpy.out        # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNAseq/Ns_vcf2tsvpy.err         # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Tobacco_DNAseq
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/vcf2tsvpy
+vcf2tsvpy --input_vcf TW137_hom_SNPs.vcf --out_tsv Ns_vcf_table.tsv 
+conda deactivate
 
 
-gzip -d NTD3-3.vcf
-gzip -d NTD5-4.vcf
+###Selected columns from the vcf_table
+awk '{print $3,$1,$2,$6,$4,$5}' Ns_vcf_table.tsv OFS="\t" > Ns_snps.tsv
+
+###Alter the table to match required SNP file format
+ml R/4.3.2-foss-2022b
+R
+Ns_snps <- read.csv("/scratch/jms53460/Tobacco_DNAseq/Ns_snps.tsv", sep="")
+Ns_SNPs = Ns_snps[,(1:4)]
+Ns_SNPs[,5] = paste(Ns_snps[,5], "/", Ns_snps[,6], sep = "")
+colnames(Ns_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+Ns_SNPs$"SNP value" = 1
+write.table(Ns_SNPs, file = 'Ns_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
+
+
+#!/bin/bash
+#SBATCH --job-name=Ns_nmask                                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Tobacco_DNAseq/Ns_nmask.out                # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNAseq/Ns_nmask.err                 # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Tobacco_DNAseq
+ml BEDTools/2.30.0-GCC-12.2.0
+bedtools maskfasta -fi TW136_consensus.fa -fo TW136_consensus_N-masked.fa -bed TW137_hom_SNPs.vcf -fullHeader
+
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools view -i 'GT="AA"' NTD3-3.vcf > NTD3-3_hom.vcf
-bcftools view -i 'GT="AA"' NTD5-4.vcf > NTD5-4_hom.vcf
+bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f TW136_consensus.fa hisat2_out2/TW136_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > TW136_consensus.vcf.gz
+bcftools index TW136_consensus.vcf.gz
 
 
-scp sapelo2:/scratch/jms53460/June2024Seq/NTD3-3.vcf .
-scp sapelo2:/scratch/jms53460/June2024Seq/NTD3-3_hom.vcf .
-scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD3-3*_s.bam* .
 
-scp sapelo2:/scratch/jms53460/June2024Seq/NTD5-4.vcf .
-scp sapelo2:/scratch/jms53460/June2024Seq/NTD5-4_hom.vcf .
-scp sapelo2:/scratch/jms53460/June2024Seq/hisat2_out/umi_NTD5-4*_s.bam* .
+
+
+grep -n 'Nicotiana' Ns_genome.fna
+#28874666:>ASAF02000013.1 Nicotiana sylvestris Un00001, whole genome shotgun sequence
+head -28874666 Ns_genome.fna > Ns_genome_trim.fa
+sed 's/CM066003.*/chr1/' Ns_genome_trim.fa > Ns_genome_1.fa
+sed 's/CM066004.*/chr2/' Ns_genome_1.fa > Ns_genome_2.fa
+sed 's/CM066005.*/chr3/' Ns_genome_2.fa > Ns_genome_3.fa
+sed 's/CM066006.*/chr4/' Ns_genome_3.fa > Ns_genome_4.fa
+sed 's/CM066007.*/chr5/' Ns_genome_4.fa > Ns_genome_5.fa
+sed 's/CM066008.*/chr6/' Ns_genome_5.fa > Ns_genome_6.fa
+sed 's/CM066009.*/chr7/' Ns_genome_6.fa > Ns_genome_7.fa
+sed 's/CM066010.*/chr8/' Ns_genome_7.fa > Ns_genome_8.fa
+sed 's/CM066011.*/chr9/' Ns_genome_8.fa > Ns_genome_9.fa
+sed 's/CM066012.*/chr10/' Ns_genome_9.fa > Ns_genome_10.fa
+sed 's/CM066013.*/chr11/' Ns_genome_10.fa > Ns_genome_11.fa
+sed 's/CM066014.*/chr12/' Ns_genome_11.fa > Ns_genome_12.fa
