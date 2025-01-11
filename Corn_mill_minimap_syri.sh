@@ -3,7 +3,7 @@
 #SBATCH --partition=batch                                                  # Partition (queue) name
 #SBATCH --ntasks=1                                                         # Single task job
 #SBATCH --cpus-per-task=6                                                  # Number of cores per task
-#SBATCH --mem=250gb                                                        # Total memory for job
+#SBATCH --mem=350gb                                                        # Total memory for job
 #SBATCH --time=24:00:00                                                    # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Corn_mill/Zm_minimap_syri.out           # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Corn_mill/Zm_minimap_syri.err            # Location of error log file
