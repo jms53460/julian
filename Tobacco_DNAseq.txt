@@ -206,7 +206,22 @@ conda deactivate
 
 
 ###Selected columns from the vcf_table
-awk '{print $3,$1,$2,$6,$4,$5}' Ns_vcf_table.tsv OFS="\t" > Ns_snps.tsv
+awk '{print $3,$1,$2,$6,$4,$5}' Ns_vcf_table.tsv OFS="\t" > Ns_variants.tsv
+
+sed 's/CM066003.1/chr1/' Ns_variants.tsv > Ns_variants_1.tsv
+sed 's/CM066004.1/chr2/' Ns_variants_1.tsv > Ns_variants_2.tsv
+sed 's/CM066005.1/chr3/' Ns_variants_2.tsv > Ns_variants_3.tsv
+sed 's/CM066006.1/chr4/' Ns_variants_3.tsv > Ns_variants_4.tsv
+sed 's/CM066007.1/chr5/' Ns_variants_4.tsv > Ns_variants_5.tsv
+sed 's/CM066008.1/chr6/' Ns_variants_5.tsv > Ns_variants_6.tsv
+sed 's/CM066009.1/chr7/' Ns_variants_6.tsv > Ns_variants_7.tsv
+sed 's/CM066010.1/chr8/' Ns_variants_7.tsv > Ns_variants_8.tsv
+sed 's/CM066011.1/chr9/' Ns_variants_8.tsv > Ns_variants_9.tsv
+sed 's/CM066012.1/chr10/' Ns_variants_9.tsv > Ns_variants_10.tsv
+sed 's/CM066013.1/chr11/' Ns_variants_10.tsv > Ns_variants_11.tsv
+sed 's/CM066014.1/chr12/' Ns_variants_11.tsv > Ns_variants_12.tsv
+
+grep -i "chr" Ns_variants_12.tsv > Ns_snps.tsv
 
 ###Alter the table to match required SNP file format
 ml R/4.3.2-foss-2022b
@@ -218,6 +233,8 @@ colnames(Ns_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
 Ns_SNPs$"SNP value" = 1
 write.table(Ns_SNPs, file = 'Ns_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 q()
+
+cp Ns_SNPs.tab /home/jms53460
 
 
 #!/bin/bash
@@ -242,20 +259,94 @@ bcftools index TW136_consensus.vcf.gz
 
 
 
+sed 's/CM066003.*/chr1/' TW136_consensus_N-masked.fa > TW136_consensus_N-masked_1.fa
+sed 's/CM066004.*/chr2/' TW136_consensus_N-masked_1.fa > TW136_consensus_N-masked_2.fa
+sed 's/CM066005.*/chr3/' TW136_consensus_N-masked_2.fa > TW136_consensus_N-masked_3.fa
+sed 's/CM066006.*/chr4/' TW136_consensus_N-masked_3.fa > TW136_consensus_N-masked_4.fa
+sed 's/CM066007.*/chr5/' TW136_consensus_N-masked_4.fa > TW136_consensus_N-masked_5.fa
+sed 's/CM066008.*/chr6/' TW136_consensus_N-masked_5.fa > TW136_consensus_N-masked_6.fa
+sed 's/CM066009.*/chr7/' TW136_consensus_N-masked_6.fa > TW136_consensus_N-masked_7.fa
+sed 's/CM066010.*/chr8/' TW136_consensus_N-masked_7.fa > TW136_consensus_N-masked_8.fa
+sed 's/CM066011.*/chr9/' TW136_consensus_N-masked_8.fa > TW136_consensus_N-masked_9.fa
+sed 's/CM066012.*/chr10/' TW136_consensus_N-masked_9.fa > TW136_consensus_N-masked_10.fa
+sed 's/CM066013.*/chr11/' TW136_consensus_N-masked_10.fa > TW136_consensus_N-masked_11.fa
+sed 's/CM066014.*/chr12/' TW136_consensus_N-masked_11.fa > TW136_consensus_N-masked_12.fa
+
+cp TW136_consensus_N-masked_12.fa /home/jms53460
 
 
-grep -n 'Nicotiana' Ns_genome.fna
-#28874666:>ASAF02000013.1 Nicotiana sylvestris Un00001, whole genome shotgun sequence
-head -28874666 Ns_genome.fna > Ns_genome_trim.fa
-sed 's/CM066003.*/chr1/' Ns_genome_trim.fa > Ns_genome_1.fa
-sed 's/CM066004.*/chr2/' Ns_genome_1.fa > Ns_genome_2.fa
-sed 's/CM066005.*/chr3/' Ns_genome_2.fa > Ns_genome_3.fa
-sed 's/CM066006.*/chr4/' Ns_genome_3.fa > Ns_genome_4.fa
-sed 's/CM066007.*/chr5/' Ns_genome_4.fa > Ns_genome_5.fa
-sed 's/CM066008.*/chr6/' Ns_genome_5.fa > Ns_genome_6.fa
-sed 's/CM066009.*/chr7/' Ns_genome_6.fa > Ns_genome_7.fa
-sed 's/CM066010.*/chr8/' Ns_genome_7.fa > Ns_genome_8.fa
-sed 's/CM066011.*/chr9/' Ns_genome_8.fa > Ns_genome_9.fa
-sed 's/CM066012.*/chr10/' Ns_genome_9.fa > Ns_genome_10.fa
-sed 's/CM066013.*/chr11/' Ns_genome_10.fa > Ns_genome_11.fa
-sed 's/CM066014.*/chr12/' Ns_genome_11.fa > Ns_genome_12.fa
+curl -s https://zenodo.org/records/8256252/files/nsyl.gtf.gz?download=1 > nsyl.gtf.gz
+gzip -d nsyl.gtf.gz
+
+sed 's/Chr01/chr1/' nsyl.gtf > nsyl_1.gtf
+sed 's/Chr02/chr2/' nsyl_1.gtf > nsyl_2.gtf
+sed 's/Chr03/chr3/' nsyl_2.gtf > nsyl_3.gtf
+sed 's/Chr04/chr4/' nsyl_3.gtf > nsyl_4.gtf
+sed 's/Chr05/chr5/' nsyl_4.gtf > nsyl_5.gtf
+sed 's/Chr06/chr6/' nsyl_5.gtf > nsyl_6.gtf
+sed 's/Chr07/chr7/' nsyl_6.gtf > nsyl_7.gtf
+sed 's/Chr08/chr8/' nsyl_7.gtf > nsyl_8.gtf
+sed 's/Chr09/chr9/' nsyl_8.gtf > nsyl_9.gtf
+sed 's/Chr10/chr10/' nsyl_9.gtf > nsyl_10.gtf
+sed 's/Chr11/chr11/' nsyl_10.gtf > nsyl_11.gtf
+sed 's/Chr12/chr12/' nsyl_11.gtf > nsyl_12.gtf
+
+cp nsyl_12.gtf /home/jms53460
+
+#!/bin/bash
+#SBATCH --job-name=Ns_hisat2                                      # Job name
+#SBATCH --partition=batch                                             # Partition (queue) name
+#SBATCH --ntasks=1                                                    # Single task job
+#SBATCH --cpus-per-task=6                                             # Number of cores per task
+#SBATCH --mem=50gb                                                    # Total memory for job
+#SBATCH --time=12:00:00                                               # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Tobacco_DNAseq/Ns_h2_3.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNAseq/Ns_h2_3.err        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                  # Where to send mail
+#SBATCH --mail-type=END,FAIL                                          # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Tobacco_DNAseq
+mkdir hisat2_out3
+cp hisat2_out/TW136xTW137*fastq.gz hisat2_out3
+
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build TW136_consensus_N-masked_12.fa TW136_consensus_N-masked_12_index
+module load SAMtools/1.16.1-GCC-11.3.0
+hisat2 -p 6 --dta -x TW136_consensus_N-masked_12_index -1 "hisat2_out3/TW136xTW137_R1_001.fastq.gz" -2 "hisat2_out3/TW136xTW137_R2_001.fastq.gz" | samtools view -bS -> "hisat2_out3/TW136xTW137_unsorted.bam"
+samtools sort -@ 6 "hisat2_out3/TW136xTW137_unsorted.bam" -o "hisat2_out3/TW136xTW137_s.bam"
+
+
+
+#!/bin/bash
+#SBATCH --job-name=SNPsplit_features                                                # Job name
+#SBATCH --partition=batch                                                           # Partition (queue) name
+#SBATCH --ntasks=1                                                                  # Single task job
+#SBATCH --cpus-per-task=6                                                           # Number of cores per task
+#SBATCH --mem=100gb                                                                  # Total memory for job
+#SBATCH --time=12:00:00                                                              # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Tobacco_DNAseq/SNPsplit_features.out                       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNAseq/SNPsplit_features.err                        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Tobacco_DNAseq
+mkdir SNPsplit
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs.tab hisat2_out2/TW136xTW137_s.bam
+    samtools sort -@ 6 SNPsplit/TW136xTW137_s.allele_flagged.bam -o SNPsplit/TW136xTW137_SNPsplit.bam
+    samtools sort -@ 6 SNPsplit/TW136xTW137_s.genome1.bam -o SNPsplit/TW136xTW137_SNPsplit_g1.bam
+    samtools sort -@ 6 SNPsplit/TW136xTW137_s.genome2.bam -o SNPsplit/TW136xTW137_SNPsplit_g2.bam
+
+mkdir featurecounts
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a nsyl_12.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/TW136xTW137_SNPsplit.bam
+featureCounts -T 6 -s 1 -a nsyl_12.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/TW136xTW137_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a nsyl_12.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/TW136xTW137_SNPsplit_g2.bam
+
+conda deactivate
+
+
