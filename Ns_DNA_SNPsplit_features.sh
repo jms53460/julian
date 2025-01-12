@@ -14,7 +14,7 @@ cd /scratch/jms53460/Tobacco_DNAseq
 mkdir SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
-SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs.tab hisat2_out2/TW136xTW137_s.bam
+SNPsplit --conflicting -o SNPsplit --snp_file Ns_SNPs.tab hisat2_out3/TW136xTW137_s.bam
     samtools sort -@ 6 SNPsplit/TW136xTW137_s.allele_flagged.bam -o SNPsplit/TW136xTW137_SNPsplit.bam
     samtools sort -@ 6 SNPsplit/TW136xTW137_s.genome1.bam -o SNPsplit/TW136xTW137_SNPsplit_g1.bam
     samtools sort -@ 6 SNPsplit/TW136xTW137_s.genome2.bam -o SNPsplit/TW136xTW137_SNPsplit_g2.bam
