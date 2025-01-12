@@ -12,8 +12,8 @@
 
 cd /scratch/jms53460/Corn_mill
 
-ml minimap2/2.28-GCCcore-12.3.0
-minimap2 -t 6 -ax asm10 --eqx Zm_W22_trim.fa Zm-B73-REFERENCE-NAM-5.0.fa > B73_aligned_to_W22.sam
+#ml minimap2/2.28-GCCcore-12.3.0
+#minimap2 -t 6 -ax asm10 --eqx Zm_W22_trim.fa Zm-B73-REFERENCE-NAM-5.0.fa > B73_aligned_to_W22.sam
 
 ml SyRI/1.6.3
 syri -c B73_aligned_to_W22.sam -r Zm_W22_trim.fa -q Zm-B73-REFERENCE-NAM-5.0.fa -k -F S
