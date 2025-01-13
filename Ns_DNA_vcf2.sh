@@ -14,11 +14,11 @@ cd /scratch/jms53460/Tobacco_DNAseq
 module load BCFtools/1.15.1-GCC-11.3.0
 
 # apply variants to create consensus sequence
-cat Ns_genome.fna | bcftools consensus TW136_hom_SNPs1.vcf > TW136_consensus.fa
+cat Ns_genome.fna | bcftools consensus TW136_hom_SNPs1.vcf.gz > TW136_consensus.fa
 
 # output IUPAC ambiguity codes based on REF+ALT columns (regardless of genotype)
-cat Ns_genome.fna | bcftools consensus --iupac-codes TW136_hom_SNPs1.vcf > TW136_consensus.fa
+cat Ns_genome.fna | bcftools consensus --iupac-codes TW136_hom_SNPs1.vcf.gz > TW136_consensus.fa
 
 # output IUPAC ambiguity codes based on sample genotypes
-cat Ns_genome.fna | bcftools consensus --haplotype I TW136_hom_SNPs1.vcf > TW136_consensus.fa
+cat Ns_genome.fna | bcftools consensus --haplotype I TW136_hom_SNPs1.vcf.gz > TW136_consensus.fa
 
