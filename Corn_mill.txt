@@ -35,59 +35,47 @@ syri -c B73_aligned_to_W22.sam -r Zm_W22_trim.fa -q Zm_B73_trim.fa -k -F S
 
 ###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
 
-#!/bin/bash
-#SBATCH --job-name=Sl_vcf2tsvpy                                           # Job name
-#SBATCH --partition=batch                                                 # Partition (queue) name
-#SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=1                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
-#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/Corn_mill
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf syri.vcf --out_tsv Sl_vcf_table.tsv 
+vcf2tsvpy --input_vcf syri.vcf --out_tsv Zm_vcf_table.tsv 
 conda deactivate
 
 
 ###Selected columns from the vcf_table
-awk '{print $3,$1,$2,$6,$4,$5}' Sl_vcf_table.tsv OFS="\t" > Sl_variants.tsv
-grep -i "chr" Sl_variants.tsv > Sl_variants2.tsv
-grep -i "SNP" Sl_variants2.tsv > Sl_snps.tsv
+awk '{print $3,$1,$2,$6,$4,$5}' Zm_vcf_table.tsv OFS="\t" > Zm_variants.tsv
+grep -i "chr" Zm_variants.tsv > Zm_variants2.tsv
+grep -i "SNP" Zm_variants2.tsv > Zm_snps.tsv
 
 ###Alter the table to match required SNP file format
 ml R/4.3.2-foss-2022b
 R
-Sl_snps <- read.csv("/scratch/jms53460/11_2024_Sl/Sl_snps.tsv", sep="")
-Sl_SNPs = Sl_snps[,(1:4)]
-Sl_SNPs[,5] = paste(Sl_snps[,5], "/", Sl_snps[,6], sep = "")
-colnames(Sl_SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
-Sl_SNPs$"SNP value" = 1
-write.table(Sl_SNPs, file = 'Sl_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+snps <- read.csv("/scratch/jms53460/Corn_mill/Zm_snps.tsv", sep="")
+SNPs = snps[,(1:4)]
+SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
+colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+SNPs$"SNP value" = 1
+write.table(SNPs, file = 'Zm_W22_w_B73_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 q()
 
 
 
 #!/bin/bash
-#SBATCH --job-name=Sl_nmask                                               # Job name
+#SBATCH --job-name=Zm_nmask                                               # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=1                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_nmask.out                # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_nmask.err                 # Location of error log file
+#SBATCH --output=/scratch/jms53460/Corn_mill/Zm_nmask.out                # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Corn_mill/Zm_nmask.err                 # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/Corn_mill
 ml BEDTools/2.30.0-GCC-12.2.0
-bedtools maskfasta -fi Sl_genome_12.fa -fo Sl_N-masked_genome.fa -bed syri.vcf -fullHeader
+bedtools maskfasta -fi Zm_W22.fa -fo Zm_W22_w_B73_N-masked.fa -bed syri.vcf -fullHeader
 
 
-cp Sl_N-masked_genome.fa /home/jms53460
-cp Sl_SNPs.tab /home/jms53460
+cp Zm_W22_w_B73_N-masked.fa /home/jms53460
+cp Zm_W22_w_B73_SNPs.tab /home/jms53460
