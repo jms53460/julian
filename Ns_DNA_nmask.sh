@@ -12,8 +12,4 @@
 
 cd /scratch/jms53460/Tobacco_DNAseq
 ml BEDTools/2.30.0-GCC-12.2.0
-bedtools maskfasta -fi TW136_consensus.fa -fo TW136_consensus_N-masked.fa -bed TW137_hom_SNPs.vcf -fullHeader
-
-module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f TW136_consensus.fa hisat2_out2/TW136_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > TW136_consensus.vcf.gz
-bcftools index TW136_consensus.vcf.gz
+bedtools maskfasta -fi TW136_consensus.fa -fo TW136_consensus_N-masked.fa -bed TW137_cons_hom_SNPs.vcf.gz -fullHeader

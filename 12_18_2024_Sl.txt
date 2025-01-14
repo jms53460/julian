@@ -459,7 +459,7 @@ plotCell3 = function (cell)
         rot = 90, size = 10), top = cell)
 }
 
-plotCell3('Meiocytes_49s')
+plotCell3('S104-115_10s')
 
 
 summary(colSums(D > 5))
@@ -478,7 +478,7 @@ summary(colSums(D_subset))
 
 D_subset2 = D[,which(colSums(D >= 10) >= 100)]
 summary(colSums(D_subset2))
-AlleleFrac3 = AlleleFrac[,colnames(D_subset2)] ###47/168 
+AlleleFrac3 = AlleleFrac[,colnames(D_subset2)] ###82 
 
 
 Heatmap(AlleleFrac2, cluster_rows=F, cluster_columns=F, use_raster=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
@@ -489,5 +489,125 @@ FracMono2 = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
 Heatmap(cor(D_subset, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 Heatmap(cor(D_subset[,18:80], use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
 Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+
+
+
+load('11_2024_Sl.RData')
+D_11_2024 = D
+g1_11_2024 = g1
+g2_11_2024 = g2
+
+load('12_2024_Sl.RData')
+D_12_2024 = D
+g1_12_2024 = g1
+g2_12_2024 = g2
+
+load('12_18_2024_Sl.RData')
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+M = D[,1:32]
+M_g1 = g1[,1:32]
+M_g2 = g2[,1:32]
+D_12_18_2024 = D[,33:560]
+g1_12_18_2024 = g1[,33:560]
+g2_12_18_2024 = g2[,33:560]
+D = cbind(D_11_2024,D_12_2024,D_12_18_2024)
+g1 = cbind(g1_11_2024,g1_12_2024,g1_12_18_2024)
+g2 = cbind(g2_11_2024,g2_12_2024,g2_12_18_2024)
+
+genes[,1] = sub('chr', '', genes[, 1])
+
+plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+g1_gene_frac = g1/(g1+g2)
+AlleleFrac = g1_gene_frac
+AlleleFrac[(g1+g2) < 10] = NA #remove genes with <10 genoinformative transcripts
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
+plotAlleles('S104-115_10s')
+
+plotChr2 = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac[, cell], Chr = genes[,1], 
+        Position = genes[,2]/10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -10, xmax = max(genes[,2])/10^6 + 10, 
+        ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell3 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr2(cell, chr = 1), plotChr2(cell, 
+        chr = 2), plotChr2(cell, chr = 3), plotChr2(cell, chr = 4), 
+        plotChr2(cell, chr = 5), plotChr2(cell, chr = 6), plotChr2(cell, 
+            chr = 7), plotChr2(cell, chr = 8), plotChr2(cell, chr = 9), 
+        plotChr2(cell, chr = 10), plotChr2(cell, chr = 11), plotChr2(cell, 
+            chr = 12), plotScaleBar, ncol = 1, nrow = 13, align = "v", 
+        heights = c(rep(1, 12), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+plotCell3('S104-115_10s')
+
+library('ComplexHeatmap')
+
+FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
+
+D_subset = D[, which(colSums(D) >= 10000)] #99/658 (15.0%)
+summary(colSums(D_subset))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#  10052   17490   35418  102220  183549  374652
+
+D_subset2 = D[,which(colSums(D >= 10) >= 100)]
+summary(colSums(D_subset2))
+AlleleFrac3 = AlleleFrac[,colnames(D_subset2)] ###116/658 (17.6%)
+
+
+Heatmap(AlleleFrac2, cluster_rows=F, cluster_columns=F, use_raster=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(AlleleFrac3, cluster_rows=F, cluster_columns=F, use_raster=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+FracMono2 = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
+
+
+Heatmap(cor(D_subset, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+
+
+
+library(readxl)
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
+
+Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
+library(tidyverse)
+Sl_meta = arrange(Sl_meta, Bud_order)
+Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
+write.csv(Sl_meta, "Sl_meta.csv")
+
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
+
+#stages = as.character(Sl_meta$Stage)
+#stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM'))
+
+Sl_meta_stageblind = Sl_meta[,c(1:7,9:12)]
+rownames(Sl_meta_stageblind) = Sl_meta_stageblind$Sample
+No_cell = Sl_meta_stageblind$Sample[which(Sl_meta_stageblind$No_cell_well == 'Y')]
+
+D = D[,Sl_meta_stageblind$Sample]
+g1 = g1[,Sl_meta_stageblind$Sample]
+g2 = g2[,Sl_meta_stageblind$Sample]
+
+summary(colSums(D[,No_cell]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    162    1333    2268    3325    3959   20942
 
 

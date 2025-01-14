@@ -187,36 +187,25 @@ bcftools index TW136_consensus.vcf.gz
 
 
 
-
-
-gzip -d TW137_consensus.vcf.gz
-
-
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools view -i 'GT="AA"' TW137_consensus.vcf > TW137_hom.vcf
-bcftools view -i 'TYPE="snp"' TW137_hom.vcf > TW137_hom_SNPs.vcf
-wc -l TW137_hom_SNPs.vcf
-#30729 TW137_hom_SNPs.vcf #not a lot of SNPs to work with still
+bcftools view -i 'GT="AA"' TW137_consensus.vcf.gz -Oz -o TW137_cons_hom.vcf.gz
+bcftools view -i 'TYPE="snp"' TW137_cons_hom.vcf.gz -Oz -o TW137_cons_hom_SNPs.vcf.gz
+zcat TW137_cons_hom_SNPs.vcf.gz | wc -l 
+#36309 TW137_cons_hom_SNPs.vcf.gz
+#30729 for TW137_hom_SNPs.vcf 
+
+bcftools view -i 'GT="AA"' TW136_consensus.vcf.gz -Oz -o TW136_cons_hom.vcf.gz
+bcftools view -i 'TYPE="snp"' TW136_cons_hom.vcf.gz -Oz -o TW136_cons_hom_SNPs.vcf.gz
+zcat TW136_cons_hom_SNPs.vcf.gz | wc -l 
+#10440 TW136_cons_hom_SNPs.vcf.gz
 
 
 ###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
 
-#!/bin/bash
-#SBATCH --job-name=Ns_vcf2tsvpy                                           # Job name
-#SBATCH --partition=batch                                                 # Partition (queue) name
-#SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=1                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                        # Total memory for job
-#SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Tobacco_DNAseq/Ns_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Tobacco_DNAseq/Ns_vcf2tsvpy.err         # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
-#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
-
 cd /scratch/jms53460/Tobacco_DNAseq
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf TW137_hom_SNPs.vcf --out_tsv Ns_vcf_table.tsv 
+vcf2tsvpy --input_vcf TW137_cons_hom_SNPs.vcf.gz --out_tsv Ns_vcf_table.tsv 
 conda deactivate
 
 
@@ -266,11 +255,8 @@ cp Ns_SNPs.tab /home/jms53460
 
 cd /scratch/jms53460/Tobacco_DNAseq
 ml BEDTools/2.30.0-GCC-12.2.0
-bedtools maskfasta -fi TW136_consensus.fa -fo TW136_consensus_N-masked.fa -bed TW137_hom_SNPs.vcf -fullHeader
+bedtools maskfasta -fi TW136_consensus.fa -fo TW136_consensus_N-masked.fa -bed TW137_cons_hom_SNPs.vcf.gz -fullHeader
 
-module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f TW136_consensus.fa hisat2_out2/TW136_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > TW136_consensus.vcf.gz
-bcftools index TW136_consensus.vcf.gz
 
 
 

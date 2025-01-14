@@ -58,6 +58,8 @@ SNPs$"SNP value" = 1
 write.table(SNPs, file = 'Zm_W22_w_B73_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 q()
 
+wc -l Zm_W22_w_B73_SNPs.tab
+#3467134 Zm_W22_w_B73_SNPs.tab
 
 
 #!/bin/bash
