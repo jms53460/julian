@@ -519,12 +519,40 @@ g2 = cbind(g2_11_2024,g2_12_2024,g2_12_18_2024)
 
 genes[,1] = sub('chr', '', genes[, 1])
 
+
+library(readxl)
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
+
+Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
+library(tidyverse)
+Sl_meta = arrange(Sl_meta, Bud_order)
+Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
+write.csv(Sl_meta, "Sl_meta.csv")
+
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
+rownames(Sl_meta) = Sl_meta$Sample
+
+stages = as.character(Sl_meta$Stage)
+stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM'))
+
+Sl_meta_stageblind = Sl_meta[,c(1:7,9:12)]
+No_cell = Sl_meta_stageblind$Sample[which(Sl_meta_stageblind$No_cell_well == 'Y')]
+
+D = D[,Sl_meta_stageblind$Sample]
+g1 = g1[,Sl_meta_stageblind$Sample]
+g2 = g2[,Sl_meta_stageblind$Sample]
+
+summary(colSums(D[,No_cell]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    162    1333    2268    3325    3959   20942
+
 plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
 g1_gene_frac = g1/(g1+g2)
 AlleleFrac = g1_gene_frac
 AlleleFrac[(g1+g2) < 10] = NA #remove genes with <10 genoinformative transcripts
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
 plotAlleles('S104-115_10s')
+
 
 plotChr2 = function (cell, chr = 1, pad = 3) 
 {
@@ -568,9 +596,6 @@ summary(colSums(D_subset))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 #  10052   17490   35418  102220  183549  374652
 
-D_subset2 = D[,which(colSums(D >= 10) >= 100)]
-summary(colSums(D_subset2))
-AlleleFrac3 = AlleleFrac[,colnames(D_subset2)] ###116/658 (17.6%)
 
 
 Heatmap(AlleleFrac2, cluster_rows=F, cluster_columns=F, use_raster=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
@@ -584,30 +609,34 @@ Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_c
 
 
 
-library(readxl)
-Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
 
-Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
-library(tidyverse)
-Sl_meta = arrange(Sl_meta, Bud_order)
-Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
-write.csv(Sl_meta, "Sl_meta.csv")
+#remove no cell controls that made it through 10,000 UMI cut off
+AlleleFrac3 = as.data.frame(AlleleFrac2) %>% select(-c(No_cell[which(No_cell %in% colnames(AlleleFrac2))]))
 
-Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
+Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] 
+length(which(Sl_meta$Stage == "tetrad"))*7/8 #35
+length(which(Sl_meta$Stage == "UM"))*7/8 #329
+length(which(Sl_meta$Stage == "UM/BM"))*7/8 #21
+length(which(Sl_meta$Stage == "BM"))*7/8 #273
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "tetrad")) #15/35, 0.43
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM")) #8/329, 0.024
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM/BM")) #3/21, 0.14
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM")) #69/273, 0.25
 
-#stages = as.character(Sl_meta$Stage)
-#stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM'))
+FracMono = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
 
-Sl_meta_stageblind = Sl_meta[,c(1:7,9:12)]
-rownames(Sl_meta_stageblind) = Sl_meta_stageblind$Sample
-No_cell = Sl_meta_stageblind$Sample[which(Sl_meta_stageblind$No_cell_well == 'Y')]
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A3 = A2b[rowSums(A2[,colnames(AlleleFrac3)] > 0) >= 20,colnames(AlleleFrac3)]
+A3 = A3[rank(-apply(A3,1,sd)) <= 1000,]
+PCs = prcomp(t(A3))
 
-D = D[,Sl_meta_stageblind$Sample]
-g1 = g1[,Sl_meta_stageblind$Sample]
-g2 = g2[,Sl_meta_stageblind$Sample]
+###
+ords = order(PCs$x[,1])
 
-summary(colSums(D[,No_cell]))
-#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#    162    1333    2268    3325    3959   20942
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(D[,colnames(AlleleFrac3)][,ords]),10)),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
 
 

@@ -471,6 +471,103 @@ BIN2 = function (xx, bin = 10^6)
     return(out2)
 }
 
+
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('11_2024_At.RData')
+colnames(D) = sub('S2_L002_', '', sub('S1-8_', '', sub('S3_L002_', '', colnames(D))))
+colnames(g1) = sub('S2_L002_', '', sub('S1-8_', '', sub('S3_L002_', '', colnames(g1))))
+colnames(g2) = sub('S2_L002_', '', sub('S1-8_', '', sub('S3_L002_', '', colnames(g2))))
+D_11 = D
+g1_11 = g1
+g2_11 = g2
+
+load('12_2024_At.RData')
+colnames(D) = sub('S187_L007_', '', sub('S188_L007_', '', colnames(D)))
+colnames(g1) = sub('S187_L007_', '', sub('S188_L007_', '', colnames(g1)))
+colnames(g2) = sub('S187_L007_', '', sub('S188_L007_', '', colnames(g2)))
+D_12 = D
+g1_12 = g1
+g2_12 = g2
+
+D = cbind(D_11,D_12)
+g1 = cbind(g1_11,g1_12)
+g2 = cbind(g2_11,g2_12)
+
+summary(colSums(D))          
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    408    2876    6045   11513   13164  103711
+
+
+library(readxl)
+At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages.xlsx")
+
+At_meta <- At_meta[rep(row.names(At_meta), times = 8), ]
+library(tidyverse)
+At_meta = arrange(At_meta, Bud_order)
+At_meta$Sample = c(paste(rep('A254-266_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A267-277_', times = 64), 33:96, rep('s', times=64), sep=''), paste(rep('A268-287_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A288-301_', times = 96), 1:96, rep('s', times=96), sep=''))
+write.csv(At_meta, "At_meta.csv")
+#edited in excel, saved as At_meta.xlsx
+At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta.xlsx")
+
+stages = as.character(At_meta$Stage)
+stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri'))
+
+At_meta_stageblind = At_meta[,c(1:7,9:12)]
+rownames(At_meta_stageblind) = At_meta_stageblind$Sample
+No_cell = At_meta_stageblind$Sample[which(At_meta_stageblind$No_cell_well == 'Y')]
+Yellow = At_meta_stageblind$Sample[which(At_meta_stageblind$Yellow == 'Y')]
+
+D = D[,At_meta_stageblind$Sample]
+g1 = g1[,At_meta_stageblind$Sample]
+g2 = g2[,At_meta_stageblind$Sample]
+
+summary(colSums(D[,No_cell]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   1028    3747    5535    8112   10516   22950
+
+plotChr = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac[, cell], Chr = floor(as.numeric(rownames(AlleleFrac))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac))%%10^6) + 
+            0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = mx + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell2 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), 
+        plotChr(cell, chr = 5), plotScaleBar, ncol = 1, nrow = 6, 
+        align = "v", heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from Col-0 allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+BIN2 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
 library(ggplot2)
 library(ggpubr)
 g1_bin = BIN2(g1)
@@ -481,11 +578,34 @@ AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative tran
 #AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###124/192 passed >5000 89/192 passed >= 10000 from 12_2024_At
 ###478/672 passed >=5000, 318/672 passed >=10000 with the first big data set
-###68/160 passed >5000 25/160 passed >= 10000 from 11_2024_At
-###124/192 passed >5000 89/192 passed >= 10000 from 12_2024_At
+###68/160 passed >5000 25/160 passed >= 10000 from 11_2024_At (A254-266, A267-277)
+###124/192 passed >5000 89/192 passed >= 10000 from 12_2024_At (A268-287, A288-301)
+
+#remove no cell controls that made it through 10,000 UMI cut off
+AlleleFrac3 = as.data.frame(AlleleFrac2) %>% select(-c(No_cell[which(No_cell %in% colnames(AlleleFrac2))]))
+
 
 library('ComplexHeatmap')
 
-FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
+FracMono = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
 
-Heatmap(AlleleFrac2, cluster_rows=F)                   
+Heatmap(AlleleFrac3, cluster_rows=F)                   
+
+
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A3 = A2b[rowSums(A2[,colnames(AlleleFrac3)] > 0) >= 20,colnames(AlleleFrac3)]
+A3 = A3[rank(-apply(A3,1,sd)) <= 1000,]
+PCs = prcomp(t(A3))
+
+###
+ords = order(PCs$x[,1])
+
+Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(D[,colnames(AlleleFrac3)][,ords]),10),
+    Stage = At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))][ords],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+

@@ -381,7 +381,11 @@ AlleleFrac = g1_frac
 AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
 #AlleleFrac2 = AlleleFrac[,which(colSums(is.na(AlleleFrac)) <= 50)]
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 5000)] #68/160 pass this threshold. 25/160 pass >= 10000
-###478/672 passed >=10000, 318/672 passed >=10000 with the last data set
+###478/672 passed >=5000, 318/672 passed >=10000 with the last data set
+
+summary(colSums(D))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    408    1838    4070    7360    7440   74137
 
 library('ComplexHeatmap')
 
