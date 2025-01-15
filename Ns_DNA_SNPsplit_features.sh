@@ -19,7 +19,7 @@
 #    samtools sort -@ 6 SNPsplit/TW136xTW137_s.genome1.bam -o SNPsplit/TW136xTW137_SNPsplit_g1.bam
 #    samtools sort -@ 6 SNPsplit/TW136xTW137_s.genome2.bam -o SNPsplit/TW136xTW137_SNPsplit_g2.bam
 
-#mkdir featurecounts
+mkdir featurecounts
 ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/subread-env
