@@ -10,7 +10,7 @@
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-#cd /scratch/jms53460/Tobacco_DNAseq
+cd /scratch/jms53460/Tobacco_DNAseq
 #mkdir SNPsplit
 #ml SAMtools/1.16.1-GCC-11.3.0
 #ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
