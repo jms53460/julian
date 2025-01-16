@@ -24,7 +24,7 @@ cp /home/jms53460/TAIR10.1_Col_5.gff /scratch/jms53460/11_2024_At/
 
 #Backup raw data
 scp sapelo2:/scratch/jms53460/11_2024_At/Raw_Data/*.fastq.gz 'D:\11_2024_At_Sl_Data'
-
+scp sapelo2:/work/bnlab/Nov2024Seq/Scroggs_10506_241203B9/* 'D:\Nov2024Seq'
 
 
 #Demultiplex data in a way that it is nearly ready for upload with SRA.

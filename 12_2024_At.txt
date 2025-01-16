@@ -154,6 +154,8 @@ cp /work/bnlab/Dec2024seq/S26* /scratch/jms53460/12_2024_Sl/Raw_Data
 scp sapelo2:/scratch/jms53460/12_2024_At/Raw_Data/*.fastq.gz 'D:\12_2024_At_Data'
 scp sapelo2:/scratch/jms53460/12_2024_Sl/Raw_Data/*.fastq.gz 'D:\12_2024_Sl_Data'
 
+scp sapelo2:/work/bnlab/Dec2024seq/* 'D:\Dec2024Seq'
+
 cp -r /home/jms53460/Ler_0_N-masked /scratch/jms53460/12_2024_At/
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/12_2024_At/
 cp /home/jms53460/Ler_SNPs.tab /scratch/jms53460/12_2024_At/

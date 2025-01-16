@@ -81,3 +81,5 @@ bedtools maskfasta -fi Zm_W22.fa -fo Zm_W22_w_B73_N-masked.fa -bed syri.vcf -ful
 
 cp Zm_W22_w_B73_N-masked.fa /home/jms53460
 cp Zm_W22_w_B73_SNPs.tab /home/jms53460
+cp Zm_W22_w_B73_N-masked.fa /work/bnlab
+cp Zm_W22_w_B73_SNPs.tab /work/bnlab

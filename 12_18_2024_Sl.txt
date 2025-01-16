@@ -39,6 +39,9 @@ cp /home/jms53460/Sl_12.gff /scratch/jms53460/12_18_2024_Sl/
 cp /home/jms53460/Sl_N-masked_genome* /scratch/jms53460/12_18_2024_Sl/
 cp /home/jms53460/Sl_SNPs.tab /scratch/jms53460/12_18_2024_Sl/
 
+scp sapelo2:/scratch/jms53460/12_18_2024_Sl/Raw_Data/* 'D:\12_18_2024_Sl_At_Data'
+
+
 
 #Demultiplex data in a way that it is nearly ready for upload with SRA.
 
@@ -492,6 +495,7 @@ Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_c
 
 
 
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 
 load('11_2024_Sl.RData')
 D_11_2024 = D
@@ -521,13 +525,13 @@ genes[,1] = sub('chr', '', genes[, 1])
 
 
 library(readxl)
-Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
+#Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
 
-Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
+#Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
 library(tidyverse)
-Sl_meta = arrange(Sl_meta, Bud_order)
-Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
-write.csv(Sl_meta, "Sl_meta.csv")
+#Sl_meta = arrange(Sl_meta, Bud_order)
+#Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
+#write.csv(Sl_meta, "Sl_meta.csv")
 
 Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
 rownames(Sl_meta) = Sl_meta$Sample
@@ -537,22 +541,27 @@ stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM'))
 
 Sl_meta_stageblind = Sl_meta[,c(1:7,9:12)]
 No_cell = Sl_meta_stageblind$Sample[which(Sl_meta_stageblind$No_cell_well == 'Y')]
+summary(colSums(D[,No_cell]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    162    1333    2268    3325    3959   20942
+
+Small = Sl_meta_stageblind$Sample[which(Sl_meta_stageblind$Small == 'Y')] #51 small
+summary(colSums(D[,Small]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    428    1184    2297    2615    3454    9259
 
 D = D[,Sl_meta_stageblind$Sample]
 g1 = g1[,Sl_meta_stageblind$Sample]
 g2 = g2[,Sl_meta_stageblind$Sample]
-
-summary(colSums(D[,No_cell]))
-#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#    162    1333    2268    3325    3959   20942
 
 plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
 g1_gene_frac = g1/(g1+g2)
 AlleleFrac = g1_gene_frac
 AlleleFrac[(g1+g2) < 10] = NA #remove genes with <10 genoinformative transcripts
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
-plotAlleles('S104-115_10s')
 
+library(ggplot2)
+library(ggpubr)
 
 plotChr2 = function (cell, chr = 1, pad = 3) 
 {
@@ -613,17 +622,9 @@ Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_c
 #remove no cell controls that made it through 10,000 UMI cut off
 AlleleFrac3 = as.data.frame(AlleleFrac2) %>% select(-c(No_cell[which(No_cell %in% colnames(AlleleFrac2))]))
 
-Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] 
-length(which(Sl_meta$Stage == "tetrad"))*7/8 #35
-length(which(Sl_meta$Stage == "UM"))*7/8 #329
-length(which(Sl_meta$Stage == "UM/BM"))*7/8 #21
-length(which(Sl_meta$Stage == "BM"))*7/8 #273
-length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "tetrad")) #15/35, 0.43
-length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM")) #8/329, 0.024
-length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM/BM")) #3/21, 0.14
-length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM")) #69/273, 0.25
 
 FracMono = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
+plot(FracMono, cex = 3, pch=20)
 
 pseudocount = 1*10^6/quantile(colSums(D), p = .1)
 A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
@@ -640,3 +641,38 @@ Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name 
       col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
 
 
+
+Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] 
+length(which(Sl_meta$Stage == "tetrad"))*7/8 #35
+summary(colSums(D[,which(Sl_meta$Stage == "tetrad")]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   1148    3893    8967    9763   14631   26023
+length(which(Sl_meta$Stage == "UM"))*7/8 #329
+summary(colSums(D[,which(Sl_meta$Stage == "UM")]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#     31    1038    1938    3016    3677   46342
+length(which(Sl_meta$Stage == "UM/BM"))*7/8 #21
+summary(colSums(D[,which(Sl_meta$Stage == "UM/BM")]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    736    1914    2520   10394    3574  109494
+length(which(Sl_meta$Stage == "BM"))*7/8 #273
+summary(colSums(D[,which(Sl_meta$Stage == "BM")]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#     17    1386    2704   24818    6402  374652
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "tetrad")) #15/35, 0.43
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM")) #8/329, 0.024
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM/BM")) #3/21, 0.14
+length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM")) #69/273, 0.25
+
+summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "tetrad")]])) #5
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#   3976    4867    9585   10274   11998   20942
+summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "UM")]])) #45
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    463    1345    2098    3499    4230   20247
+summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "UM/BM")]])) #3
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    880    1591    2302    1904    2416    2531
+summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "BM")]])) #37
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    162    1256    1894    2289    3278    4628
