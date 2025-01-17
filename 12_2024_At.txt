@@ -504,9 +504,9 @@ summary(colSums(D))
 
 
 library(readxl)
-At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages.xlsx")
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages.xlsx")
 
-At_meta <- At_meta[rep(row.names(At_meta), times = 8), ]
+At_meta <- At_Stages[rep(row.names(At_Stages), times = 8), ]
 library(tidyverse)
 At_meta = arrange(At_meta, Bud_order)
 At_meta$Sample = c(paste(rep('A254-266_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A267-277_', times = 64), 33:96, rep('s', times=64), sep=''), paste(rep('A268-287_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A288-301_', times = 96), 1:96, rep('s', times=96), sep=''))
@@ -611,3 +611,17 @@ Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name 
     col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
       col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
 
+
+length(which(At_Stages$Stage == "tetrad")) #1
+length(which(At_Stages$Stage == "UM")) #13
+length(which(At_Stages$Stage == "UM/BM")) #5
+length(which(At_Stages$Stage == "BM")) #9
+length(which(At_Stages$Stage == "BM/Tri")) #5
+length(which(At_Stages$Stage == "Tri")) #11
+
+length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "tetrad")) #7
+length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM")) #23
+length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM/BM")) #7
+length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM")) #44
+length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM/Tri")) #4
+length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "Tri")) #24

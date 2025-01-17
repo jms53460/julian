@@ -471,15 +471,15 @@ bcftools index TW137_consensus2.vcf.gz
 
 
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools view -i 'GT="AA"' TW137_consensus.vcf.gz -Oz -o TW137_cons_hom.vcf.gz
-bcftools view -i 'TYPE="snp"' TW137_cons_hom.vcf.gz -Oz -o TW137_cons_hom_SNPs.vcf.gz
-zcat TW137_cons_hom_SNPs.vcf.gz | wc -l 
+bcftools view -i 'TYPE="snp"' TW137_consensus2.vcf.gz -Oz -o TW137_cons_SNPs.vcf.gz
+zcat TW137_cons_SNPs.vcf.gz | wc -l 
+#
 #36309 TW137_cons_hom_SNPs.vcf.gz
 #30729 for TW137_hom_SNPs.vcf 
 
-bcftools view -i 'GT="AA"' TW136_consensus.vcf.gz -Oz -o TW136_cons_hom.vcf.gz
-bcftools view -i 'TYPE="snp"' TW136_cons_hom.vcf.gz -Oz -o TW136_cons_hom_SNPs.vcf.gz
-zcat TW136_cons_hom_SNPs.vcf.gz | wc -l 
+bcftools view -i 'TYPE="snp"' TW136_consensus2.vcf.gz -Oz -o TW136_SNPs.vcf.gz
+zcat TW136_cons_SNPs.vcf.gz | wc -l 
+#
 #10440 TW136_cons_hom_SNPs.vcf.gz #not all the SNPs have been incorporated still
 
 

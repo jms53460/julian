@@ -525,10 +525,11 @@ genes[,1] = sub('chr', '', genes[, 1])
 
 
 library(readxl)
-#Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
+library(tidyverse)
+Sl_Stages = arrange(Sl_Stages, Bud_order)
 
 #Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
-library(tidyverse)
 #Sl_meta = arrange(Sl_meta, Bud_order)
 #Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
 #write.csv(Sl_meta, "Sl_meta.csv")
@@ -676,3 +677,63 @@ summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "UM/BM")]])) #3
 summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "BM")]])) #37
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #    162    1256    1894    2289    3278    4628
+
+
+#I want to set things up so I can compare the no cell control of each anther with the real samples of the associated anther
+NC_vs_samples = matrix(data=0, nrow = 8, ncol = 90)
+rownames(NC_vs_samples) = c('No_cell', 'Samp1', 'Samp2', 'Samp3', 'Samp4', 'Samp5', 'Samp6', 'Samp7')
+batch = c(rep('S14-25', times = 12), rep('S26-37', times = 12), rep('S62-73', times = 12), rep('S74-79', times = 6), rep('S80-91', times = 12), rep('S92-103', times = 12), rep('S104-115', times = 12), rep('S116-127', times = 12))
+celseq_primer = c(rep(c('1-8s', '9-16s', '17-24s', '25-32s', '33-40s', '41-48s', '49-56s', '57-64s', '65-72s', '73-80s', '81-88s', '89-96s'), times = 3), rep(c('1-8s', '9-16s', '17-24s', '25-32s', '33-40s', '41-48s'), times = 1), rep(c('1-8s', '9-16s', '17-24s', '25-32s', '33-40s', '41-48s', '49-56s', '57-64s', '65-72s', '73-80s', '81-88s', '89-96s'), times = 4))
+colnames(NC_vs_samples) = paste(batch, '_', celseq_primer, sep = '')
+
+D_trim = D[,33:752]
+D_trim = D_trim[,-c(No_cell)]
+D_trim = as.data.frame(D_trim) %>% select(-all_of(No_cell))
+
+NC_vs_samples[1,] = colSums(D[,No_cell])
+NC_vs_samples[2:8,] = colSums(D_trim)
+
+Heatmap(NC_vs_samples, cluster_rows=F, cluster_columns=F)
+
+over_5x_nc = numeric(0)
+for (x in 1:90){
+    y = which(NC_vs_samples[2:8,x] >= 5*NC_vs_samples[1,x])
+    over_5x_nc = append(over_5x_nc, colnames(D_trim[y+7*(x-1)])) 
+}
+over_5x_nc
+
+over_3x_nc = numeric(0)
+for (x in 1:90){
+    y = which(NC_vs_samples[2:8,x] >= 3*NC_vs_samples[1,x])
+    over_3x_nc = append(over_3x_nc, colnames(D_trim[y+7*(x-1)])) 
+}
+over_3x_nc
+over_3x_nc_5000umis = names(which(colSums(D[,over_3x_nc]) >= 5000))
+colSums(D[,colnames(AlleleFrac3[,which(!(colnames(AlleleFrac3) %in% over_3x_nc_5000umis))])]) #17 samples that were in AlleleFrac3 are not in over_3x_nc_5000umis. 5 of these are from S1-8 which were excluded due to lacking no cell controls
+
+length(which(Sl_meta[over_3x_nc_5000umis,8] == "tetrad")) #4/35, 0.11 ###15/35, 0.43 in AlleleFrac3
+length(which(Sl_meta[over_3x_nc_5000umis,8] == "UM")) #17/329, 0.05 ###8/329, 0.024 in AlleleFrac3
+length(which(Sl_meta[over_3x_nc_5000umis,8] == "UM/BM")) #4/21, 0.19 ###3/21, 0.14 in AlleleFrac3
+length(which(Sl_meta[over_3x_nc_5000umis,8] == "BM")) #69/273, 0.25 ###69/273, 0.25 in AlleleFrac3
+
+
+over_3x_nc_5000umis[which(Sl_meta[over_3x_nc_5000umis,8] == "UM")]
+
+
+A4 = A2b[rowSums(A2[,colnames(AlleleFrac)] > 0) >= 20,over_3x_nc_5000umis]
+A4 = A4[rank(-apply(A4,1,sd)) <= 1000,]
+PCs2 = prcomp(t(A4))
+
+
+FracMono2 = 100*colMeans(abs(AlleleFrac[,over_3x_nc_5000umis] - .5) >= .3, na.rm=T)
+plot(FracMono2, cex = 3, pch=20)
+
+
+###
+ords2 = order(PCs2$x[,1])
+
+Heatmap(cor(A4[,ords2], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono2[ords2], UMIcounts = log(colSums(D[,over_3x_nc_5000umis][,ords2]),10)),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+
+
