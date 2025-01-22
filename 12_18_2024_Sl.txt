@@ -401,6 +401,7 @@ plotCell2 = function (cell)
         rot = 90, size = 10), top = cell)
 }
 
+correlation of expression and allele fraction after binning
 
 BIN2 = function (xx, bin = 10^6) 
 {
@@ -559,10 +560,13 @@ plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(
 g1_gene_frac = g1/(g1+g2)
 AlleleFrac = g1_gene_frac
 AlleleFrac[(g1+g2) < 10] = NA #remove genes with <10 genoinformative transcripts
-AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###66/168 (24/192 were no cell controls) pass >= 5000, 31/168 pass >= 10000
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] #99 samples have >= 10,000 UMIs
 
 library(ggplot2)
 library(ggpubr)
+
+check how many features and how much mapping to S92-103_14s, 10, 48, 9, and S74-79_4s in chloroplasts and mitochondria
+assigned to features vs intergenic
 
 plotChr2 = function (cell, chr = 1, pad = 3) 
 {
@@ -599,30 +603,15 @@ plotCell3('S104-115_10s')
 
 library('ComplexHeatmap')
 
-FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
-
 D_subset = D[, which(colSums(D) >= 10000)] #99/658 (15.0%)
 summary(colSums(D_subset))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 #  10052   17490   35418  102220  183549  374652
 
-
-
-Heatmap(AlleleFrac2, cluster_rows=F, cluster_columns=F, use_raster=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
-Heatmap(AlleleFrac3, cluster_rows=F, cluster_columns=F, use_raster=F, name = 'AlleleFrac2', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
-FracMono2 = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
-
-
 Heatmap(cor(D_subset, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
-Heatmap(cor(D, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
-
-
-
-
 
 #remove no cell controls that made it through 10,000 UMI cut off
 AlleleFrac3 = as.data.frame(AlleleFrac2) %>% select(-c(No_cell[which(No_cell %in% colnames(AlleleFrac2))]))
-
 
 FracMono = 100*colMeans(abs(AlleleFrac3 - .5) >= .3, na.rm=T)
 plot(FracMono, cex = 3, pch=20)
@@ -642,8 +631,7 @@ Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name 
       col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
 
 
-
-Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] 
+#How many total samples at each stage:
 length(which(Sl_meta$Stage == "tetrad"))*7/8 #35
 summary(colSums(D[,which(Sl_meta$Stage == "tetrad")]))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -660,11 +648,14 @@ length(which(Sl_meta$Stage == "BM"))*7/8 #273
 summary(colSums(D[,which(Sl_meta$Stage == "BM")]))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #     17    1386    2704   24818    6402  374652
+
+#How many samples with >10,000 UMIs at each stage / total samples at each stage:
 length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "tetrad")) #15/35, 0.43
 length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM")) #8/329, 0.024
 length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM/BM")) #3/21, 0.14
 length(which(Sl_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM")) #69/273, 0.25
 
+#How many UMIs for each no cell control by stage--tetrad and UM seem most susceptible to this type of contamination
 summary(colSums(D[,No_cell[which(Sl_meta[No_cell,8] == "tetrad")]])) #5
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 #   3976    4867    9585   10274   11998   20942
@@ -687,7 +678,6 @@ celseq_primer = c(rep(c('1-8s', '9-16s', '17-24s', '25-32s', '33-40s', '41-48s',
 colnames(NC_vs_samples) = paste(batch, '_', celseq_primer, sep = '')
 
 D_trim = D[,33:752]
-D_trim = D_trim[,-c(No_cell)]
 D_trim = as.data.frame(D_trim) %>% select(-all_of(No_cell))
 
 NC_vs_samples[1,] = colSums(D[,No_cell])
@@ -717,9 +707,6 @@ length(which(Sl_meta[over_3x_nc_5000umis,8] == "UM/BM")) #4/21, 0.19 ###3/21, 0.
 length(which(Sl_meta[over_3x_nc_5000umis,8] == "BM")) #69/273, 0.25 ###69/273, 0.25 in AlleleFrac3
 
 
-over_3x_nc_5000umis[which(Sl_meta[over_3x_nc_5000umis,8] == "UM")]
-
-
 A4 = A2b[rowSums(A2[,colnames(AlleleFrac)] > 0) >= 20,over_3x_nc_5000umis]
 A4 = A4[rank(-apply(A4,1,sd)) <= 1000,]
 PCs2 = prcomp(t(A4))
@@ -735,5 +722,63 @@ ords2 = order(PCs2$x[,1])
 Heatmap(cor(A4[,ords2], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
     top_annotation = HeatmapAnnotation(FracMono = FracMono2[ords2], UMIcounts = log(colSums(D[,over_3x_nc_5000umis][,ords2]),10)),
       col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+
+
+Heatmap(cor(log10(sweep(D,2,colSums(D),'/')*10^6+100)))
+> zz=D[,grepl('S92-103',colnames(D))]
+> zz2=sweep(zz,2,colSums(zz),'/')*10^6
+> Heatmap(cor(log10(zz2+100)))
+zz=D[,grepl('S92-103',colnames(D))]
+Heatmap(cor(log10(sweep(zz,2,colSums(zz),'/')[,colSums(zz) >= 10000]*10^6+100)))
+zx=colSums(D)[No_cell]
+> zx[zx>10000]
+  S74-79_4s  S92-103_2s  S92-103_9s S92-103_66s
+      13645       20247       20942       11998
+> zz=D[,grepl('S74-79',colnames(D))]                     
+        1093         1514         1536         1472         1256         1440
+> zx=colSums(D)[No_cell]
+> zx[zx>10000]
+  S74-79_4s  S92-103_2s  S92-103_9s S92-103_66s
+      13645       20247       20942       11998
+> zz=D[,grepl('S74-79',colnames(D))]
+      13645       20247       20942       11998
+> zz=D[,grepl('S74-79',colnames(D))]
+> Heatmap(cor(log10(sweep(zz,2,colSums(zz),'/')[,colSums(zz) >= 10000]*10^6+100)))
+> zz=D[,grepl('S74-79',colnames(D))|grepl('S92-103',colnames(D))]
+> Heatmap(cor(log10(sweep(zz,2,colSums(zz),'/')[,colSums(zz) >= 10000]*10^6+100)))
+> pairs(unique(D[,c('S92-103_14s','S92-103_10s','S92-103_48s','S92-103_9s','S74-79_4s')])+1,pch=.3,log='xy')
+> head(rownames(D))
+> head(rownames(D))
+[1] "ID=gene-LOC104645797" "ID=gene-GAD3"         "ID=gene-LOC101263636"
+[4] "ID=gene-SOS1"         "ID=gene-LOC101263144" "ID=gene-LOC101247456"
+> zz=colSums(D)
+> plot(quantile(zz[order(zz)]))
+> plot((zz[order(zz)]))        
+> plot((zz[order(zz)]),(1:length(zz))/length(zz))
+> plot((zz[order(zz)]),(1:length(zz))/length(zz), type='l')
+> plot((zz[order(zz)]),(1:length(zz))/length(zz), type='l',lwd=2)
+> zz=zz[order(zz)]
+> zz=zz[order(-zz)]
+> plot(zz,(1:length(zz))/length(zz), type='l',lwd=2)             
+> zz=zz[order(zz)] 
+> lines(zz[No_cell],(1:length(No_cell))/length(No_cell),col='red',lwd=2,lty-2)
+Error in plot.xy(xy.coords(x, y), type = type, ...) : 
+  object 'lty' not found
+> lines(zz[No_cell],(1:length(No_cell))/length(No_cell),col='red',lwd=2,lty=2)
+zz=zz[order(zz)]                                   
+> 
+plot(zz,(1:length(zz))/length(zz), type='l',lwd=2) 
+> lines(zz[No_cell],(1:length(No_cell))/length(No_cell),col='red',lwd=2,lty=2)
+> plot(zz,(1:length(zz))/length(zz), type='l',lwd=2) 
+> lines(zz[names(zz) %in% No_cell],(1:length(No_cell))/length(No_cell),col='red',lwd=2,lty=2)
+> plot(zz,(1:length(zz))/length(zz), type='l',lwd=2,log='x')
+> lines(zz[names(zz) %in% No_cell],(1:length(No_cell))/length(No_cell),col='red',lwd=2,lty=2)
+> abline(v=10000,lty=2)
+> abline(v=5000,lty=2) 
+> abline(v=25000,lty=2)
+
+
+colSums(D[41263:41476,]) #all the mitochondrial and plastid genes are 0 because I had mapped to genome excluding mitochondria and plastid
+
 
 

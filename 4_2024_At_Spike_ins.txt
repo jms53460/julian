@@ -1598,8 +1598,6 @@ dev.off()
 
 
 
-scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/Raw_Data/* 'D:\4_2024_At_Data'
-
 cd /scratch/jms53460/4_2024_At_Spike_ins/
 ml R/4.3.1-foss-2022a
 R
@@ -1739,3 +1737,5 @@ Heatmap(AlleleFrac2, cluster_rows=F)
 
 #12 buds
 #59 Tri samples >= 10,000 UMIs
+
+scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/Raw_Data/* 'D:\4_2024_At_Data'

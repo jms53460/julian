@@ -441,3 +441,305 @@ FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
 
 Heatmap(AlleleFrac2, cluster_rows=F)                   
 Heatmap(cor(D))
+
+
+
+zcat Sl_genome.fa.gz | grep -n Solanum
+gzip -d Sl_genome.fa.gz
+cp Sl_genome.fa /scratch/jms53460/11_2024_Sl/
+sed 's/NC_090800.*/chr1/' Sl_genome.fa > Sl_genome_1.fa
+sed 's/NC_090801.*/chr2/' Sl_genome_1.fa > Sl_genome_2.fa
+sed 's/NC_090802.*/chr3/' Sl_genome_2.fa > Sl_genome_3.fa
+sed 's/NC_090803.*/chr4/' Sl_genome_3.fa > Sl_genome_4.fa
+sed 's/NC_090804.*/chr5/' Sl_genome_4.fa > Sl_genome_5.fa
+sed 's/NC_090805.*/chr6/' Sl_genome_5.fa > Sl_genome_6.fa
+sed 's/NC_090806.*/chr7/' Sl_genome_6.fa > Sl_genome_7.fa
+sed 's/NC_090807.*/chr8/' Sl_genome_7.fa > Sl_genome_8.fa
+sed 's/NC_090808.*/chr9/' Sl_genome_8.fa > Sl_genome_9.fa
+sed 's/NC_090809.*/chr10/' Sl_genome_9.fa > Sl_genome_10.fa
+sed 's/NC_090810.*/chr11/' Sl_genome_10.fa > Sl_genome_11.fa
+sed 's/NC_090811.*/chr12/' Sl_genome_11.fa > Sl_genome_12.fa
+sed 's/NC_035963.*/chrM/' Sl_genome_12.fa > Sl_genome_13.fa
+sed 's/NC_007898.*/chrC/' Sl_genome_13.fa > Sl_genome_14.fa
+
+
+sed 's/NC_035963.1/chrM/' Sl_12.gff > Sl_13.gff
+sed 's/NC_007898.3/chrC/' Sl_13.gff > Sl_14.gff
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Sl_nmask                                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_nmask.out                # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_nmask.err                 # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+ml BEDTools/2.30.0-GCC-12.2.0
+bedtools maskfasta -fi Sl_genome_14.fa -fo Sl_N-masked_genome2.fa -bed syri.vcf -fullHeader
+
+
+cp Sl_N-masked_genome2.fa /home/jms53460
+
+
+#!/bin/bash
+#SBATCH --job-name=Sl_hisat2                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                       # Total memory for job
+#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_hs2.out                  # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_hs2.err                   # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+
+module load fastp/0.23.2-GCC-11.3.0
+mkdir hisat2_out
+for file in Demultiplexed/*s.fastq.gz; do
+	file2="${file:14:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+fi
+done
+
+ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build -p 6 Sl_N-masked_genome.fa Sl_N-masked_genome_index
+
+ml SAMtools/1.16.1-GCC-11.3.0
+for file in hisat2_out/*s.fastq.gz
+do
+	file2="${file:11:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	hisat2 -p 6 --dta -x Sl_N-masked_genome_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
+	
+fi
+done
+
+
+cp Sl_N-masked_genome_index* /home/jms53460
+
+
+###Running SNPsplit
+
+#!/bin/bash
+#SBATCH --job-name=SNPsplit                                                      # Job name
+#SBATCH --partition=batch                                                           # Partition (queue) name
+#SBATCH --ntasks=1                                                                  # Single task job
+#SBATCH --cpus-per-task=6                                                           # Number of cores per task
+#SBATCH --mem=50gb                                                                  # Total memory for job
+#SBATCH --time=6:00:00                                                              # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/SNPsplit.out                       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/SNPsplit.err                        # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+mkdir SNPsplit
+ml SAMtools/1.16.1-GCC-11.3.0
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+for file in "hisat2_out/"*_s.bam
+do
+    file2="${file:11:-6}"
+
+    SNPsplit --conflicting -o SNPsplit --snp_file Sl_SNPs.tab "$file"
+    samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
+    
+done
+
+for file in "SNPsplit/"*_s.genome1.bam
+do
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g1.bam
+done
+
+for file in "SNPsplit/"*_s.genome2.bam
+do
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g2.bam
+done
+
+
+#!/bin/bash
+#SBATCH --job-name=Features_UMIs                                           # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=6                                                     # Number of cores per task
+#SBATCH --mem=50gb                                                            # Total memory for job
+#SBATCH --time=6:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/11_2024_Sl/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/11_2024_Sl/Features_UMIs.err             # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/11_2024_Sl
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
+ml purge_dups/1.2.5-foss-2021b
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        module load SAMtools/1.16.1-GCC-11.3.0
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
+done
+
+
+ml R/4.3.1-foss-2022a
+R
+annots = strsplit(read.table('Sl_12.gff', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=gene-', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('ID=', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit.tsv', '', files))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit_g1.tsv', '', files))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit_g2.tsv', '', files))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2 = B
+
+genes = read.table('Sl_12.gff', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Sl_12.gff', sep = '\t', quote = "")[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes2 = genes[grepl('ID=gene-', genes[,3]),]
+genes = genes2[order(genes2[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+genes = genes[!duplicated(genes[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+
+save(D,g1,g2,genes, file = "11_2024_Sl.RData")
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/11_2024_Sl/11_2024_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('11_2024_Sl.RData')

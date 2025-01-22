@@ -513,6 +513,7 @@ At_meta$Sample = c(paste(rep('A254-266_', times = 96), 1:96, rep('s', times=96),
 write.csv(At_meta, "At_meta.csv")
 #edited in excel, saved as At_meta.xlsx
 At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta.xlsx")
+rownames(At_meta) = At_meta$Sample
 
 stages = as.character(At_meta$Stage)
 stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri'))
@@ -611,7 +612,7 @@ Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name 
     col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
       col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
 
-
+#How many total buds at each stage:
 length(which(At_Stages$Stage == "tetrad")) #1
 length(which(At_Stages$Stage == "UM")) #13
 length(which(At_Stages$Stage == "UM/BM")) #5
@@ -619,9 +620,33 @@ length(which(At_Stages$Stage == "BM")) #9
 length(which(At_Stages$Stage == "BM/Tri")) #5
 length(which(At_Stages$Stage == "Tri")) #11
 
+#How many samples with >10,000 UMIs at each stage:
 length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "tetrad")) #7
 length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM")) #23
 length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "UM/BM")) #7
 length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM")) #44
 length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "BM/Tri")) #4
 length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))] == "Tri")) #24
+
+
+
+#How many UMIs for each no cell control by stage--tetrad and UM seem most susceptible to this type of contamination
+length(which(At_meta[No_cell,8] == "UM")) #used this to check how many no cell controls per stage
+sum(D[,No_cell[which(At_meta[No_cell,8] == "tetrad")]]) #1
+#   9665
+summary(colSums(D[,No_cell[which(At_meta[No_cell,8] == "UM")]])) #6
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   1028    6087   12008   12616   20693   22950
+summary(colSums(D[,No_cell[which(At_meta[No_cell,8] == "UM/BM")]])) #3
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#   1539    3441    5343    4658    6218    7093
+summary(colSums(D[,No_cell[which(At_meta[No_cell,8] == "BM")]])) #3   
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#   5263    6068    6873    8402    9971   13069
+summary(colSums(D[,No_cell[which(At_meta[No_cell,8] == "BM/Tri")]])) #3
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#   2559    3616    4673    4320    5200    5727
+summary(colSums(D[,No_cell[which(At_meta[No_cell,8] == "Tri")]])) #4   
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#   2058    2740    3487    6183    6930   15699
+

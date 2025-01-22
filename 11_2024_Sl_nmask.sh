@@ -12,4 +12,4 @@
 
 cd /scratch/jms53460/11_2024_Sl
 ml BEDTools/2.30.0-GCC-12.2.0
-bedtools maskfasta -fi Sl_genome_12.fa -fo Sl_N-masked_genome.fa -bed syri.vcf -fullHeader
+bedtools maskfasta -fi Sl_genome_14.fa -fo Sl_N-masked_genome2.fa -bed syri.vcf -fullHeader

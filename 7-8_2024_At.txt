@@ -1478,3 +1478,6 @@ length(which(X7_8_2024_At_Stages$Stage == "UM"))
 [1] 14
 > length(which(X7_8_2024_At_Stages$Stage == "tetrad"))
 [1] 0
+
+
+scp sapelo2:/scratch/jms53460/7-8_2024_At/Raw_Data/* 'D:\7-8_2024_At_Data'
