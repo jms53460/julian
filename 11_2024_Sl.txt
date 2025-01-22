@@ -466,6 +466,9 @@ sed 's/NC_007898.*/chrC/' Sl_genome_13.fa > Sl_genome_14.fa
 sed 's/NC_035963.1/chrM/' Sl_12.gff > Sl_13.gff
 sed 's/NC_007898.3/chrC/' Sl_13.gff > Sl_14.gff
 
+cp Sl_genome_14.fa /home/jms53460
+cp Sl_14.gff /home/jms53460
+
 
 
 #!/bin/bash
@@ -533,7 +536,7 @@ fi
 done
 
 
-cp Sl_N-masked_genome2_index* /home/jms53460
+cp Sl_N-masked_genome2* /home/jms53460
 
 
 ###Running SNPsplit
