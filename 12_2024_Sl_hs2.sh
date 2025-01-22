@@ -15,7 +15,7 @@ cd /scratch/jms53460/12_2024_Sl
 #module load fastp/0.23.2-GCC-11.3.0
 mkdir hisat2_out2
 cp hisat2_out/*fastq.gz hisat2_out2
-cp /scratch/jms53460/12_18_2024_Sl/*fastq.gz hisat2_out2
+cp /scratch/jms53460/12_18_2024_Sl/hisat2_out/*fastq.gz hisat2_out2
 #for file in Demultiplexed/*s.fastq.gz; do
 #	file2="${file:14:-9}"
 
@@ -26,6 +26,7 @@ cp /scratch/jms53460/12_18_2024_Sl/*fastq.gz hisat2_out2
 #fi
 #done
 
+ml HISAT2/3n-20201216-gompi-2022a
 ml SAMtools/1.16.1-GCC-11.3.0
 for file in hisat2_out2/*s.fastq.gz
 do
