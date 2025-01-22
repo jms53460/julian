@@ -742,8 +742,3 @@ q()
 
 ###Copying this to my local computer
 scp sapelo2:/scratch/jms53460/11_2024_Sl/11_2024_Sl_2.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
-
-###In local R terminal
-setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
-load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
-load('11_2024_Sl_2.RData')
