@@ -742,3 +742,8 @@ q()
 
 ###Copying this to my local computer
 scp sapelo2:/scratch/jms53460/11_2024_Sl/11_2024_Sl_2.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+
+
+x = read.table('UMIcounts3/S1-8_A267-277_S3_L002_10s_SNPsplit.tsv', sep = '\t', quote="", header=T, row.names=1)
