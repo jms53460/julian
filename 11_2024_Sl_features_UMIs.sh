@@ -19,7 +19,7 @@ do
     file2="${file:15:-22}"
     if [ ! -f "UMIcounts3/${file2}.tsv" ]; then
 
-        umi_tools count --per-contig --gene-tag=XT -I "bams2/$file2" -S "UMIcounts3/${file2}.tsv"
+        umi_tools count --per-contig -I "bams2/$file2" -S "UMIcounts3/${file2}.tsv"
     
     fi
 done
