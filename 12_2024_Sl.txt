@@ -669,3 +669,247 @@ scp sapelo2:/scratch/jms53460/12_2024_Sl/12_2024_Sl_2.RData 'C:/Users/julia/OneD
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
 load('12_2024_Sl_2.RData')
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load('11_2024_Sl_2.RData')
+D_11_2024_2 = D
+g1_11_2024_2 = g1
+g2_11_2024_2 = g2
+
+load('12_2024_Sl_2.RData')
+M_2 = D[,1:32]
+M_g1_2 = g1[,1:32]
+M_g2_2 = g2[,1:32]
+D_12_2024_2 = D[,33:752]
+g1_12_2024_2 = g1[,33:752]
+g2_12_2024_2 = g2[,33:752]
+D = cbind(D_11_2024_2,D_12_2024_2)
+g1 = cbind(g1_11_2024_2,g1_12_2024_2)
+g2 = cbind(g2_11_2024_2,g2_12_2024_2)
+
+genes[,1] = sub('chr', '', genes[, 1])
+
+
+library(readxl)
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages.xlsx")
+library(tidyverse)
+Sl_Stages = arrange(Sl_Stages, Bud_order)
+
+#Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
+#Sl_meta = arrange(Sl_meta, Bud_order)
+#Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
+#write.csv(Sl_meta, "Sl_meta.csv")
+
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
+rownames(Sl_meta) = Sl_meta$Sample
+
+stages = as.character(Sl_meta$Stage)
+stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM'))
+
+Sl_meta_stageblind = Sl_meta[,c(1:7,9:12)]
+No_cell = Sl_meta_stageblind$Sample[which(Sl_meta_stageblind$No_cell_well == 'Y')]
+summary(colSums(D[,No_cell]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    162    1333    2268    3325    3959   20942  ##w/o mito and chloro
+summary(colSums(D[,No_cell]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    169    1380    2340    3470    4079   22280  ##w/ mito and chloro
+
+D = D[,Sl_meta_stageblind$Sample]
+g1 = g1[,Sl_meta_stageblind$Sample]
+g2 = g2[,Sl_meta_stageblind$Sample]
+
+#UMI counts assigned to mitochondria and chloroplast genes for each sample or no cell control
+summary(colSums(D[41263:41476,]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0    39.0    85.0   287.0   226.2  6150.0
+
+#Ratio of UMIs assigned to mito and chloro genes / total UMIs for each sample or no cell control
+summary(colSums(D[41263:41476,])/colSums(D))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.00000 0.01979 0.03811 0.04355 0.06509 0.14575
+
+#Ratio of UMIs assigned to mito and chloro genes / total UMIs for no cell controls
+summary(colSums(D[41263:41476,No_cell])/colSums(D[,No_cell]))
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.001242 0.024981 0.043441 0.048550 0.067588 0.132983
+
+#Ratio of UMIs assigned to mito and chloro genes / total UMIs for each sample (NOT including no cell controls)
+summary(colSums(D[41263:41476,-which(colnames(D) %in% No_cell)])/colSums(D[,-which(colnames(D) %in% No_cell)]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.00000 0.01942 0.03768 0.04287 0.06470 0.14575
+
+D_subset = D[, which(colSums(D) >= 10000)]
+D_subset2 = D_subset[, -which(colnames(D_subset) %in% No_cell)]
+
+options(scipen=999)
+summary(colSums(D_subset2[41263:41476,])/colSums(D_subset2))
+
+
+check how many features and how much mapping to S92-103_14s, 10, 48, 9, and S74-79_4s in chloroplasts and mitochondria
+assigned to features vs intergenic (unassigned no features)
+S74-79_4s: 235435 intergenic,   55761 genic,    13645 UMIs,     0.24 genic/inter (no cell)
+S92-103_9s: 63752 intergenic,   92580 genic,    20942 UMIs,     1.45 genic/inter (no cell)
+S92-103_10s: 25933 intergenic,  90731 genic,    15511 UMIs,     3.50 genic/inter (doesn't correlate w/ no cell)
+S92-103_14s: 49105 intergenic,  147682 genic,   25764, UMIs,    3.01 genic/inter (doesn't correlate w/ no cell)
+S92-103_48s: 86753 intergenic,  58381 genic,    20362 UMIs,     0.67 genic/inter (correlates w/ no cell)
+S14-25_10s: 324600 intergenic,  3111174 genic,  374652 UMIs,    9.58 genic/inter
+S14-25_11s: 1646 intergenic,    7173 genic,     4223 UMIs,      4.36 genic/inter
+S14-25_12s: 11212 intergenic,   104200 genic,   17158 UMIs,     9.29 genic/inter
+S14-25_13s: 1516 intergenic,    8410 genic,     3696 UMIs,      5.55 genic/inter
+S14-25_14s: 2301 intergenic,    15263 genic,    5336 UMIs,      6.63 genic/inter
+S14-25_15s: 2456 intergenic,    12572 genic,    4561 UMIs,      5.12 genic/inter (no cell)
+
+
+bottom of unassigned no feature for 12_18_2024_Sl
+11190   2437    605     1895    5706#S74-79_9s    5931    2710    815     1204    1442    676     784     21610   4746    24186   17234   921     1477    7115    3511    7251    2311    6233    4800    20504   10144   18509   8808    14877   23304   6358    4226    6610    7727    7244    5177    4781    33474   16339   2332    1417    1355    1129    2805    1616    1178   
+    1250    1219    11284   80901   1537    962     1790    648     624     1509    140734  136009  408     12530   1851   
+    153863  718     1455    12201   3590    4692    3131    1241    4896    7366    2818    1176    1282    2189    2737   
+    4842    2103    4927    5159    904     2438    1263    4555    7102    6618    7977    3568    2425    5033    1657   
+    2774    19002   4093    2638    4476    1607    1218    3093    9724    732     25933#10   44372   21547   18787   49105#14  
+   9633    34984   3465    23560   1237    15369   28573   3572    18313   9091    1737    156395  5602    7326    4301    16226   63706   3123    2420    31905   17034   2657    2875    2671    2290    1694    90121   6270    4772    3649    7641    5073    1117    2392    1951    4695    86753#48   1272    6645    1036    6698    1647    983     771     2186    3831  
+    1979    15865   18222   25039   3739    703     11553   2642    1367    9645    16369   34894   9254    25209   13806  
+   14062   22111   11691   3202    13448   11618   10057   16619   13460   7881    2998    21315   3746    3976    2359    7997    5211    2562    1507    7669    9617    4444    3665    4711    4916    5156    14536   6186    2594    63752
+
+11
+Assigned        8014    162     712     1477    1500    678     658     267     91      1202    168     339     601     1194    1994    1219    19      1713    658915  450     872     6742    562629  1241    421902  164     49240   8563    7522  
+    92963   1899    566
+
+12
+Assigned        3111174 7173    104200  8410    15263   12572   4483    23762   2211341 8964    35729   11098   7938    8426    10596   6339    2250444 229892  195670  5036    5942    9058    5787    5502    9226    5314    3841    5756    6972    5286    3438    2471    3713    7925    16563   3568    7342    1681    5499    4547    2571    3424    4110    6209    4089    7728    1860    4899    4701    6783    4160    8018    9100    15347   12974   14328   11462  
+   12135   20288   45198   11192   6291    7510    4805    5677    1162893 6332    8286    13508   3809    9180    6397    7874    8905    6711    10091   6511    15889   9153    10911   9155    13912   11691   5780    5798    8108    15410   3897    10940   25670   19344   18124   27672   10030   8412    37887  
+   5848    5447    2101    5198    3327    2362    1790    176368  6296    6072    2390    3419    63770   5178    103873  3706    2396    282442  701639  698451  19329   5371    4346    4993    3265    505678  5234    5140    2204    16124   16750   28447   2335    4216    1224050 795560  8152    6154    5977   
+    2463    5150    2194    2495    6146    4679    3481    3879    3878    6607    3322    4906    21200   33445   29117   8811    31791   20929   23640   10389   31717   2969    3732    3379    3830    4513    4621    7321    5635    4697    5863    10762   3093    5104    4734    5340    5046    4310    96212 
+   6721    5722    5993    68303   5574    544392  5956    359793  4964    2962    871404  88739   10145   4561    4239    4518    53598   8717
+
+12_18
+Assigned        44544   12400   1131    3714    2036    57718   10796   27822   49460   39885   88177   24763   146860  68235   39734   55386   1632    52656   34287   21581   36777   1146    32648   34661   1318    10342   70218   55526   47239 
+   48440   875     21377   845085  5032    1545    1460    971     656     760     583663  1281    11156   4374    1829    3423    30556   2728    6582    54555   3291    3426    1107    3947    1636    1159    1123    7369    3730    1671    2508    1837    4057    48010   1764    571118  10215   16262   8900    9459    2818    1824    9777    2881    27411   1524  
+    1623    833     2771    1194    1119    1708    8937    5277    12622   9642    9132    3582    19753   1530    6465   
+    4553    5971    6784    6438    2673    2410    12975   4596    23665   1383    10169   27351   6472    5196    2989   
+    2725    6243    3517    1934    5183    12274   17397   106391  5243    7082    263102  4728    4949    29365   789369 
+  11524   11216   2910    67549   3158    1107    1030    1192    3555    3433    1246    1507    4781    789     827     491     957     1749    1873    1458    981     1045    1021    1195    1167    2596    1653    1667    719     270     3327    3930    1837    1654    683     1486    1666    905     982     887     338544  1371    10237   3548    2387    1495   
+    1111    5900    1564    1089    2532    204106  2405    3020    1397    318971  185502  3635    1129    1887    1854   
+    2618    508134  1745    636632  2998    220303  21027   1421    1830    2141    2008    141067  1121    5016    2994
+3034    2877    3948    3459    6835    15461   332610  10973   262425  1331    2544    6085    20382   5498    2133   
+    1055180 6137    2476    1705    284972  2075    2472    4102    2727    2633    2338    1358    9364    18406   7079   
+    752     7315    15402   15124   627     1455    220765  394460  85110   57583   1316    3314    2038    2392    3782   
+    1605    1295    1897    1287    1349    1603    1352    9829    4898    1090    38437   1897    21632   9614    1617   
+    314799  1165    30806   2868    17230   5683    8859    4931    3710    3249    1412    957258  2031    5327    1953   
+    2391    8073    1762    3668    39262   2019    2733    1339    2498    951     1780    6376    2077    2402    3150   
+    6163    1813    25162   172703  10233   4454    3473    6787    22540   3532    12434   3574    7283    12309   2377   
+    6641    1598    2803    453021  3365    136183  2825    14567   59599   3648    1514    76039   170750  87544   2428   
+    12226   1721    3169    5268    654     900     6523    6021    2546    1371    783     467572  3157    777280  4772   
+    868     6327    10376   1525    1011    4581    2947    2358    39      1424    2894    11268   1165    3723    1162   
+    709     805     713     74888   1115    856     11119   859     1223    1550    2091    777     1695    164927  1337   
+    4984    55761#S74-79_4s   5628    2981    850     3024    3360    21370   7784    2644    4329    3411    2156    2099    26873
+9771    34780   89238   1379    3557    12869   7273    14768   3476    9363    8416    26336   16757   56956   11538   14094   17965   4520    4322    8583    12662   13661   6419    5762    80975   22114   3756    2127    2642    2953    3587    3381    3142    3577    2845    20440   137813  4140    2493    4474    2177    1805    3193    1387165 1127387 1591  
+    11906   3153    1360462 2044    2837    16666   4538    6136    4773    2522    6339    16007   6319    4367    3834   
+    2434    3600    5912    3538    6286    7319    4072    6080    1842    8107    9631    8578    9655    4650    4212   
+    10664   2888    6874    86408   10292   5688    4448    5101    3354    5422    11627   3238    90731#10   128542  39763  
+   53891   147682#14  14718   41463   1770    172555  1891    19798   180430  5377    140118  15205   2559    568701  6310    10698   7284    21459   106605  4113    2678    25213   15407   5370    5729    4564    3879    3340    435488  7889    4790    4099    6002    5768    2773    2429    2092    2649    58381#48   1460    15420   1330    5943    2183    1353    1014  
+    2351    4691    2392    17874   15633   30699   5728    1115    14463   3391    2067    14795   42696   53702   23784  
+   54086   19751   23372   59674   7503    3578    14974   16603   12362   19264   18512   8796    7761    16819   5490    6285    2960    10298   5360    2798    2423    3969    7243    5735    5164    6634    6930    5285    11311   4190    1979    92580
+
+
+###Produce table with all the matching spike-ins in demultiplexed files.
+cd /scratch/jms53460/11_2024_Sl
+cp /home/jms53460/96spike_in_barcodes.txt .
+mkdir spike_ins
+for file in "Demultiplexed/"*s.fastq*
+do
+    zcat "$file" | sed -n '2~4p' | grep TGCAAATAGGCGGCC | sed -n -e 's/AAAAAAAAAA.*/AAAA/p' | sort | uniq | sed -n -e 's/^.*TGCAAATAGGCGGCC//p' | cut -c1-12 | grep -F -f /scratch/jms53460/11_2024_Sl/96spike_in_barcodes.txt | sort | uniq -c | sort -nr | head -n 96 > spike_ins/"${file:14:-9}".txt
+done
+
+mkdir spike_ins2
+for file in spike_ins/*s.txt
+do
+    awk '{print $1,$2}' $file OFS="" > spike_ins2/${file:10:-4}.tsv
+done
+
+#did this in 11_2024_Sl, 12_2024_Sl, and 12_18_2024_Sl
+cd /scratch/jms53460/12_2024_Sl
+cp /scratch/jms53460/11_2024_Sl/spike_ins2/* spike_ins2
+cp /scratch/jms53460/12_18_2024_Sl/spike_ins2/* spike_ins2
+
+
+ml R/4.3.1-foss-2022a
+R
+spike_in_list = read.delim('96spike_in_barcodes.txt', header=F)
+spike_in_list = spike_in_list[c(1:96),]
+names(spike_in_list) = unlist(lapply(spike_in_list, function(xx) { xx[1] }))
+files = dir('spike_ins2')
+A = matrix(NA, nrow = length(spike_in_list), ncol = length(files))
+rownames(A) = names(spike_in_list)
+colnames(A) = files
+for (f in files) {
+    xx = read.table(paste('spike_ins2/', f, sep = ''), sep = '', header = F, row.names = 2)
+    A[,f] = xx[match(names(spike_in_list),rownames(xx)),1]
+}
+
+#for loop will not run, says no lines available in input. I think one or more tsv files is empty. Now I check
+for (f in files) {
+    print(f)
+    print(head(read.table(paste('spike_ins2/', f, sep = ''), sep = '', header = F, row.names = 2)))
+}
+#I hit the error on "S1-8_A267-277_S3_L002_25s.tsv". I'll remove that file from the directory and retry
+q()
+rm 
+
+R
+spike_in_list = read.delim('96spike_in_barcodes.txt', header=F)
+spike_in_list = spike_in_list[c(1:96),]
+names(spike_in_list) = unlist(lapply(spike_in_list, function(xx) { xx[1] }))
+files = dir('spike_ins2')
+A = matrix(NA, nrow = length(spike_in_list), ncol = length(files))
+rownames(A) = names(spike_in_list)
+colnames(A) = files
+for (f in files) {
+    xx = read.table(paste('spike_ins2/', f, sep = ''), sep = '', header = F, row.names = 2)
+    A[,f] = xx[match(names(spike_in_list),rownames(xx)),1]
+}
+A[is.na(A)] = 0
+colnames(A) = sub('A267-277_S3_L002_', '', sub('S190_L007_', '', sub('S189_L007_', '', sub('.tsv', '', files))))
+Spike_ins_Sl_M = A[,1:32]
+Spike_ins_Sl = A[,33:783]
+S1_8_25s = rep(0, 96)
+Spike_ins_Sl = cbind(Spike_ins_Sl[,1:16], S1_8_25s, Spike_ins_Sl[,17:751])
+colnames(Spike_ins_Sl) = sub('S1_8_25s', 'S1-8_25s', colnames(Spike_ins_Sl))
+save(Spike_ins_Sl, Spike_ins_Sl_M, file = '11-12_2024_Sl_Spike_ins.RData')
+q()
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/12_2024_Sl/11-12_2024_Sl_Spike_ins.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('11-12_2024_Sl_Spike_ins.RData')
+
+Spike_ins_Sl = Spike_ins_Sl[,Sl_meta_stageblind$Sample]
+
+Heatmap(Spike_ins_Sl, cluster_rows=F, cluster_columns=F)
+
+
+
+B2 = B
+for (y in 0:6) {
+    for (x in (1+96*y):(96+96*y)) {
+        for (z in (1:96)){
+            B2[z,x] = B[z,x]/sum(B[,x])
+        }
+    }
+}
+
+B3 = B[1,]
+for (x in 1:96){
+    for (y in 0:6){
+        B3[x+96*y] = B2[x,x+96*y]
+    }
+}
+
+
+Spike_ins = B
+Spike_ins_frac = B2
+Spike_ins_frac_correct = B3
