@@ -11,16 +11,15 @@
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
 cd /scratch/jms53460/12_2024_Sl
-for file in "featurecounts2/"*g2.bam*
+mkdir UMIcounts3
+module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+
+for file in "featurecounts2/"*SNPsplit.bam*
 do
     file2="${file:15:-22}"
-    if [ ! -f "UMIcounts2_g2/${file2}.tsv" ]; then
+    if [ ! -f "UMIcounts3/${file2}.tsv" ]; then
 
-        module load SAMtools/1.16.1-GCC-11.3.0
-        samtools sort -@ 6 "$file" -o "bams2/$file2"
-        samtools index "bams2/$file2"
-
-        module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts2_g2/${file2}.tsv"
+        umi_tools count --per-contig -I "bams2/$file2" -S "UMIcounts3/${file2}.tsv"
+    
     fi
 done
