@@ -2,9 +2,9 @@
 #SBATCH --job-name=Features_UMIs                                           # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
 #SBATCH --ntasks=1                                                            # Single task job
-#SBATCH --cpus-per-task=6                                                     # Number of cores per task
-#SBATCH --mem=70gb                                                            # Total memory for job
-#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --cpus-per-task=1                                                     # Number of cores per task
+#SBATCH --mem=150gb                                                            # Total memory for job
+#SBATCH --time=24:00:00                                                       # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/12_2024_Sl/Features_UMIs.out            # Location of standard output file
 #SBATCH --error=/scratch/jms53460/12_2024_Sl/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail

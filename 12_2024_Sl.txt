@@ -942,3 +942,53 @@ do
     
     fi
 done
+
+
+cp /scratch/jms53460/11_2024_Sl/UMIcounts3/* UMIcounts3
+
+head UMIcounts3/S1-8_A267-277_S3_L002_10s_SNPsplit.tsv
+gene    count
+chr1    449
+chr2    4382
+chr3    1220
+chr4    120
+chr5    218
+chr6    480
+chr7    106
+chr8    141
+chr9    189
+ml R/4.3.1-foss-2022a
+R
+files = dir('UMIcounts3')
+A = matrix(NA, nrow = 14, ncol = length(files))
+rownames(A) = c('chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chrM', 'chrC')
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts3/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(rownames(A),rownames(xx)),1]
+}
+colnames(A) = sub('A267-277_S3_L002_', '', sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit.tsv', '', files))))
+A[is.na(A)] = 0
+#A = A[rowSums(A) > 0,]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+Sl_total_UMIs = B
+
+save(Sl_total_UMIs, file = "12_2024_Sl_2.RData")
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/12_2024_Sl/12_2024_Sl_2.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load('12_2024_Sl_2.RData')
+
