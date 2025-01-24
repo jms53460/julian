@@ -14,7 +14,7 @@ cd /scratch/jms53460/12_2024_Sl
 mkdir UMIcounts3
 module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
 
-for file in "featurecounts2/"*SNPsplit.bam*
+for file in "featurecounts3/"*SNPsplit.bam*
 do
     file2="${file:15:-22}"
     if [ ! -f "UMIcounts3/${file2}.tsv" ]; then
