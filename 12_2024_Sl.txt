@@ -720,6 +720,10 @@ D = D[,Sl_meta_stageblind$Sample]
 g1 = g1[,Sl_meta_stageblind$Sample]
 g2 = g2[,Sl_meta_stageblind$Sample]
 
+D_Sl = D
+g1_Sl = g1
+g2_Sl = g2
+
 #UMI counts assigned to mitochondria and chloroplast genes for each sample or no cell control
 summary(colSums(D[41263:41476,]))
    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
@@ -889,32 +893,26 @@ load('11-12_2024_Sl_Spike_ins.RData')
 
 Spike_ins_Sl = Spike_ins_Sl[,Sl_meta_stageblind$Sample]
 
+Barcode = as.numeric(gsub("s","", gsub(".*_","", colnames(Spike_ins_Sl))))
+
+Spike_ins_Sl_frac = Spike_ins_Sl
+for (x in 1:length(colnames(Spike_ins_Sl))) {
+    for (z in 1:96){
+        Spike_ins_Sl_frac[z,x] = Spike_ins_Sl[z,x]/sum(Spike_ins_Sl[,x])
+    }
+}
+
+Spike_ins_Sl_frac_correct = Spike_ins_Sl[1,]
+for (x in 1:length(colnames(Spike_ins_Sl))) {
+    Spike_ins_Sl_frac_correct[x] = Spike_ins_Sl_frac[Barcode[x],x]
+}
+
+library('ComplexHeatmap')
 Heatmap(Spike_ins_Sl, cluster_rows=F, cluster_columns=F)
 
-
-
-B2 = B
-for (y in 0:6) {
-    for (x in (1+96*y):(96+96*y)) {
-        for (z in (1:96)){
-            B2[z,x] = B[z,x]/sum(B[,x])
-        }
-    }
-}
-
-B3 = B[1,]
-for (x in 1:96){
-    for (y in 0:6){
-        B3[x+96*y] = B2[x,x+96*y]
-    }
-}
-
-
-Spike_ins = B
-Spike_ins_frac = B2
-Spike_ins_frac_correct = B3
-
-
+Sl_qc = t(data.frame(Spike_in_frac_correct = Spike_ins_Sl_frac_correct, Spike_ins_total = colSums(Spike_ins_Sl), Genic_chr_UMIs = colSums(D_Sl[1:41262,]), Genic_M_C_UMIs = colSums(D_Sl[41263:41476,])))
+plot(Sl_qc['Spike_in_frac_correct',], Sl_qc['Spike_ins_total',])
+plot(Sl_qc['Spike_in_frac_correct',], Sl_qc['Genic_chr_UMIs',])
 
 
 #!/bin/bash
@@ -922,8 +920,8 @@ Spike_ins_frac_correct = B3
 #SBATCH --partition=batch                                                     # Partition (queue) name
 #SBATCH --ntasks=1                                                            # Single task job
 #SBATCH --cpus-per-task=6                                                     # Number of cores per task
-#SBATCH --mem=70gb                                                            # Total memory for job
-#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --mem=150gb                                                            # Total memory for job
+#SBATCH --time=24:00:00                                                       # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/12_2024_Sl/Features_UMIs.out            # Location of standard output file
 #SBATCH --error=/scratch/jms53460/12_2024_Sl/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
@@ -944,19 +942,43 @@ do
 done
 
 
+mv featurecounts2/S6* featurecounts3
+mv featurecounts2/S7* featurecounts3
+mv featurecounts2/S8* featurecounts3
+mv featurecounts2/S9* featurecounts3
+
+
+ #!/bin/bash
+#SBATCH --job-name=Features_UMIs                                           # Job name
+#SBATCH --partition=batch                                                     # Partition (queue) name
+#SBATCH --ntasks=1                                                            # Single task job
+#SBATCH --cpus-per-task=1                                                     # Number of cores per task
+#SBATCH --mem=150gb                                                            # Total memory for job
+#SBATCH --time=24:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/12_2024_Sl/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/12_2024_Sl/Features_UMIs.err             # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/12_2024_Sl
+mkdir UMIcounts3
+module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+
+for file in "featurecounts3/"*SNPsplit.bam*
+do
+    file2="${file:15:-22}"
+    if [ ! -f "UMIcounts3/${file2}.tsv" ]; then
+
+        umi_tools count --per-contig -I "bams2/$file2" -S "UMIcounts3/${file2}.tsv"
+    
+    fi
+done
+
+umi_tools count --per-contig -I "bams2/S80-91_50s_SNPsplit" -S "UMIcounts3/S80-91_50s_SNPsplit.tsv"
+
+
 cp /scratch/jms53460/11_2024_Sl/UMIcounts3/* UMIcounts3
 
-head UMIcounts3/S1-8_A267-277_S3_L002_10s_SNPsplit.tsv
-gene    count
-chr1    449
-chr2    4382
-chr3    1220
-chr4    120
-chr5    218
-chr6    480
-chr7    106
-chr8    141
-chr9    189
 ml R/4.3.1-foss-2022a
 R
 files = dir('UMIcounts3')
@@ -969,7 +991,6 @@ for (f in files) {
 }
 colnames(A) = sub('A267-277_S3_L002_', '', sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit.tsv', '', files))))
 A[is.na(A)] = 0
-#A = A[rowSums(A) > 0,]
 
 B = A[order(rownames(A)),]
 B2 = B
