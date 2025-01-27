@@ -978,7 +978,7 @@ umi_tools count --per-contig -I "bams2/S80-91_50s_SNPsplit" -S "UMIcounts3/S80-9
 
 
 cp /scratch/jms53460/11_2024_Sl/UMIcounts3/* UMIcounts3
-
+"S14-25_10s" "S26-37_41s"
 ml R/4.3.1-foss-2022a
 R
 files = dir('UMIcounts3')
@@ -991,25 +991,18 @@ for (f in files) {
 }
 colnames(A) = sub('A267-277_S3_L002_', '', sub('S190_L007_', '', sub('S189_L007_', '', sub('_SNPsplit.tsv', '', files))))
 A[is.na(A)] = 0
+Sl_total_UMIs = A
 
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-Sl_total_UMIs = B
-
-save(Sl_total_UMIs, file = "12_2024_Sl_2.RData")
+save(Sl_total_UMIs, file = "Sl_total_UMIs.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/12_2024_Sl/12_2024_Sl_2.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/12_2024_Sl/Sl_total_UMIs.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 
-load('12_2024_Sl_2.RData')
+load('Sl_total_UMIs.RData')
 
