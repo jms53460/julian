@@ -633,15 +633,15 @@ length(which(Sl_meta$Stage == "tetrad"))*7/8 #35
 summary(colSums(D[,which(Sl_meta$Stage == "tetrad")]))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #   1148    3893    8967    9763   14631   26023
-length(which(Sl_meta$Stage == "UM"))*7/8 #329
+length(which(Sl_meta$Stage == "UM"))*7/8 #315
 summary(colSums(D[,which(Sl_meta$Stage == "UM")]))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #     31    1038    1938    3016    3677   46342
-length(which(Sl_meta$Stage == "UM/BM"))*7/8 #21
+length(which(Sl_meta$Stage == "UM/BM"))*7/8 #42
 summary(colSums(D[,which(Sl_meta$Stage == "UM/BM")]))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #    736    1914    2520   10394    3574  109494
-length(which(Sl_meta$Stage == "BM"))*7/8 #273
+length(which(Sl_meta$Stage == "BM"))*7/8 #266
 summary(colSums(D[,which(Sl_meta$Stage == "BM")]))
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 #     17    1386    2704   24818    6402  374652

@@ -5,12 +5,12 @@
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/12_2024_At/At_dm.out                   # Location of standard output file
-#SBATCH --error=/scratch/jms53460/12_2024_At/At_dm.err                    # Location of error log file
+#SBATCH --output=/scratch/jms53460/2_2025_At/At_dm.out                   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/2_2025_At/At_dm.err                    # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/12_2024_At/
+cd /scratch/jms53460/2_2025_At/
 mkdir Demultiplexed
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/Fastq-Multx

@@ -606,11 +606,13 @@ PCs = prcomp(t(A3))
 ###
 ords = order(PCs$x[,1])
 
+svg('11-12_2024_At_cor_heatmap.svg', width=6, height=5)
 Heatmap(cor(A3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
     top_annotation = HeatmapAnnotation(FracMono = FracMono[ords], UMIcounts = log(colSums(D[,colnames(AlleleFrac3)][,ords]),10),
     Stage = At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))][ords],
     col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
       col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
 
 #How many total buds at each stage:
 length(which(At_Stages$Stage == "tetrad")) #1
@@ -630,7 +632,7 @@ length(which(At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3)
 
 
 
-#How many UMIs for each no cell control by stage--tetrad and UM seem most susceptible to this type of contamination
+#How many UMIs for each no cell control by stage
 length(which(At_meta[No_cell,8] == "UM")) #used this to check how many no cell controls per stage
 sum(D[,No_cell[which(At_meta[No_cell,8] == "tetrad")]]) #1
 #   9665
@@ -650,3 +652,46 @@ summary(colSums(D[,No_cell[which(At_meta[No_cell,8] == "Tri")]])) #4
 #   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 #   2058    2740    3487    6183    6930   15699
 
+
+
+##########
+
+
+
+svg('FracMono_hist.svg', width=3.5, height=4)
+hist(FracMono, xlab = '% of bins with monoallelic expression', ylab = '# of samples', main = 'Monoallelic expression in 
+Arabidopsis pollen precursors')
+dev.off()
+
+svg('AlleleFrac_hist.svg', width=3.5, height=4)
+hist(AlleleFrac2, xlab = 'Fraction of transcripts
+from Col-0 allele', ylab = '# of bins', main = 'All samples')
+dev.off()
+
+
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # For pseudotime analysis, require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,order(stages)]
+
+###
+svg('7-8_2024_At_express_heatmap_Stages_UMIs_FracMono.svg', width = 7, height = 5)
+Heatmap(minmax(hmat[,colnames(ord_AlleleFrac2)]), name = 'expression
+level (TPM)', 
+top_annotation = HeatmapAnnotation(FracMono = ord_FracMono[colnames(ord_AlleleFrac2)], UMIcounts = log(colSums(D[,colnames(ord_AlleleFrac2)]),10),
+    Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_column_names=F, show_row_names=F)
+dev.off()
+
+svg('7-8_2024_At_express_heatmap_Stages.svg', width = 7, height = 5)
+Heatmap(minmax(hmat[,colnames(ord_AlleleFrac2)]), name = 'expression
+level (TPM)', 
+top_annotation = HeatmapAnnotation(Stage = At_Stages2[colnames(ord_AlleleFrac2),8],
+    col = list(Stage = c("UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"))),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_column_names=F, show_row_names=F)
+dev.off()
+
+
+svg('7-8_2024_At_example_chr_plots.svg', width = 15, height = 6)
+ggarrange(plotCell2('A194-205_44s'), plotCell2('A194-205_86s'), plotCell2('A182-193_60s'), plotCell2('A218-229_19s'), plotCell2('A242-253_61s'), plotCell2('A230-241_90s'), ncol = 6, align = 'v')
+dev.off()

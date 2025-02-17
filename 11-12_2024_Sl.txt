@@ -1,0 +1,674 @@
+11-12_2024_Sl
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Julian R instance.rda') #This has data from the first 48 Arabidopsis samples I sequenced alongside functions and such that were used for analysis
+load('12_2024_Sl_2.RData')
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load('11_2024_Sl_2.RData')
+D_11_2024_2 = D
+g1_11_2024_2 = g1
+g2_11_2024_2 = g2
+
+load('12_2024_Sl_2.RData')
+M_2 = D[,1:32]
+M_g1_2 = g1[,1:32]
+M_g2_2 = g2[,1:32]
+D_12_2024_2 = D[,33:752]
+g1_12_2024_2 = g1[,33:752]
+g2_12_2024_2 = g2[,33:752]
+D = cbind(D_11_2024_2,D_12_2024_2)
+g1 = cbind(g1_11_2024_2,g1_12_2024_2)
+g2 = cbind(g2_11_2024_2,g2_12_2024_2)
+
+genes[,1] = sub('chr', '', genes[, 1])
+Sl_genes = genes
+
+Heatmap(cor(log10(sweep(M_2,2,colSums(M_2),'/')[,colSums(M_2) >= 5000]*10^6 + 100)))
+
+library(readxl)
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages2.xlsx")
+library(tidyverse)
+Sl_Stages = arrange(Sl_Stages, Bud_order)
+
+Sl_Stages2 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages2.xlsx")
+Sl_Stages2 = Sl_Stages2[rep(row.names(Sl_Stages2), times = 8), ]
+Sl_Stages2 = arrange(Sl_Stages2, Bud_order)
+
+#Sl_meta <- Sl_meta[rep(row.names(Sl_meta), times = 8), ]
+#Sl_meta = arrange(Sl_meta, Bud_order)
+#Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''))
+#write.csv(Sl_meta, "Sl_meta.csv")
+
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
+rownames(Sl_meta) = Sl_meta$Sample
+
+Sl_meta2 = Sl_meta
+Sl_meta2$Stage = Sl_Stages2$Stage
+rownames(Sl_meta2) = Sl_meta2$Sample
+
+stages = as.character(Sl_meta2$Stage)
+stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM', 'BM_shed'))
+tetrads = Sl_meta2$Sample[which(Sl_meta2$Stage == 'tetrad')]
+UMs = Sl_meta2$Sample[which(Sl_meta2$Stage == 'UM')]
+UM_BMs = Sl_meta2$Sample[which(Sl_meta2$Stage == 'UM/BM')]
+BMs = Sl_meta2$Sample[which(Sl_meta2$Stage == 'BM')]
+BM_sheds = Sl_meta2$Sample[which(Sl_meta2$Stage == 'BM_shed')]
+
+Sl_No_cell = Sl_meta2$Sample[which(Sl_meta2$No_cell_well == 'Y')]
+
+Sl_meta_stageblind = Sl_meta2[,c(1:7,9:12)]
+S_No_cell = Sl_meta$Sample[which(Sl_meta$No_cell_well == 'Y')]
+summary(colSums(D[,S_No_cell]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    162    1333    2268    3325    3959   20942  ##w/o mito and chloro
+summary(colSums(D[,S_No_cell]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    169    1380    2340    3470    4079   22280  ##w/ mito and chloro
+
+D = D[,Sl_meta_stageblind$Sample]
+g1 = g1[,Sl_meta_stageblind$Sample]
+g2 = g2[,Sl_meta_stageblind$Sample]
+
+D_Sl = D
+g1_Sl = g1
+g2_Sl = g2
+
+D_Sl_chr = D_Sl[1:41262,]
+D_Sl_org = D_Sl[41263:41476,]
+
+Heatmap(cor(log10(sweep(D_Sl_chr,2,colSums(D_Sl_chr),'/')[,colSums(D_Sl_chr) >= 5000]*10^6 + 100)))
+Heatmap(cor(log10(sweep(D_Sl_chr,2,colSums(D_Sl_chr),'/')[,colSums(D_Sl_chr) >= 10000]*10^6 + 100)))
+Heatmap(cor(log10(sweep(D_Sl_chr,2,colSums(D_Sl_chr),'/')[,No_cell]*10^6 + 100)))
+
+
+plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+Sl_g1_gene_frac = g1_Sl/(g1_Sl+g2_Sl)
+Sl_AlleleFrac = Sl_g1_gene_frac
+Sl_AlleleFrac[(g1_Sl+g2_Sl) < 10] = NA #remove genes with <10 genoinformative transcripts
+Sl_AlleleFrac2 = Sl_AlleleFrac[,which(colSums(D_Sl_chr) >= 10000)] #99 samples have >= 10,000 UMIs
+
+library(ggplot2)
+library(ggpubr)
+
+plotChr2 = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = Sl_AlleleFrac[, cell], Chr = genes[,1], 
+        Position = Sl_genes[,2]/10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 10, 
+        ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell3 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr2(cell, chr = 1), plotChr2(cell, 
+        chr = 2), plotChr2(cell, chr = 3), plotChr2(cell, chr = 4), 
+        plotChr2(cell, chr = 5), plotChr2(cell, chr = 6), plotChr2(cell, 
+            chr = 7), plotChr2(cell, chr = 8), plotChr2(cell, chr = 9), 
+        plotChr2(cell, chr = 10), plotChr2(cell, chr = 11), plotChr2(cell, 
+            chr = 12), plotScaleBar, ncol = 1, nrow = 13, align = "v", 
+        heights = c(rep(1, 12), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+plotCell3('S104-115_10s')
+
+library('ComplexHeatmap')
+
+D_subset = D_Sl_chr[, which(colSums(D_Sl_chr) >= 10000)] #99/752 (13.2%)
+summary(colSums(D_subset))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#  10052   17490   35418  102220  183549  374652
+
+Heatmap(cor(D_subset, use = 'pairwise.complete.obs', method = 'pearson'), name = 'UMI_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+#remove no cell controls that made it through 10,000 UMI cut off
+Sl_AlleleFrac3 = as.data.frame(Sl_AlleleFrac2) %>% select(-c(Sl_No_cell[which(Sl_No_cell %in% colnames(Sl_AlleleFrac2))]))
+
+Sl_geneUse = which(abs(rowMeans(Sl_AlleleFrac, na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+
+Sl_FracMono_all = 100*colMeans(abs(Sl_AlleleFrac[Sl_geneUse,] - .5) >= .3, na.rm=T)
+plot(Sl_FracMono_all, cex = 3, pch=20)
+plot(colSums(D_Sl_chr), Sl_FracMono_all, cex=3, pch=20)
+points(colSums(D_Sl_chr[,Sl_No_cell]), Sl_FracMono_all[Sl_No_cell], col='red2', cex=3, pch=20)
+
+Sl_FracMono2 = 100*colMeans(abs(Sl_AlleleFrac2[Sl_geneUse,] - .5) >= .3, na.rm=T)
+plot(Sl_FracMono2, cex = 3, pch=20)
+
+Sl_FracMono3 = 100*colMeans(abs(Sl_AlleleFrac3[Sl_geneUse,] - .5) >= .3, na.rm=T)
+plot(Sl_FracMono3, cex = 3, pch=20)
+
+
+#
+svg('Sl_FracMono_vs_UMIcounts.svg', width=6, height=5)
+plot(colSums(D_Sl_chr), Sl_FracMono_all, cex = 1, pch=20, xlab = '# of transcripts', ylab = '% of genes with monoallelic expression')
+points(colSums(D_Sl_chr[,Sl_No_cell]), Sl_FracMono_all[Sl_No_cell], cex=1, pch=20, col = 'red2')
+abline(v=10000)
+dev.off()
+
+plot(colSums(D_Sl_chr[,names(FracMono2)]), FracMono2, cex = 3, pch=20)
+points(colSums(D_Sl_chr[,No_cell[which(No_cell %in% names(FracMono2))]]), FracMono2[No_cell[which(No_cell %in% names(FracMono2))]], cex=3, pch=20, col='red2')
+#
+
+###
+S_pseudocount = 1*10^6/quantile(colSums(D_Sl_chr), p = .1)
+S2 = sweep(D_Sl_chr, 2, colSums(D_Sl_chr), '/')*10^6  # Transcripts per million normalization
+S2b = log(S2+S_pseudocount,10)  # Log transform
+S3 = S2b[rowSums(S2[,colnames(AlleleFrac3)] > 0) >= 20,colnames(AlleleFrac3)]
+S3 = S3[rank(-apply(S3,1,sd)) <= 1000,]
+S_PCs = prcomp(t(S3))
+
+ords = order(S_PCs$x[,1])
+
+#FracMono = FracMono3[ords]
+
+Heatmap(cor(S3[,ords], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac3)][,ords]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))][ords], 
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+stages2 = as.character(Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))])
+stages2 = factor(stages2, levels = c('tetrad', 'UM', 'UM/BM', 'BM', 'BM_shed'))
+
+
+Heatmap(cor(S3[,order(stages2)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac3)][,order(stages2)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac3))][order(stages2)],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+###
+
+S4 = S2b[rowSums(S2[,colnames(AlleleFrac2)] > 0) >= 20,colnames(AlleleFrac2)]
+S4 = S4[rank(-apply(S4,1,sd)) <= 1000,]
+S_PCs2 = prcomp(t(S4))
+
+S_ords2 = order(S_PCs2$x[,1])
+S_No_cell2 = Sl_meta2$No_cell_well[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))]
+
+#FracMono = FracMono3[ords]
+
+Heatmap(cor(A4[,ords2], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac2)][,ords2]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords2], "No cell" = No_cell2[ords2],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[colnames(AlleleFrac2)][ords2],
+    "Total spike-ins" = Spike_ins_total[colnames(AlleleFrac2)][ords2],
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+svg('Sl_cor_heatmap.svg', width = 9, height = 7)
+Heatmap(cor(A4[,ords2], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac2)][,ords2]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][ords2], "No cell" = No_cell2[ords2],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[colnames(AlleleFrac2)][ords2],
+    "Total spike-ins" = Spike_ins_total[colnames(AlleleFrac2)][ords2],
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+S_stages3 = as.character(Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))])
+S_stages3 = factor(S_stages3, levels = c('tetrad', 'UM', 'UM/BM', 'BM', 'BM_shed'))
+
+Heatmap(cor(S4[,order(S_stages3)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac2)][,order(S_stages3)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][order(S_stages3)], "No cell" = No_cell2[order(S_stages3)], 
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[colnames(AlleleFrac2)][order(S_stages3)],
+    "Total spike-ins" = Spike_ins_total[colnames(AlleleFrac2)][order(S_stages3)],
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE)
+
+S2d = S2b[rowSums(D_Sl_chr[,colnames(S2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+S_fano = apply(S2d, 1, var)/rowMeans(S2d)  # fano factor is a measure of gene variance
+S_hmat = S2d[rank(-S_fano[rownames(S2d)]) <= 500,colnames(AlleleFrac2)]
+S_minmax = function(x) {
+	sweep(x - log(S_pseudocount, 10), 1, apply(x - log(S_pseudocount, 10), 1, max), '/')
+}
+
+
+svg('Sl_genes_heatmap.svg', width = 10, height = 7)
+Heatmap(minmax(hmat[,order(stages3)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac2)][,order(stages3)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][order(stages3)], "No cell" = No_cell2[order(stages3)], 
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[colnames(AlleleFrac2)][order(stages3)],
+    "Total spike-ins" = Spike_ins_total[colnames(AlleleFrac2)][order(stages3)],
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+svg('Sl_genes_heatmap.svg', width = 10, height = 7)
+Heatmap(minmax(hmat[,order(stages3)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,colnames(AlleleFrac2)][,order(stages3)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][order(stages3)], "No cell" = No_cell2[order(stages3)], 
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+###
+Samples_over5000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 5000])
+S5 = S2b[rowSums(S2[,Samples_over5000] > 0) >= 20,Samples_over5000]
+S5 = S5[rank(-apply(S5,1,sd)) <= 1000,]
+S_PCs3 = prcomp(t(S5))
+
+S_ords3 = order(S_PCs3$x[,1])
+S_No_cell3 = Sl_meta$No_cell_well[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+
+hist(colMeans(!is.na(AlleleFrac_bin_Sl[rowMeans(!is.na(AlleleFrac_bin_Sl)) >= .1,colSums(D_Sl) >= 2000])), breaks=40)
+colMeans(!is.na(AlleleFrac_bin_Sl[rowMeans(!is.na(AlleleFrac_bin_Sl)) >= .1,colSums(D_Sl) >= 2000])) > 0.2
+
+cor of allelic fraction, also try making binomial allelic fraction (0.4 = 0, 0.6 = 1)
+
+Heatmap(cor(S5[,S_ords3], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000][,S_ords3]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)][S_ords3], "No cell" = S_No_cell3[S_ords3],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000][S_ords3],
+    "Total spike-ins" = Spike_ins_total[Samples_over5000][S_ords3],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+Heatmap(cor(S5[,S_ords3], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000][,S_ords3]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)][S_ords3], "No cell" = S_No_cell3[S_ords3],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000][S_ords3],
+    "Total spike-ins" = Spike_ins_total[Samples_over5000][S_ords3],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+
+###
+BIN2 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes[, 1]) * 10^6 + round(Sl_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_Sl)))
+    colnames(out2) = colnames(g1_Sl)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin_Sl = BIN2(g1_Sl)
+g2_bin_Sl = BIN2(g2_Sl)
+AlleleFrac_bin_Sl = g1_bin_Sl/(g1_bin_Sl + g2_bin_Sl)
+AlleleFrac_bin_Sl[(g1_bin_Sl+g2_bin_Sl) < 10] = NA #remove bins with <10 genoinformative transcripts
+Sl_binUse = which(abs(rowMeans(AlleleFrac_bin_Sl, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin_Sl[-Sl_binUse,] = NA
+Sl_FracMono_all = 100*colMeans(abs(AlleleFrac_bin_Sl - .5) >= .3, na.rm=T)
+
+
+S_stages4 = as.character(Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)])
+S_stages4 = factor(S_stages4, levels = c('tetrad', 'UM', 'UM/BM', 'BM', 'BM_shed'))
+S_xgen = Sl_meta2$Xgen_primer[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+Sl_plant = Sl_meta2$Plant[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+Sl_date = Sl_meta2$Date_collected[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+Sl_prep = Sl_meta2$Prep_day[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+Sl_seq = Sl_meta2$Seq_day[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+
+
+Heatmap(cor(S5[,order(S_stages4)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000][,order(S_stages4)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)][order(S_stages4)], "No cell" = S_No_cell3[order(S_stages4)],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000][order(S_stages4)],
+    "Total spike-ins" = Spike_ins_total[Samples_over5000][order(S_stages4)],
+    "XGEN" = as.factor(S_xgen[order(S_stages4)]), "Date collected" = as.factor(Sl_date[order(S_stages4)]), 
+    "Date prepared" = as.factor(Sl_prep[order(S_stages4)]), "Date sequenced" = as.factor(Sl_seq[order(S_stages4)]),
+    "FracMono" = Sl_FracMono_all[Samples_over5000][order(S_stages4)],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(S5, use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)], "No cell" = S_No_cell3,
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000],
+    "Total spike-ins" = Spike_ins_total[Samples_over5000],
+    "XGEN" = as.factor(S_xgen), "Date collected" = as.factor(Sl_date), "Date prepared" = as.factor(Sl_prep), 
+    "Date sequenced" = as.factor(Sl_seq), "FracMono" = Sl_FracMono_all[Samples_over5000],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = TRUE, show_column_names = FALSE)
+
+Heatmap(AlleleFrac_bin_Sl[,colnames(S5[,order(S_stages4)])], name = 'AlleleFrac', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000][,order(S_stages4)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)][order(S_stages4)], "No cell" = S_No_cell3[order(S_stages4)],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000][order(S_stages4)],
+    "Total spike-ins" = Spike_ins_total[Samples_over5000][order(S_stages4)],
+    "XGEN" = as.factor(S_xgen[order(S_stages4)]), "Date collected" = as.factor(Sl_date[order(S_stages4)]), 
+    "Date prepared" = as.factor(Sl_prep[order(S_stages4)]), "Date sequenced" = as.factor(Sl_seq[order(S_stages4)]),
+    "FracMono" = Sl_FracMono_all[Samples_over5000][order(S_stages4)],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(AlleleFrac_bin_Sl[,Samples_over5000], name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)], "No cell" = S_No_cell3,
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000],
+    "Total spike-ins" = Spike_ins_total[Samples_over5000],
+    "XGEN" = as.factor(S_xgen), "Date collected" = as.factor(Sl_date), "Date prepared" = as.factor(Sl_prep), 
+    "Date sequenced" = as.factor(Sl_seq), "FracMono" = Sl_FracMono_all[Samples_over5000],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+S_hmat2 = S2d[rank(-S_fano[rownames(S2d)]) <= 500,Samples_over5000]
+
+Heatmap(S_minmax(S_hmat2[,order(S_stages4)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000][,order(S_stages4)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)][order(S_stages4)], "No cell" = S_No_cell3[order(S_stages4)],
+    "XGEN" = as.factor(S_xgen[order(S_stages4)]), "Date collected" = as.factor(Sl_date[order(S_stages4)]), "Date prepared" = as.factor(Sl_prep[order(S_stages4)]), "Date sequenced" = as.factor(Sl_seq[order(S_stages4)]), 
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(S_minmax(S_hmat2), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)], "No cell" = S_No_cell3, 
+    "XGEN" = as.factor(S_xgen), "Date collected" = as.factor(Sl_date), "Date prepared" = as.factor(Sl_prep), "Date sequenced" = as.factor(Sl_seq),
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+###
+which(colSums(D_Sl[,colnames(AlleleFrac3_bin_Sl)]) <10000)
+plot(AlleleFrac_bin_Sl[,'S14-25_1s'], cex=3, pch=20)
+
+Samples_over10000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 10000])
+
+svg('Sl_AlleleFrac_over_10000.svg', width = 18, height = 8)
+Heatmap(AlleleFrac2_bin_Sl, name='Allele Fraction 
+(> 10,000 UMIs)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over10000]),10), 
+    "No cell" = Sl_meta$No_cell_well[which(colnames(D_Sl_chr) %in% Samples_over10000)],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over10000],
+    "Total spike-ins" = Spike_ins_total[Samples_over10000],
+    col = list("No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, show_row_names = FALSE, show_column_names = TRUE)
+dev.off()
+
+#The intense blue bar across all samples is from a 28S ribosomal RNA. Strange that it is coming from genome 2, since that should be pimpinellifolium
+summary(g1_Sl['ID=gene-LOC138347817',])
+summary(g2_Sl['ID=gene-LOC138347817',])
+
+AlleleFrac4_bin_Sl = AlleleFrac_bin_Sl[,which(colSums(D_Sl_chr) >= 5000)] 
+AlleleFrac5_bin_Sl = as.data.frame(AlleleFrac4_bin_Sl) %>% select(-c(No_cell[which(No_cell %in% colnames(AlleleFrac4_bin_Sl))]))
+Heatmap(AlleleFrac5_bin_Sl, cluster_rows=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Samples_5000_to_10000 = names(which(colSums(D_Sl_chr[,colnames(AlleleFrac4_bin_Sl)]) <10000))
+
+svg('Sl_AlleleFrac_5000-10000.svg', width = 13, height = 8)
+Heatmap(AlleleFrac_bin_Sl[,Samples_5000_to_10000], name='Allele Fraction 
+(5,000-10,000 UMIs)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_5000_to_10000]),10), 
+    "No cell" = Sl_meta$No_cell_well[which(colnames(D_Sl_chr) %in% Samples_5000_to_10000)],
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_5000_to_10000],
+    "Total spike-ins" = Spike_ins_total[Samples_5000_to_10000],
+    col = list("No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, show_row_names = FALSE, show_column_names = TRUE)
+dev.off()
+
+No_cell2 = names(which(colSums(is.na(AlleleFrac_bin_Sl[,No_cell])) < 834))
+
+Heatmap(AlleleFrac_bin_Sl[,No_cell2], name='Allele Fraction 
+(No cell)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,No_cell2]),10), 
+    "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[No_cell2],
+    "Total spike-ins" = Spike_ins_total[No_cell2]),
+      col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, show_row_names = FALSE, show_column_names = TRUE)
+
+Sl_plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Sl_genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+plotChr3 = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac_bin_Sl[, cell], Chr = floor(as.numeric(rownames(AlleleFrac_bin_Sl))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac_bin_Sl))%%10^6) + 
+            0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+plotChr2 = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac[, cell], Chr = Sl_genes[,1], 
+        Position = Sl_genes[,2]/10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(genes[,2])/10^6 + pad, 
+        ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell4 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr3(cell, chr = 1), plotChr3(cell, 
+        chr = 2), plotChr3(cell, chr = 3), plotChr3(cell, chr = 4), 
+        plotChr3(cell, chr = 5), plotChr3(cell, chr = 6), plotChr3(cell, 
+            chr = 7), plotChr3(cell, chr = 8), plotChr3(cell, chr = 9), 
+        plotChr3(cell, chr = 10), plotChr3(cell, chr = 11), plotChr3(cell, 
+            chr = 12), Sl_plotScaleBar, ncol = 1, nrow = 13, align = "v", 
+        heights = c(rep(1, 12), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+
+plotCell5 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr3(cell, chr = 1), plotChr3(cell, 
+        chr = 2), plotChr3(cell, chr = 3), plotChr3(cell, chr = 4), 
+        plotChr3(cell, chr = 5), Sl_plotScaleBar, ncol = 1, nrow = 6, align = "v", 
+        heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+
+
+
+svg('Sl_FracMono_hist.svg', width=3.5, height=4)
+hist(FracMono3, xlab = '% of genes with monoallelic expression', ylab = '# of samples', main = 'Monoallelic expression in 
+Tomato pollen precursors')
+dev.off()
+
+svg('Sl_AlleleFrac_hist.svg', width=3.5, height=4)
+hist(as.matrix(AlleleFrac3), xlab = 'Fraction of transcripts
+from lycopersicum allele', ylab = '# of genes', main = 'All samples')
+dev.off()
+
+
+svg('Sl_example_chr_plots.svg', width = 15, height = 5)
+ggarrange(plotCell5('S26-37_62s'), plotCell5('S80-91_1s'), plotCell5('S1-8_32s'), plotCell5('S26-37_42s'), plotCell5('S104-115_10s'), plotCell5('S116-127_86s'), ncol = 6, align = 'v')
+dev.off()
+
+
+
+#Figuring out size distributions of buds and anthers for each stage
+te = which(Sl_Stages$Stage == 'tetrad')
+um = which(Sl_Stages$Stage == 'UM')
+um_bm = which(Sl_Stages$Stage == 'UM/BM')
+bm = which(Sl_Stages$Stage == 'BM')
+bm_shed = which(Sl_Stages$Stage == 'BM_shed')
+
+summary(Sl_Stages$'Bud_size_(mm)'[te])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    5.0     5.0     5.5     5.5     6.0     6.0
+summary(Sl_Stages$'Bud_size_(mm)'[um])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  6.000   7.000   7.500   7.541   8.000   9.000
+summary(Sl_Stages$'Bud_size_(mm)'[um_bm])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  7.000   8.000   8.000   8.000   8.375   8.500
+summary(Sl_Stages$'Bud_size_(mm)'[bm])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  8.000   9.000   9.700   9.548  10.000  10.000
+summary(Sl_Stages$'Bud_size_(mm)'[bm_shed])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  10.00   10.00   10.00   10.64   10.00   17.00
+
+
+summary(Sl_Stages$'Anther_length_(mm)'[te])     
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+    2.5     2.5     2.6     2.7     2.9     3.0 
+summary(Sl_Stages$'Anther_length_(mm)'[um])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  3.300   4.000   4.500   4.703   5.300   6.400
+summary(Sl_Stages$'Anther_length_(mm)'[um_bm])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  5.200   5.350   5.900   5.883   6.450   6.500 
+summary(Sl_Stages$'Anther_length_(mm)'[bm])   
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  5.900   7.000   7.500   7.426   7.900   8.000
+summary(Sl_Stages$'Anther_length_(mm)'[bm_shed])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+  7.100   7.500   7.800   7.718   8.000   8.000
+
+
+#Subsetting the data to only include anthers with no cell controls passing > 2,000 UMIs cutoff
+rownames(Sl_meta2) = Sl_meta2$Sample
+Samples_over2000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 2000])
+S_No_cell_2000 = Samples_over2000[which(Sl_meta2[Samples_over2000,11] == 'Y')]
+S_buds2use = Sl_meta2$Bud_order[which(Sl_meta2$Sample %in% S_No_cell_2000)]
+S_samps2use = Sl_meta2$Sample[which(Sl_meta2$Bud_order %in% S_buds2use)]
+S_samps2use = S_samps2use[which(S_samps2use %in% Samples_over2000)]
+
+S_buds2use2 = as.numeric(names(which(table(Sl_meta2$Bud_order[which(Sl_meta2$Sample %in% S_samps2use)]) > 3)))
+S_samps2use2 = Sl_meta2$Sample[which(Sl_meta2$Bud_order %in% S_buds2use2)]
+S_samps2use2 = S_samps2use2[which(S_samps2use2 %in% Samples_over2000)]
+S_samps2use3 = S_samps2use2[-which(S_samps2use2 %in% S_No_cell_2000)]
+S_No_cell2use = S_samps2use2[-which(S_samps2use2 %in% S_samps2use3)]
+
+#take the mean of the samples from the associated anther data
+D_Sl_means = matrix(data = NA, nrow = length(rownames(D_Sl_chr)), ncol = length(S_buds2use2))
+rownames(D_Sl_means) = rownames(D_Sl_chr)
+colnames(D_Sl_means) = S_buds2use2
+for (x in 1:length(S_buds2use2)){
+    y = S_buds2use2[x]
+    D_Sl_means[,x] = rowMeans(D_Sl_chr[,Sl_meta2$Sample[Sl_meta2$Bud_order %in% y][which(Sl_meta2$Sample[which(Sl_meta2$Bud_order %in% y)] %in% S_samps2use3)]])
+}
+
+
+D_Sl_No_cell2use = D_Sl_chr[,S_No_cell2use]
+colnames(D_Sl_No_cell2use) = as.character(as.numeric(colnames(D_Sl_means)) + 0.1)
+
+colord = seq(from=1, to=82, by=41)
+for (x in 2:41){
+    colord = append(colord, seq(from=x, to=82, by=41))
+}
+
+colord = seq(from=1, to=12, by=6)
+for (x in 2:6){
+    colord = append(colord, seq(from=x, to=12, by=6))
+}
+
+D_Sl_means_nc = cbind(D_Sl_means, D_Sl_No_cell2use)
+D_Sl_means_nc = D_Sl_means_nc[,colord]
+
+
+S_pseudocount2 = 1*10^6/quantile(colSums(D_Sl_means_nc), p = .1)
+S20 = sweep(D_Sl_means_nc, 2, colSums(D_Sl_means_nc), '/')*10^6  # Transcripts per million normalization
+S20b = log(S20+S_pseudocount2,10)  # Log transform
+
+S20d = S20b[rowSums(D_Sl_means_nc[,colnames(S20b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+S_fano2 = apply(S20d, 1, var)/rowMeans(S20d)  # fano factor is a measure of gene variance
+S_hmat = S20d[rank(-S_fano2[rownames(S20d)]) <= 500,]
+S_minmax2 = function(x) {
+	sweep(x - log(S_pseudocount2, 10), 1, apply(x - log(S_pseudocount2, 10), 1, max), '/')
+}
+
+
+S21 = S20b[rowSums(D_Sl_chr > 0) >= 20,]
+S21 = S21[rank(-apply(S21,1,sd)) <= 1000,]
+
+Sl_stages_nc = c(Sl_Stages$Stage[S_buds2use2],Sl_Stages$Stage[S_buds2use2])[colord]
+Sl_stages_nc = factor(Sl_stages_nc, levels = c('tetrad','UM', 'UM/BM', 'BM', 'BM_shed'))
+
+pair = c(1:41, 1:41)[colord]
+pair = c(1:6, 1:6)[colord]
+
+Sl_Dates = c(Sl_Stages$Date_collected[S_buds2use2], Sl_Stages$Date_collected[S_buds2use2])[colord]
+xgen = c(Sl_Stages$Xgen_primer[S_buds2use2], Sl_Stages$Xgen_primer[S_buds2use2])[colord]
+prep = c(Sl_Stages$Prep_day[S_buds2use2], Sl_Stages$Prep_day[S_buds2use2])[colord]
+seq = c(Sl_Stages$Seq_day[S_buds2use2], Sl_Stages$Seq_day[S_buds2use2])[colord]
+nc_anot = c(rep("N", 41), rep("Y", 41))[colord]
+nc_anot = c(rep("N", 6), rep("Y", 6))[colord]
+
+Heatmap(cor(S21, use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_means_nc),10), 
+    Stage = Sl_stages_nc, Pair = as.factor(pair), "Date collected" = as.factor(Sl_Dates), 
+    XGEN = as.factor(xgen), "Date prepped" = as.factor(prep), "Date sequenced" = as.factor(seq),
+    "No cell" = nc_anot,
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+Heatmap(cor(S21[,order(Sl_stages_nc)], use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_means_nc),10)[order(Sl_stages_nc)], 
+    Stage = Sl_stages_nc[order(Sl_stages_nc)], Pair = as.factor(pair)[order(Sl_stages_nc)], "Date collected" = as.factor(Sl_Dates)[order(Sl_stages_nc)], 
+    XGEN = as.factor(xgen)[order(Sl_stages_nc)], "Date prepped" = as.factor(prep)[order(Sl_stages_nc)], "Date sequenced" = as.factor(seq)[order(Sl_stages_nc)],
+    "No cell" = nc_anot[order(Sl_stages_nc)],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+S_hmat2 = S2d[rank(-S_fano[rownames(S2d)]) <= 500,Samples_over5000]
+
+Heatmap(S_minmax(S_hmat2[,order(S_stages4)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000][,order(S_stages4)]),10), 
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)][order(S_stages4)], "No cell" = S_No_cell3[order(S_stages4)], 
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#999999", "BM" = "#666666", "BM_shed" = "#333333"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+

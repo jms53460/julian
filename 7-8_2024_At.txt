@@ -1481,3 +1481,8 @@ length(which(X7_8_2024_At_Stages$Stage == "UM"))
 
 
 scp sapelo2:/scratch/jms53460/7-8_2024_At/Raw_Data/* 'D:\7-8_2024_At_Data'
+
+write.csv(At_Stages, "At_meta2.csv")
+#edited in excel, saved as At_meta2.xlsx
+At_meta2 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta2.xlsx")
+rownames(At_meta2) = At_meta2$Sample
