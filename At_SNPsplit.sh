@@ -5,12 +5,12 @@
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=50gb                                                                  # Total memory for job
 #SBATCH --time=6:00:00                                                              # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/12_2024_At/At_SNPsplit.out                       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/12_2024_At/At_SNPsplit.err                        # Location of error log file
+#SBATCH --output=/scratch/jms53460/2_2025_At/At_SNPsplit.out                       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/2_2025_At/At_SNPsplit.err                        # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/12_2024_At/
+cd /scratch/jms53460/2_2025_At/
 mkdir At_SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
