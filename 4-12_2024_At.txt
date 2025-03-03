@@ -165,10 +165,21 @@ minmax = function(x) {
 	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
 }
 
+
 Heatmap(minmax(hmat[,order(stages2)]), name = 'expression
 level (TPM)', 
     top_annotation = HeatmapAnnotation(FracMono = FracMono[order(stages2)], UMIcounts = log(colSums(D[,colnames(AlleleFrac2)][,order(stages2)]),10), 
     Stage = At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][order(stages2)], "No cell" = No_cell2[order(stages2)], "Yellow" = Yellow2[order(stages2)],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Yellow" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+svg('4-12_2024_At_gene_heatmap.svg', width=10, height=10)
+Heatmap(minmax(hmat[,order(stages2)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono[order(stages2)], UMIcounts = log(colSums(D[,colnames(AlleleFrac2)][,order(stages2)]),10), 
+    Stage = At_meta$Stage[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))][order(stages2)], "No cell" = No_cell2[order(stages2)],
     col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), 
     "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Yellow" = c("Y" = "#111111", "N" = "#eeeeee"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)

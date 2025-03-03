@@ -1739,3 +1739,11 @@ Heatmap(AlleleFrac2, cluster_rows=F)
 #59 Tri samples >= 10,000 UMIs
 
 scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/Raw_Data/* 'D:\4_2024_At_Data'
+
+
+
+cp -r /home/jms53460/Ler_0_N-masked /scratch/jms53460/4_2024_At_Spike_ins/
+cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/4_2024_At_Spike_ins/
+cp /home/jms53460/Ler_SNPs.tab /scratch/jms53460/4_2024_At_Spike_ins/
+cp /home/jms53460/TAIR10.1_Col_5.gff /scratch/jms53460/4_2024_At_Spike_ins/
+
