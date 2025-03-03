@@ -695,3 +695,70 @@ dev.off()
 svg('7-8_2024_At_example_chr_plots.svg', width = 15, height = 6)
 ggarrange(plotCell2('A194-205_44s'), plotCell2('A194-205_86s'), plotCell2('A182-193_60s'), plotCell2('A218-229_19s'), plotCell2('A242-253_61s'), plotCell2('A230-241_90s'), ncol = 6, align = 'v')
 dev.off()
+
+
+
+
+library(readxl)
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages.xlsx")
+At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta.xlsx")
+rownames(At_meta) = At_meta$Sample
+
+stages = as.character(At_meta$Stage)
+stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri'))
+
+At_meta_stageblind = At_meta[,c(1:7,9:12)]
+rownames(At_meta_stageblind) = At_meta_stageblind$Sample
+No_cell = At_meta_stageblind$Sample[which(At_meta_stageblind$No_cell_well == 'Y')]
+Yellow = At_meta_stageblind$Sample[which(At_meta_stageblind$Yellow == 'Y')]
+
+#can reduce time fixation, can wash with ethanol and collect in ethanol, would stop at RNA tapestation elute in less, pool 8, 85% etoh wash x2 3-5 min per wash
+look up glass disposal, can email chemical safety cc Brad
+
+At_meta_12 = At_meta[161:352,]
+
+D_12 = D_12[,At_meta_12$Sample]
+g1_12 = g1_12[,At_meta_12$Sample]
+g2_12 = g2_12[,At_meta_12$Sample]
+
+
+BIN5 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_12)))
+    colnames(out2) = colnames(g1_12)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin_12 = BIN5(g1_12)
+g2_bin_12 = BIN5(g2_12)
+AlleleFrac_bin_12 = g1_bin_12/(g1_bin_12 + g2_bin_12)
+AlleleFrac_bin_12[(g1_bin_12+g2_bin_12) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse_12 = which(abs(rowMeans(AlleleFrac_bin_12, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin_12[-binUse_12,] = NA
+FracMono_all_12 = 100*colMeans(abs(AlleleFrac_bin_12 - .5) >= .3, na.rm=T)
+FracMono_all_12[which(colSums(!is.na(AlleleFrac_bin_12)) < 10)] = NA
+
+
+At_nc = rep(which(At_meta_12$No_cell_well == "Y"), times=8)
+At_nc = At_nc[order(At_nc)]
+At_nc2 = c(rep(NA, times=32), At_nc)
+At_minus_nc = log(colSums(D_12) - (colSums(D_12[,At_nc2])))
+At_minus_nc[which(At_meta_12$No_cell_well =="Y")] = NA
+
+svg('At_Allele_bin_hm.svg', width=20, height=12)
+Heatmap(AlleleFrac_bin_12, name = 'At AlleleFrac',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_12),10), "Sample-NC" = At_minus_nc,
+    "No cell" = At_meta_12$No_cell_well, "FracMono" = FracMono_all_12, "Over 5,000 UMIs" = colSums(D_12) > 5000,
+    "Anther" = as.factor(At_meta_12$Bud), "Stage" = At_meta_12$Stage,
+    col = list(Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#aaaaaa", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Fresh or Fixed" = c("Fresh" = "green3", "Fixed" = "yellow3"), 
+    "Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+dev.off()
+

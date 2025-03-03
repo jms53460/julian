@@ -268,16 +268,18 @@ dev.off()
 
 
 ###
-Samples_over5000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 5000])
+Samples_over5000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 0])
+
 S5 = S2b[rowSums(S2[,Samples_over5000] > 0) >= 20,Samples_over5000]
 S5 = S5[rank(-apply(S5,1,sd)) <= 1000,]
 S_PCs3 = prcomp(t(S5))
 
 S_ords3 = order(S_PCs3$x[,1])
+
 S_No_cell3 = Sl_meta$No_cell_well[which(colnames(D_Sl_chr) %in% Samples_over5000)]
 
 hist(colMeans(!is.na(AlleleFrac_bin_Sl[rowMeans(!is.na(AlleleFrac_bin_Sl)) >= .1,colSums(D_Sl) >= 2000])), breaks=40)
-colMeans(!is.na(AlleleFrac_bin_Sl[rowMeans(!is.na(AlleleFrac_bin_Sl)) >= .1,colSums(D_Sl) >= 2000])) > 0.2
+colMeans(!is.na(AlleleFrac_bin_Sl[rowMeans(!is.na(AlleleFrac_bin_Sl)) >= .1,])) > 0.2
 
 cor of allelic fraction, also try making binomial allelic fraction (0.4 = 0, 0.6 = 1)
 
@@ -323,7 +325,13 @@ AlleleFrac_bin_Sl[(g1_bin_Sl+g2_bin_Sl) < 10] = NA #remove bins with <10 genoinf
 Sl_binUse = which(abs(rowMeans(AlleleFrac_bin_Sl, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
 AlleleFrac_bin_Sl[-Sl_binUse,] = NA
 Sl_FracMono_all = 100*colMeans(abs(AlleleFrac_bin_Sl - .5) >= .3, na.rm=T)
+Sl_FracMono_all[which(colSums(!is.na(AlleleFrac_bin_Sl)) < 10)] = NA
 
+Samples_over5000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 0])
+
+Samples_over5000 = colnames(AlleleFrac_bin_Sl[,which(colSums(is.na(AlleleFrac_bin_Sl)) < 830)])
+
+S_No_cell3 = Sl_meta$No_cell_well[which(colnames(D_Sl_chr) %in% Samples_over5000)]
 
 S_stages4 = as.character(Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)])
 S_stages4 = factor(S_stages4, levels = c('tetrad', 'UM', 'UM/BM', 'BM', 'BM_shed'))
@@ -369,7 +377,7 @@ Heatmap(AlleleFrac_bin_Sl[,colnames(S5[,order(S_stages4)])], name = 'AlleleFrac'
     "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 
-Heatmap(AlleleFrac_bin_Sl[,Samples_over5000], name = 'cor', 
+Heatmap(AlleleFrac_bin_Sl[,Samples_over5000], name = 'AlleleFrac', 
     top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000]),10), 
     Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)], "No cell" = S_No_cell3,
     "Fraction correct spike-ins" = Spike_ins_Sl_frac_correct[Samples_over5000],
@@ -379,6 +387,40 @@ Heatmap(AlleleFrac_bin_Sl[,Samples_over5000], name = 'cor',
     col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
     "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+Sl_nc = rep(which(S_No_cell3 == "Y"), times=8)
+Sl_nc = Sl_nc[order(Sl_nc)]
+Sl_nc2 = c(rep(NA, times=32), Sl_nc)
+Sl_minus_nc = log(colSums(D_Sl_chr) - (colSums(D_Sl_chr[,Sl_nc2])))
+Sl_minus_nc[which(S_No_cell3 =="Y")] = NA
+
+svg('Sl_Allele_bin_hm.svg', width=40, height=25)
+Heatmap(AlleleFrac_bin_Sl[which(rowSums(is.na(AlleleFrac_bin_Sl)) < 750),Samples_over5000], name = 'Sl_AlleleFrac', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000]),10), "Sample-NC" = Sl_minus_nc[Samples_over5000],
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)], "Over 5,000 UMIs" = colSums(D_Sl_chr[,Samples_over5000]) > 5000,
+    "No cell" = S_No_cell3, "Anther" = as.factor(Sl_meta2$Bud[which(colnames(D_Sl_chr) %in% Samples_over5000)]),
+    "XGEN" = as.factor(S_xgen), "FracMono" = Sl_FracMono_all[Samples_over5000],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, 
+    show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+svg('Sl_Allele_cor.svg', width=12, height=10)
+Heatmap(cor(AlleleFrac_bin_Sl[which(rowSums(is.na(AlleleFrac_bin_Sl)) < 750),Samples_over5000], use = 'pairwise.complete.obs', method = 'pearson'), name = 'Sl_AlleleFrac', 
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_Sl_chr[,Samples_over5000]),10), "Sample-NC" = Sl_minus_nc[Samples_over5000],
+    Stage = Sl_meta2$Stage[which(colnames(D_Sl_chr) %in% Samples_over5000)], "Over 5,000 UMIs" = colSums(D_Sl_chr[,Samples_over5000]) > 5000,
+    "No cell" = S_No_cell3,
+    "XGEN" = as.factor(S_xgen), "FracMono" = Sl_FracMono_all[Samples_over5000],
+    col = list(Stage = c("tetrad" = "#ffffff", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, 
+    show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
 
 
 S_hmat2 = S2d[rank(-S_fano[rownames(S2d)]) <= 500,Samples_over5000]

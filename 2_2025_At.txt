@@ -219,7 +219,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('L003_', '', sub('_SNPsplit.tsv', '', files))
+colnames(A) = sub('S1_L007_', '', sub('_SNPsplit.tsv', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -239,7 +239,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('L003_', '', sub('_SNPsplit_g1.tsv', '', files))
+colnames(A) = sub('S1_L007_', '', sub('_SNPsplit_g1.tsv', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -259,7 +259,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('L003_', '', sub('_SNPsplit_g2.tsv', '', files))
+colnames(A) = sub('S1_L007_', '', sub('_SNPsplit_g2.tsv', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -283,14 +283,83 @@ genes = genes[!duplicated(genes[,3]),]
 colnames(genes) = c('Chr', 'Position', 'Gene')
 rownames(genes) = genes[,3]
 
-D = D[rownames(genes),]
-g1 = g1[rownames(genes),]
-g2 = g2[rownames(genes),]
+D_2_2025 = D[rownames(genes),]
+g1_2_2025 = g1[rownames(genes),]
+g2_2_2025 = g2[rownames(genes),]
 
-save(D,g1,g2,genes, file = "12_2024_At.RData")
+save(D_2_2025,g1_2_2025,g2_2_2025,genes, file = "2_2025_At.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/12_2024_At/12_2024_At.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/2_2025_At/2_2025_At.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('2_2025_At.RData')
+
+library(readxl)
+At_Stages_2_2025 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages_2_2025.xlsx")
+
+At_meta_2_2025 <- At_Stages_2_2025[rep(row.names(At_Stages_2_2025), times = 8), ]
+library(tidyverse)
+At_meta_2_2025 = arrange(At_meta_2_2025, Bud_order)
+At_meta_2_2025$Sample = paste(rep('A311-316_', times = 96), 1:96, rep('s', times=96), sep='')
+write.csv(At_meta_2_2025, "At_meta_2_2025.csv")
+#edited in excel, saved as At_meta_2_2025.xlsx
+At_meta_2_2025 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta_2_2025.xlsx")
+rownames(At_meta_2_2025) = At_meta_2_2025$Sample
+
+D_2_2025 = D_2_2025[,At_meta_2_2025$Sample]
+g1_2_2025 = g1_2_2025[,At_meta_2_2025$Sample]
+g2_2_2025 = g2_2_2025[,At_meta_2_2025$Sample]
+
+
+BIN4 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_2_2025)))
+    colnames(out2) = colnames(g1_2_2025)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin_2_2025 = BIN4(g1_2_2025)
+g2_bin_2_2025 = BIN4(g2_2_2025)
+AlleleFrac_bin_2_2025 = g1_bin_2_2025/(g1_bin_2_2025 + g2_bin_2_2025)
+AlleleFrac_bin_2_2025[(g1_bin_2_2025+g2_bin_2_2025) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse_2_2025 = which(abs(rowMeans(AlleleFrac_bin_2_2025, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin_2_2025[-binUse_2_2025,] = NA
+FracMono_all_2_2025 = 100*colMeans(abs(AlleleFrac_bin_2_2025 - .5) >= .3, na.rm=T)
+
+FF_pairs = c(rep(1, times=16), rep(2, times=16), rep(3, times=16), rep(4, times=16), rep(5, times=16), rep(6, times=16))
+
+
+Heatmap(AlleleFrac_bin_2_2025, name = 'At AlleleFrac 
+2-2025',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D_2_2025),10), 
+    "No cell" = At_meta_2_2025$No_cell_well, "FracMono" = FracMono_all_2_2025, "Over 5,000 UMIs" = colSums(D_2_2025) > 5000,
+    "Over 2,000 UMIs" = colSums(D_2_2025) > 2000, "Bud size" = At_meta_2_2025$"Bud_size_(mm)",
+    "Fresh or Fixed" = At_meta_2_2025$Fixed_or_Fresh, "Matched anthers" = as.factor(FF_pairs),
+    col = list("No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Fresh or Fixed" = c("Fresh" = "green3", "Fixed" = "yellow3"), 
+    "Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"), "Over 2,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+
+
+#Fresh samples with >5,000 UMIs: 11 real, 1 no cell
+#Fixed samples with >5,000 UMIs: 2 real
+
+
+colSums(D_2_2025[,which(At_meta_2_2025$No_cell_well == "Y")])
+A311-316_6s A311-316_14s A311-316_21s A311-316_29s A311-316_36s A311-316_44s 
+         523          239          824          121         9018          108 
+A311-316_51s A311-316_59s A311-316_66s A311-316_74s A311-316_81s A311-316_89s
+         293           96          403          203          267          104
+
+
+
