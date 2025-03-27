@@ -1747,3 +1747,94 @@ cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/4_2024_At_Spike_ins/
 cp /home/jms53460/Ler_SNPs.tab /scratch/jms53460/4_2024_At_Spike_ins/
 cp /home/jms53460/TAIR10.1_Col_5.gff /scratch/jms53460/4_2024_At_Spike_ins/
 
+cd /scratch/jms53460/4_2024_At_Spike_ins/
+ml R/4.3.1-foss-2022a
+R
+annots = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=gene-', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('ID=', '', names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('S90_L003_', '', sub('S91_L003_', '', sub('S92_L003_', '', sub('S93_L003_', '', sub('_SNPsplit.tsv', '', files)))))
+A[is.na(A)] = 0
+col_use = c(paste(rep('At1_', times = 24), 1:24, rep('s', times=24), sep=''), paste(rep('At2_', times = 24), 25:48, rep('s', times=24), sep=''), paste(rep('At3_', times = 24), 49:72, rep('s', times=24), sep=''), paste(rep('At4_', times = 24), 73:96, rep('s', times=24), sep=''))
+A = A[,col_use]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('S90_L003_', '', sub('S91_L003_', '', sub('S92_L003_', '', sub('S93_L003_', '', sub('_SNPsplit_g1.tsv', '', files)))))
+A[is.na(A)] = 0
+A = A[,col_use]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('S90_L003_', '', sub('S91_L003_', '', sub('S92_L003_', '', sub('S93_L003_', '', sub('_SNPsplit_g2.tsv', '', files)))))
+A[is.na(A)] = 0
+A = A[,col_use]
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2 = B
+
+genes = read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes2 = genes[grepl('ID=gene-', genes[,3]),]
+genes = genes2[order(genes2[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+genes = genes[!duplicated(genes[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+
+save(D,g1,g2,genes, file = "4_2024_At_Spike_ins5.RData")
+q()
+
+scp sapelo2:/scratch/jms53460/4_2024_At_Spike_ins/4_2024_At_Spike_ins5.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'

@@ -88,6 +88,7 @@ plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(
 Sl_g1_gene_frac = g1_Sl/(g1_Sl+g2_Sl)
 Sl_AlleleFrac = Sl_g1_gene_frac
 Sl_AlleleFrac[(g1_Sl+g2_Sl) < 10] = NA #remove genes with <10 genoinformative transcripts
+
 Sl_AlleleFrac2 = Sl_AlleleFrac[,which(colSums(D_Sl_chr) >= 10000)] #99 samples have >= 10,000 UMIs
 
 library(ggplot2)
@@ -327,9 +328,12 @@ AlleleFrac_bin_Sl[-Sl_binUse,] = NA
 Sl_FracMono_all = 100*colMeans(abs(AlleleFrac_bin_Sl - .5) >= .3, na.rm=T)
 Sl_FracMono_all[which(colSums(!is.na(AlleleFrac_bin_Sl)) < 10)] = NA
 
-Samples_over5000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 0])
+Samples_over5000 = colnames(D_Sl_chr[,colSums(D_Sl_chr) > 10000])
 
-Samples_over5000 = colnames(AlleleFrac_bin_Sl[,which(colSums(is.na(AlleleFrac_bin_Sl)) < 830)])
+Sl_FracMono2 = Sl_FracMono_all[which(colnames(D_Sl_chr) %in% Samples_over5000)]
+
+
+#Samples_over5000 = colnames(AlleleFrac_bin_Sl[,which(colSums(is.na(AlleleFrac_bin_Sl)) < 830)])
 
 S_No_cell3 = Sl_meta$No_cell_well[which(colnames(D_Sl_chr) %in% Samples_over5000)]
 
@@ -714,3 +718,140 @@ level (TPM)',
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 
 
+######
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load('11_2024_Sl_2.RData')
+D_11_2024_2 = D
+g1_11_2024_2 = g1
+g2_11_2024_2 = g2
+
+load('12_2024_Sl_2.RData')
+M_2 = D[,1:32]
+M_g1_2 = g1[,1:32]
+M_g2_2 = g2[,1:32]
+D_12_2024_2 = D[,33:752]
+g1_12_2024_2 = g1[,33:752]
+g2_12_2024_2 = g2[,33:752]
+D = cbind(D_11_2024_2,D_12_2024_2)
+g1 = cbind(g1_11_2024_2,g1_12_2024_2)
+g2 = cbind(g2_11_2024_2,g2_12_2024_2)
+
+genes[,1] = sub('chr', '', genes[, 1])
+Sl_genes = genes
+
+
+library(readxl)
+Sl_Stages2 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages2.xlsx")
+
+Sl_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_meta.xlsx")
+rownames(Sl_meta) = Sl_meta$Sample
+
+stages = as.character(Sl_meta$Stage)
+stages = factor(stages, levels = c('tetrad','UM', 'UM/BM', 'BM', 'BM_shed'))
+
+D = D[,Sl_meta$Sample]
+g1 = g1[,Sl_meta$Sample]
+g2 = g2[,Sl_meta$Sample]
+
+D_Sl = D
+g1_Sl = g1
+g2_Sl = g2
+
+D_Sl_chr = D_Sl[1:41262,]
+D_Sl_org = D_Sl[41263:41476,]
+
+
+BIN2_Sl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes[, 1]) * 10^6 + round(Sl_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_Sl)))
+    colnames(out2) = colnames(g1_Sl)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin_Sl = BIN2_Sl(g1_Sl)
+g2_bin_Sl = BIN2_Sl(g2_Sl)
+g1_frac_Sl = g1_bin_Sl/(g1_bin_Sl + g2_bin_Sl)
+AlleleFrac_Sl = g1_frac_Sl
+AlleleFrac_Sl[(g1_bin_Sl+g2_bin_Sl) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse_Sl = which(abs(rowMeans(AlleleFrac_Sl, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_Sl[-binUse_Sl,] = NA
+AlleleFrac2_Sl = AlleleFrac_Sl[,which(colSums(D_Sl) >= 10000)] 
+FracMono_all_Sl = 100*colMeans(abs(AlleleFrac_Sl - .5) >= .3, na.rm=T)
+FracMono_all_Sl[which(colSums(!is.na(AlleleFrac_Sl)) < 10)] = NA
+
+FracMono2_Sl = FracMono_all_Sl[which(colnames(AlleleFrac_Sl) %in% colnames(AlleleFrac2_Sl))]
+
+
+pseudocount_Sl = 1*10^6/quantile(colSums(D_Sl), p = .1)
+A2_Sl = sweep(D_Sl, 2, colSums(D_Sl), '/')*10^6  # Transcripts per million normalization
+A2b_Sl = log(A2_Sl+pseudocount_Sl,10)  # Log transform
+
+stages2_Sl = as.character(Sl_meta$Stage[which(colnames(AlleleFrac_Sl) %in% colnames(AlleleFrac2_Sl))])
+stages2_Sl = factor(stages2_Sl, levels = c('tetrad', 'UM', 'UM/BM', 'BM', 'BM_shed'))
+No_cell2_Sl = Sl_meta$No_cell_well[which(colnames(AlleleFrac_Sl) %in% colnames(AlleleFrac2_Sl))]
+
+A2d_Sl = A2b_Sl[rowSums(D_Sl[,colnames(A2b_Sl)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+fano_Sl = apply(A2d_Sl, 1, var)/rowMeans(A2d_Sl)  # fano factor is a measure of gene variance
+hmat_Sl = A2d_Sl[rank(-fano_Sl[rownames(A2d_Sl)]) <= 500,colnames(AlleleFrac2_Sl)]
+minmax_Sl = function(x) {
+	sweep(x - log(pseudocount_Sl, 10), 1, apply(x - log(pseudocount_Sl, 10), 1, max), '/')
+}
+
+library(circlize)
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4, 5.3), c("white", "forestgreen"))
+
+svg('11-12_2024_Sl_gene_heatmap.svg', width=6, height=5)
+Heatmap(minmax_Sl(hmat_Sl[,order(stages2_Sl)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono2_Sl[order(stages2_Sl)], UMIcounts = log(colSums(D_Sl[,colnames(AlleleFrac2_Sl)][,order(stages2_Sl)]),10), 
+    Stage = Sl_meta$Stage[which(colnames(AlleleFrac_Sl) %in% colnames(AlleleFrac2_Sl))][order(stages2_Sl)], "No cell" = No_cell2_Sl[order(stages2_Sl)],
+    col = list(FracMono = FracMono_col, UMIcounts = UMI_col, Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#777777", "BM" = "#444444", "BM_shed" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+Sl_plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Sl_genes[,2])/10^6 + 10), breaks = seq(0,300,20)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+plotChr3 = function (cell, chr, pad = 10) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac_Sl[, cell], Chr = floor(as.numeric(rownames(AlleleFrac_Sl))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac_Sl))%%10^6) + 0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 1) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell_bin_Sl = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr3(cell, chr = 1), plotChr3(cell, 
+        chr = 2), plotChr3(cell, chr = 3), Sl_plotScaleBar, ncol = 1, nrow = 4, align = "v", 
+        heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+svg('Sl_3chr_plots.svg', width = 7, height = 3)
+ggarrange(plotCell_bin_Sl('S104-115_38s'), plotCell_bin_Sl('S104-115_10s'), plotCell_bin_Sl('S80-91_61s'), ncol = 3, align = 'v')
+dev.off()
+
+UM: S104-115_38s
+BM: S104-115_10s
+BM_shed: S80-91_61s
