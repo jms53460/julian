@@ -12,6 +12,7 @@
 
 cd /scratch/jms53460/3_2025_At/
 mkdir SRA_upload
+module load fastp/0.23.2-GCC-11.3.0
 
 for file in Raw_Data/*_R1_*.gz; do
     filename=$(basename "$file")
