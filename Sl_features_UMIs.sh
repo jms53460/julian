@@ -5,12 +5,12 @@
 #SBATCH --cpus-per-task=6                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
 #SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/2_2025_Sl/Features_UMIs.out            # Location of standard output file
-#SBATCH --error=/scratch/jms53460/2_2025_Sl/Features_UMIs.err             # Location of error log file
+#SBATCH --output=/scratch/jms53460/3_2025_Sl/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/3_2025_Sl/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/2_2025_Sl
+cd /scratch/jms53460/3_2025_Sl
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
