@@ -1,4 +1,3 @@
-
 #!/bin/bash
 #SBATCH --job-name=At_dm                                                  # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
