@@ -247,7 +247,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('S1_L007_', '', sub('_SNPsplit.tsv', '', files))
+colnames(A) = sub('S200_L004_', '', sub('S201_L004_', '', sub('_SNPsplit.tsv', '', files)))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -267,7 +267,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('S1_L007_', '', sub('_SNPsplit_g1.tsv', '', files))
+colnames(A) = sub('S200_L004_', '', sub('S201_L004_', '', sub('_SNPsplit_g1.tsv', '', files)))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -287,7 +287,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('S1_L007_', '', sub('_SNPsplit_g2.tsv', '', files))
+colnames(A) = sub('S200_L004_', '', sub('S201_L004_', '', sub('_SNPsplit_g2.tsv', '', files)))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -326,3 +326,130 @@ scp sapelo2:/scratch/jms53460/3_2025_At/3_2025_At.RData 'C:/Users/julia/OneDrive
 
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('3_2025_At.RData')
+
+library(readxl)
+At_Stages_3_2025 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages_3_2025.xlsx")
+
+At_meta_3_2025 <- At_Stages_3_2025[rep(row.names(At_Stages_3_2025), times = 8), ]
+library(tidyverse)
+At_meta_3_2025 = arrange(At_meta_3_2025, Bud_order)
+At_meta_3_2025$Sample = c(paste(rep('A326-331_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A333-338_', times = 96), 1:96, rep('s', times=96), sep=''))
+write.csv(At_meta_3_2025, "At_meta_3_2025.csv")
+#edited in excel, saved as At_meta_2_2025.xlsx
+At_meta_3_2025 <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta_3_2025.xlsx")
+rownames(At_meta_3_2025) = At_meta_3_2025$Sample
+
+D_3_2025 = D_3_2025[,At_meta_3_2025$Sample]
+g1_3_2025 = g1_3_2025[,At_meta_3_2025$Sample]
+g2_3_2025 = g2_3_2025[,At_meta_3_2025$Sample]
+
+D = D_3_2025
+g1 = g1_3_2025
+g2 = g2_3_2025
+
+
+BIN2 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN2(g1)
+g2_bin = BIN2(g2)
+g1_frac = g1_bin/(g1_bin + g2_bin)
+AlleleFrac = g1_frac
+AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(AlleleFrac, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac[-binUse,] = NA
+AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] 
+FracMono_all = 100*colMeans(abs(AlleleFrac - .5) >= .3, na.rm=T)
+FracMono_all[which(colSums(!is.na(AlleleFrac)) < 10)] = NA
+
+FracMono2 = FracMono_all[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))]
+
+
+library('ComplexHeatmap')
+Heatmap(AlleleFrac, show_row_names=F, cluster_rows=F, cluster_columns=F)
+
+Heatmap(AlleleFrac, name = 'At AlleleFrac 
+3-2025',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
+    "No cell" = At_meta_3_2025$No_cell_well, "FracMono" = FracMono_all, "Over 5,000 UMIs" = colSums(D) > 5000,
+    "Bud size" = At_meta_3_2025$"Bud_size_(mm)",
+    "Collection" = At_meta_3_2025$Fixed_or_Fresh,
+    col = list("No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Collection" = c("H2O" = "blue3", "Fixed_30" = "yellow3", "Trehalose" = "red3", "Trehalose_wash" = "pink"), 
+    "Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"), "Over 2,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+
+colSums(D[,which(At_meta_3_2025$No_cell_well == "Y")])
+ A326-331_1s  A326-331_2s A326-331_10s A326-331_11s A326-331_19s A326-331_20s 
+         658          503         1472         3840         6449         5303 
+A326-331_28s A326-331_29s A326-331_37s A326-331_38s A326-331_46s A326-331_47s 
+        7459         7624          725          415         1762         4143
+A326-331_49s A326-331_50s A326-331_58s A326-331_59s A326-331_67s A326-331_68s 
+         214          303          658          312          224          303 
+A326-331_76s A326-331_77s A326-331_85s A326-331_86s A326-331_94s A326-331_95s 
+         400          220          286          276         3083          362 
+ A333-338_1s  A333-338_8s  A333-338_9s A333-338_10s A333-338_18s A333-338_19s 
+         797          923         5150         6017         2526         5315
+A333-338_27s A333-338_28s A333-338_36s A333-338_37s A333-338_45s A333-338_46s
+        6361         5840         1489         1823        17711         3030 
+A333-338_49s A333-338_56s A333-338_57s A333-338_58s A333-338_66s A333-338_67s
+         513         1425         1642          160          460          434 
+A333-338_75s A333-338_76s A333-338_84s A333-338_85s A333-338_93s A333-338_94s
+         270          558          611          284          809          711
+
+summary(colSums(D[,which(At_meta_3_2025$Fixed_or_Fresh == "H2O")]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  176.0   626.5  2443.0  4455.8  5394.5 24982.0
+summary(colSums(D[,which(At_meta_3_2025$No_cell_well == "Y")])[1:12])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  415.0   708.2  2801.0  3362.8  5589.5  7624.0 
+
+summary(colSums(D[,which(At_meta_3_2025$Fixed_or_Fresh == "Fixed_30")]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   79.0   273.8   369.0   902.2   565.2  6917.0
+summary(colSums(D[,which(At_meta_3_2025$No_cell_well == "Y")])[13:24])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  214.0   263.0   303.0   553.4   371.5  3083.0
+
+summary(colSums(D[,which(At_meta_3_2025$Fixed_or_Fresh == "Trehalose")]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    203    1012    2468    4323    5446   17780
+summary(colSums(D[,which(At_meta_3_2025$No_cell_well == "Y")])[25:36])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    797    1740    4090    4748    5884   17711
+
+summary(colSums(D[,which(At_meta_3_2025$Fixed_or_Fresh == "Trehalose_wash")]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  160.0   369.0   607.5   818.5   900.0  2907.0
+summary(colSums(D[,which(At_meta_3_2025$No_cell_well == "Y")])[37:48])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  160.0   396.5   535.5   656.4   735.5  1642.0
+
+
+
+#Getting Reads per UMI Calculation from Summary Files 
+#on the cluster
+cd /scratch/jms53460/3_2025_At
+features = read.table('featurecounts/read_counts.tab.summary', header=T, sep = '\t', stringsAsFactors=F, row.names=1)
+colnames(features) = sub('At_SNPsplit.A326.331_S200_L004', 'A326-331', sub('At_SNPsplit.A333.338_S201_L004', 'A333-338', sub('_SNPsplit.bam', '', colnames(features))))
+At_3_2025_features = features
+save(At_3_2025_features, file = "3_2025_At_features.RData")
+
+#local computer powershell
+scp sapelo2:/scratch/jms53460/3_2025_At/3_2025_At_features.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+#local computer R
+load('3_2025_At_features.RData')
+At_3_2025_features = At_3_2025_features[,At_meta_3_2025$Sample]
+RperU = At_3_2025_features[1,]/colSums(D)
+plot(colSums(D),RperU)
+

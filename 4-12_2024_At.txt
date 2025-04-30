@@ -225,7 +225,7 @@ At_nc2 = c(rep(NA, times=960), At_nc)
 At_minus_nc = log(colSums(D) - (colSums(D[,At_nc2])))
 At_minus_nc[which(At_meta$No_cell_well =="Y")] = NA
 
-intermediates = names(FracMono_all[names(which(FracMono_all[names(which(FracMono_all > 10))] <= 30))])
+intermediates = names(FracMono_all[names(which(FracMono_all[names(which(FracMono_all > 0))] <= 20))])
 intermediates2 = which(colnames(D) %in% names(which(colSums(D[,intermediates]) > 5000)))
 
 
@@ -349,9 +349,9 @@ dev.off()
 
 
 Haplo = AlleleFrac2
-Haplo[Haplo >= 0.7] = TRUE
-Haplo[Haplo <= 0.3] = FALSE
-Haplo[Haplo < 0.7 & Haplo > 0.3] = NA
+Haplo[Haplo >= 0.7] = 1
+Haplo[Haplo <= 0.3] = 0
+Haplo[Haplo < 0.7 & Haplo > 0.3] = 0.5
 Heatmap(Haplo, cluster_rows=F, cluster_columns=F, show_column_names=F, show_row_names=F)
 
 XGEN = as.factor(At_meta$Xgen_primer[which(colnames(AlleleFrac) %in% colnames(AlleleFrac2))])
@@ -441,3 +441,91 @@ level (TPM)',
     "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Yellow" = c("Y" = "#111111", "N" = "#eeeeee"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 
+
+
+
+###
+cutoff = 0.2
+
+Good_samps_og = names(which(XGEN_cor <= cutoff))
+Good_samps = names(which(colSums(!is.na(Haplo[,Good_samps_og])) > 20))
+
+
+intermediates = names(FracMono_all[names(which(FracMono_all[names(which(FracMono_all >= 10))] <= 20))])
+intermediates2.0 = which(colnames(D) %in% names(which(colSums(D[,intermediates]) > 5000)))
+intermediates2 = intermediates2.0[which(colnames(D[,intermediates2.0]) %in% Good_samps)][141:171]
+
+
+FracMono_row = 100*rowMeans(abs(AlleleFrac[,intermediates2] - .5) >= .3, na.rm=T)
+FracMono_row[which(rowSums(!is.na(AlleleFrac[,intermediates2])) < 10)] = NA
+Frac_Most_common_row = abs(100*rowMeans(AlleleFrac[,intermediates2], na.rm=T) - 50) + 50
+Frac_Most_common_row[which(rowSums(!is.na(AlleleFrac[,intermediates2])) < 10)] = NA
+Bin_UMIcounts = log(rowSums(BIN2(D)[,intermediates2]),10)
+Bin_UMIcounts[which(Bin_UMIcounts == -Inf)] = NA
+Bin_UMI_col = colorRamp2(c(1.5, 4.8), c("white", "forestgreen"))
+
+Bin_genes = rowMeans(BIN2(D > 3)[,intermediates2])
+
+#svg('At_Allele_bin_hm.svg', width=20, height=12)
+Heatmap(AlleleFrac[,intermediates2], name = 'At AlleleFrac', right_annotation = rowAnnotation("FracMono row" = FracMono_row, "Frac_Most
+common_row" = Frac_Most_common_row, "Bin_UMIcounts" = Bin_UMIcounts, "Bin_genes>3" = Bin_genes, col = list("Bin_UMIcounts" = Bin_UMI_col)),
+    top_annotation = HeatmapAnnotation("UMIcounts" = log(colSums(D[,intermediates2]),10), "Sample-NC" = At_minus_nc[intermediates2],
+    "No cell" = At_meta$No_cell_well[intermediates2], "FracMono" = FracMono_all[intermediates2],
+    "Stage" = At_meta$Stage[intermediates2],
+    col = list(FracMono = FracMono_col, UMIcounts = UMI_col, Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#aaaaaa", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "Fresh or Fixed" = c("Fresh" = "green3", "Fixed" = "yellow3"), 
+    "Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+#dev.off()
+
+
+c(3,4,6,7,8,9,20,21,27,28,31,33)
+
+save(file = "4-12_At.Rda")
+save(D,g1,g2,genes, file = "4-12_At.RData")
+
+
+#download code and data from mouse single sperm RNAseq paper to get code for making haplotype calls
+ssh jms53460@xfer.gacrc.uga.edu
+cd /scratch/jms53460
+mkdir mouse_code_data
+cd mouse_code_data
+curl -s https://zenodo.org/records/4162383/files/ohana_gims_code_data.tar.gz?download=1 > mouse_code_data.tar.gz
+#gzip -d mouse_code_data.tar.gz
+tar xf mouse_code_data.tar.gz -C /scratch/jms53460/mouse_code_data
+
+
+
+#######################
+
+plotCellChr = function(cell, chr, maxs = 20) {
+	keeps = ((g1[,cell] + g2[,cell]) > 0) & (genes$Chr == chr)
+	g1a = g1[keeps,cell]
+	g1a[g1a > maxs] = maxs
+	g2a = g2[keeps,cell]
+	g2a[g2a > maxs] = maxs
+
+	plot(genes$Position[keeps], g1a, pch = 19, col = 'red', ylab = 'Counts', xlab = 'position', ylim = c(-maxs,maxs))
+	abline(h=0)
+	for (ii in which(keeps)) { lines(rep(genes$Position[ii], times=2), c(g1[ii,cell], -g2[ii,cell])) }
+	points(genes$Position[keeps], -g2a, pch = 19, col = 'blue')
+	points(genes$Position[keeps], g1a, pch = 19, col = 'red')
+}
+
+
+plotCellChr(cell = "A288-301_6s", 4)
+
+cell = "A288-301_6s"
+maxs = 20
+keeps = ((g1[,cell] + g2[,cell]) > 0) & (genes$Chr == 2)
+	g1a = g1[keeps,cell]
+	g1a[g1a > maxs] = maxs
+	g2a = g2[keeps,cell]
+	g2a[g2a > maxs] = maxs
+
+	plot(genes$Position[keeps], g1a, pch = 19, col = 'red', ylab = 'Counts', xlab = 'position', ylim = c(-maxs,maxs))
+	abline(h=0)
+	for (ii in which(keeps)) { lines(rep(genes$Position[ii], times=2), c(g1[ii,cell], -g2[ii,cell])) }
+	points(genes$Position[keeps], -g2a, pch = 19, col = 'blue')
+	points(genes$Position[keeps], g1a, pch = 19, col = 'red')
