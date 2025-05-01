@@ -515,6 +515,8 @@ plotCellChr = function(cell, chr, maxs = 20) {
 
 
 plotCellChr(cell = "A288-301_6s", 4)
+plotCellChr(cell = 'A230-241_1s', 2)
+
 
 cell = "A288-301_6s"
 maxs = 20
