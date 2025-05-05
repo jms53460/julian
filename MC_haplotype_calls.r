@@ -97,28 +97,15 @@ if more likely allele a -> make positive
 
 
 ##################################################
+chr = 4
+keeps = ((g1[,cell] + g2[,cell]) > 0) & (genes$Chr == chr)
+
+gA = g1[keeps,cell]
+gB = g2[keeps,cell]
+ScoreA = -pbinom(gB,gA+gB,0.5,log.p=T)
+ScoreB = -pbinom(gA,gA+gB,0.5,log.p=T)
+
+plot(diff(sign(gA-gB)))
 
 
 
-
-avgs = cbind(avgs, avg)
-}
-
-plot(rowMeans(avgs),type='l', lwd = 2, yaxs='i')
-abline(v=30.5,lty=2, lwd=2)
-abline(v=45.5,lty=2, lwd=2)
-abline(h=.5)
-
-
-
-
-H1 = sample(0:1)
-for (i in 2:100) {
-	H1 = c(H1, 
-
-
-
-
-
-
-#####################################
