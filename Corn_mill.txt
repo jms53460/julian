@@ -178,6 +178,9 @@ samtools view SNPsplit/SP1_S3_L007_SNPsplit.bam | awk -F" " '{split($1, a, "_");
 
 cd /scratch/jms53460/Corn_mill
 
+module load UMI-tools/1.1.2-foss-2022a-Python-3.10.4
+module load SAMtools/1.16.1-GCC-11.3.0
+
 for file in "SNPsplit/"*SNPsplit.bam
 do
     file2="${file:9:-13}
