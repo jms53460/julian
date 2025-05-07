@@ -19,6 +19,7 @@ for file in "SNPsplit/"*SNPsplit.bam
 do
     file2="${file:9:-13}"
 
+    samtools index SNPsplit/"$file2""_SNPsplit.bam"
     umi_tools group -I SNPsplit/"$file2""_SNPsplit.bam" --paired --chimeric-pairs discard --unpaired-reads discard --output-bam -S dedup/"$file2"".Dedup.bam"
     samtools view -f 64 -F 4 dedup/"$file2"".Dedup.bam" | awk -F" " '{split($1, a, "_"); split($21, b, ":"); print $3, $4, $8, $9, substr(a[2],1,6), substr(a[3],1,8), $5, length($10),substr(a[4],1,10), substr(a[4],11,11), substr(b[3],1,2)}' > txtfiles/"$file2"".allele_flagged.txt"
 
