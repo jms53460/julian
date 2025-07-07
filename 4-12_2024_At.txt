@@ -564,3 +564,56 @@ names(which(abs(rowMeans(g1[keeps2,])/(rowMeans(g1[keeps2,])+rowMeans(g2[keeps2,
     g1c = g1[keeps3,cell]
     g2c = g2[keeps3,cell]
 #lines(genes[keeps3,2], ((g1c/(g1c + g2c))*40)-20, col='purple2', lty='dashed')
+
+
+
+
+ratio = g1/(g1+g2)
+ratio[(g1+g2) < 5] = NA
+geneUse = which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+ratio[-geneUse,] = NA
+
+ratioHist = function(cell = NULL, vals = NULL) {
+	if (is.null(vals)) { vals = ratio[,paste(cell)] } 
+	gghistogram(data.frame(ratio = vals[geneUse]), x = 'ratio', fill = 'black', bins = 15) + theme(strip.background = element_blank(), strip.text.x = element_blank(), legend.position = 'none') + scale_y_continuous(expand = c(0,0)) + xlab('% transcripts 
+from Col-0 allele') + ylab('genes') + scale_x_continuous(breaks = seq(0,1,.1), labels=c('0', rep('',4), '50', rep('',4), '100')) }
+
+ratioHist('A194-205_76s')
+ratioHist('A242-253_13s')
+
+svg('At_pollen_hist.svg', width=2.2, height=2)
+ratioHist('A242-253_13s')
+dev.off()
+
+
+#loaded maize data and ran code up to where g1 and g2 are made
+
+ratio_Zm = g1/(g1+g2)
+ratio_Zm[(g1+g2) < 5] = NA
+geneUse_Zm = which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+ratio_Zm[-geneUse_Zm,] = NA
+
+ratioHist_Zm = function(cell = NULL, vals = NULL) {
+	if (is.null(vals)) { vals = ratio_Zm[,paste(cell)] } 
+	gghistogram(data.frame(ratio_Zm = vals[geneUse_Zm]), x = 'ratio_Zm', fill = 'black', bins = 15) + theme(strip.background = element_blank(), strip.text.x = element_blank(), legend.position = 'none') + scale_y_continuous(expand = c(0,0)) + xlab('% transcripts 
+from B73 allele') + ylab('genes') + scale_x_continuous(breaks = seq(0,1,.1), labels=c('0', rep('',4), '50', rep('',4), '100')) }
+
+ratioHist_Zm('Lane1_RPI6_90s_g1') #pollen
+ratioHist_Zm('Lane1_RPI5_13s_g1') #pollen mother cell
+
+#2.2 x 8 for nrow=4
+svg('Zm_At_Sl_pollen_hist.svg', width=9, height=2)
+ggarrange(ratioHist_Zm('Lane1_RPI5_13s_g1'), ratioHist_Zm('Lane1_RPI6_90s_g1'), ratioHist('A242-253_13s'), ratioHist_Sl('S14-25_10s'), ncol = 4, align = 'v')
+dev.off()
+
+
+
+for (x in 1:96){
+    print(x)
+    print(summary(colSums(D[,grep(paste('_', x, 's', sep=''), colnames(D))])))
+}
+
+by(colSums(D), sub('.+_','',colnames(D)), summary)
+
+save(D,g1,g2,genes, file = "4-12_At.RData")
+

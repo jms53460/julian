@@ -161,7 +161,7 @@ do
     
 done
 
-
+###check if SNPsplit needs paired end flag
 #Figuring out how best to change the awk command
 samtools view SNPsplit/SP1_S3_L007_SNPsplit.bam | awk -F" " '{split($1, a, "_"); split($21, b, ":"); print $3, $4, $8, $9, substr(a[2],1,6), substr(a[3],1,8), $5, length($10),substr(a[4],1,10), substr(a[4],11,11), substr(b[3],1,2)}' | head
 
