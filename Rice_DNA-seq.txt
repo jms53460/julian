@@ -11,10 +11,11 @@ get -r 30-1198875307
 exit
 
 mkdir /scratch/jms53460/Rice_DNA
-cp 30-1198875307/00_fastq/NRE*gz /scratch/jms53460/Rice_DNA/Raw_Data
+mkdir /scratch/jms53460/Rice_DNA/Raw_Data
+cp /work/bnlab/July_2025_Azenta/30-1198875307/00_fastq/NRE*gz /scratch/jms53460/Rice_DNA/Raw_Data
 
 mkdir /scratch/jms53460/Tobacco_DNA_7_2025
-cp 30-1198875307/00_fastq/NTE*gz /scratch/jms53460/Tobacco_DNA_7_2025
+cp /work/bnlab/July_2025_Azenta/30-1198875307/00_fastq/NTE*gz /scratch/jms53460/Tobacco_DNA_7_2025
 
 
 cd /scratch/jms53460/Rice_DNA
@@ -28,7 +29,7 @@ gzip -d Nipponbare.gtf.gz
 #SBATCH --partition=batch                                             # Partition (queue) name
 #SBATCH --ntasks=1                                                    # Single task job
 #SBATCH --cpus-per-task=6                                             # Number of cores per task
-#SBATCH --mem=50gb                                                    # Total memory for job
+#SBATCH --mem=200gb                                                    # Total memory for job
 #SBATCH --time=12:00:00                                               # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Rice_DNA/Rice_fh2.out              # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Rice_DNA/Rice_fh2.err               # Location of error log file
