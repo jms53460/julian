@@ -14,6 +14,5 @@ cd /scratch/jms53460/Rice_DNA
 module load SAMtools/1.16.1-GCC-11.3.0
 mkdir rmdup
 
-#This first collate command can be omitted if the file is already name ordered or collated:
-samtools rmdup -@ 6 hisat2_out/NRE1-2_s.bam rmdup/NRE1-2_rmdup.bam
+samtools rmdup hisat2_out/NRE1-2_s.bam rmdup/NRE1-2_rmdup.bam
 samtools index -@ 6 rmdup/NRE1-2_rmdup.bam
