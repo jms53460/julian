@@ -1,42 +1,39 @@
-#Checking Rice DNA-seq
+#Checking Tobacco DNA-seq July 2025
 
 ssh jms53460@xfer.gacrc.uga.edu
-mkdir /work/bnlab/July_2025_Azenta
 
-sftp jms53460_uga@sftp.genewiz.com 
-#Password: 4VOFc2xnTVtsUVKkCvbN
-
-get -r 30-1198875307
+mkdir /scratch/jms53460/Tobacco_DNA_7_2025
+cp /work/bnlab/July_2025_Azenta/30-1198875307/00_fastq/NTE*gz /scratch/jms53460/Tobacco_DNA_7_2025
 
 exit
 
-mkdir /scratch/jms53460/Rice_DNA
-mkdir /scratch/jms53460/Rice_DNA/Raw_Data
-cp /work/bnlab/July_2025_Azenta/30-1198875307/00_fastq/NRE*gz /scratch/jms53460/Rice_DNA/Raw_Data
+ssh sapelo2
+qlogin
 
 
-cd /scratch/jms53460/Rice_DNA
-curl https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/034/140/825/GCF_034140825.1_ASM3414082v1/GCF_034140825.1_ASM3414082v1_genomic.fna.gz > Nipponbare.fna.gz
-curl https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/034/140/825/GCF_034140825.1_ASM3414082v1/GCF_034140825.1_ASM3414082v1_genomic.gtf.gz > Nipponbare.gtf.gz
-gzip -d Nipponbare.fna.gz
-gzip -d Nipponbare.gtf.gz
+###Copying tobacco genome and hisat2 index
+cp /home/jms53460/nsyl.fa /scratch/jms53460/Tobacco_DNA_7_2025
+cp /home/jms53460/nsyl.gff3 /scratch/jms53460/Tobacco_DNA_7_2025
+
+
+
 
 #!/bin/bash
-#SBATCH --job-name=Rice_fastp_hisat2                                  # Job name
+#SBATCH --job-name=Ns_fastp_hisat2                                    # Job name
 #SBATCH --partition=batch                                             # Partition (queue) name
 #SBATCH --ntasks=1                                                    # Single task job
 #SBATCH --cpus-per-task=6                                             # Number of cores per task
-#SBATCH --mem=200gb                                                    # Total memory for job
-#SBATCH --time=12:00:00                                               # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_DNA/Rice_fh2.out              # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_DNA/Rice_fh2.err               # Location of error log file
+#SBATCH --mem=200gb                                                   # Total memory for job
+#SBATCH --time=24:00:00                                               # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Tobacco_DNA_7_2025/Ns_fh2.out      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNA_7_2025/Ns_fh2.err       # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                  # Where to send mail
 #SBATCH --mail-type=END,FAIL                                          # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/Rice_DNA
+cd /scratch/jms53460/Tobacco_DNA_7_2025
 
 ml HISAT2/3n-20201216-gompi-2022a
-hisat2-build Nipponbare.fna Nipponbare_index
+hisat2-build nsyl.fa nsyl_index
 
 mkdir hisat2_out
 for file in "Raw_Data/"*_R1_001.fastq.gz
@@ -47,31 +44,38 @@ do
 	fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "hisat2_out/""$file2""_R1_001.fastq.gz" -O "hisat2_out/""$file2""_R2_001.fastq.gz"
 
 	module load SAMtools/1.16.1-GCC-11.3.0
-	hisat2 -p 6 --dta -x Nipponbare_index -1 "hisat2_out/""$file2""_R1_001.fastq.gz" -2 "hisat2_out/""$file2""_R2_001.fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	hisat2 -p 6 --dta -x nsyl_index -1 "hisat2_out/""$file2""_R1_001.fastq.gz" -2 "hisat2_out/""$file2""_R2_001.fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
 	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
 done
 
 
 
 #!/bin/bash
-#SBATCH --job-name=Rice_DNA_vcf                                      # Job name
+#SBATCH --job-name=Ns_DNA_vcf                                      # Job name
 #SBATCH --partition=batch                                          # Partition (queue) name
 #SBATCH --ntasks=1                                                 # Single task job
 #SBATCH --cpus-per-task=6                                          # Number of cores per task
 #SBATCH --mem=200gb                                                # Total memory for job
 #SBATCH --time=24:00:00                                            # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_DNA/Rice_vcf.out           # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_DNA/Rice_vcf.err            # Location of error log file
+#SBATCH --output=/scratch/jms53460/Tobacco_DNA_7_2025/Ns_vcf.out   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Tobacco_DNA_7_2025/Ns_vcf.err    # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
 #SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/Rice_DNA
+cd /scratch/jms53460/Tobacco_DNA_7_2025
 module load SAMtools/1.16.1-GCC-11.3.0
-samtools index -@ 6 hisat2_out/NRE1-2_s.bam
-
 module load BCFtools/1.15.1-GCC-11.3.0
-bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Nipponbare.fna hisat2_out/NRE1-2_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > NRE1-2.vcf.gz
-bcftools index NRE1-2.vcf.gz
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+    samtools index -@ 6 hisat2_out/"$file2"_s.bam
+
+    bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Nipponbare.fna hisat2_out/"$file2"_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
+    bcftools index "$file2".vcf.gz
+    gzip -d "$file2".vcf.gz
+    bcftools view -i 'TYPE="snp"' "$file2".vcf > "$file2"_snps.vcf
+    bcftools view -i 'GT="het"' "$file2"_snps.vcf > "$file2"_het_snps.vcf
+done
 
 
 
@@ -200,6 +204,3 @@ mkdir rmdup
 samtools rmdup hisat2_out/NRE1-2_s.bam rmdup/NRE1-2_rmdup.bam
 samtools index -@ 6 rmdup/NRE1-2_rmdup.bam
 
-
-
-Read name = lh00172:488:22VKWGLT4:1:2253:23391:21549
