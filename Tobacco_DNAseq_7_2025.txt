@@ -70,7 +70,7 @@ do
 	file2="${file:9:-16}"
     samtools index -@ 6 hisat2_out/"$file2"_s.bam
 
-    bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Nipponbare.fna hisat2_out/"$file2"_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
+    bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f nsyl.fa hisat2_out/"$file2"_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
     bcftools index "$file2".vcf.gz
     gzip -d "$file2".vcf.gz
     bcftools view -i 'TYPE="snp"' "$file2".vcf > "$file2"_snps.vcf
