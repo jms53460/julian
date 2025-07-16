@@ -203,3 +203,57 @@ samtools index -@ 6 rmdup/NRE1-2_rmdup.bam
 
 
 Read name = lh00172:488:22VKWGLT4:1:2253:23391:21549
+
+
+
+sed 's/NC_089035.*/chr1/' Nipponbare.fna > Nipponbare_1.fna
+sed 's/NC_089036.*/chr2/' Nipponbare_1.fna > Nipponbare_2.fna
+sed 's/NC_089037.*/chr3/' Nipponbare_2.fna > Nipponbare_3.fna
+sed 's/NC_089038.*/chr4/' Nipponbare_3.fna > Nipponbare_4.fna
+sed 's/NC_089039.*/chr5/' Nipponbare_4.fna > Nipponbare_5.fna
+sed 's/NC_089040.*/chr6/' Nipponbare_5.fna > Nipponbare_6.fna
+sed 's/NC_089041.*/chr7/' Nipponbare_6.fna > Nipponbare_7.fna
+sed 's/NC_089042.*/chr8/' Nipponbare_7.fna > Nipponbare_8.fna
+sed 's/NC_089043.*/chr9/' Nipponbare_8.fna > Nipponbare_9.fna
+sed 's/NC_089044.*/chr10/' Nipponbare_9.fna > Nipponbare_10.fna
+sed 's/NC_089045.*/chr11/' Nipponbare_10.fna > Nipponbare_11.fna
+sed 's/NC_089046.*/chr12/' Nipponbare_11.fna > Nipponbare_12.fna
+
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Rice_nmask                                             # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                    # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_DNA/Rice_nmask.out                # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_DNA/Rice_nmask.err                 # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Rice_DNA
+ml BEDTools/2.30.0-GCC-12.2.0
+bedtools maskfasta -fi Nipponbare.fna -fo NRE1-2_N-masked.fa -bed NRE1-2_snps.vcf -fullHeader
+
+
+
+sed 's/NC_089035.*/chr1/' NRE1-2_N-masked.fa > NRE1-2_N-masked_1.fa
+sed 's/NC_089036.*/chr2/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089037.*/chr3/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089038.*/chr4/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089039.*/chr5/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089040.*/chr6/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089041.*/chr7/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089042.*/chr8/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089043.*/chr9/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089044.*/chr10/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089045.*/chr11/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089046.*/chr12/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+
+
+
+cp Sl_N-masked_genome.fa /home/jms53460
+cp Sl_SNPs.tab /home/jms53460

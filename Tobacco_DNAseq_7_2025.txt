@@ -79,128 +79,25 @@ done
 
 
 
-cd /scratch/jms53460/Rice_DNA
-zcat NRE1-2.vcf.gz | wc -l
-#1303210
+wc -l NTE7_snps.vcf
+#483240
+wc -l NTE7_het_snps.vcf
+#378530
 
-module load BCFtools/1.15.1-GCC-11.3.0
-zcat NRE1-2.vcf.gz | bcftools view -i 'TYPE="snp"' | wc -l
-#1182435
+wc -l NTE8_snps.vcf
+#492305
+wc -l NTE8_het_snps.vcf
+#389264
 
-gzip -d NRE1-2.vcf.gz
-bcftools view -i 'TYPE="snp"' NRE1-2.vcf > NRE1-2_snps.vcf
+wc -l NTE9_snps.vcf
+#447415
+wc -l NTE9_het_snps.vcf
+#356905
 
-bcftools view -i 'GT="het"' NRE1-2_snps.vcf > NRE1-2_het_snps.vcf
-wc -l NRE1-2_het_snps.vcf
-#573139
+#Not very promising, considering the genome is around 2Gb
 
-###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
-
-ml Miniconda3/23.5.2-0
-source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf NRE1-2_het_snps.vcf --out_tsv NRE1-2_vcf_table.tsv 
-conda deactivate
-
-
-###Selected columns from the vcf_table
-awk '{print $3,$1,$2,$6,$4,$5}' NRE1-2_vcf_table.tsv OFS="\t" > NRE1-2_snps.tsv
-wc -l NRE1-2_snps.tsv
-#573093
-
-grep "chromosome" Nipponbare.fna
->NC_089035.1 Oryza sativa Japonica Group chromosome 1, ASM3414082v1
->NC_089036.1 Oryza sativa Japonica Group chromosome 2, ASM3414082v1
->NC_089037.1 Oryza sativa Japonica Group chromosome 3, ASM3414082v1
->NC_089038.1 Oryza sativa Japonica Group chromosome 4, ASM3414082v1
->NC_089039.1 Oryza sativa Japonica Group chromosome 5, ASM3414082v1
->NC_089040.1 Oryza sativa Japonica Group chromosome 6, ASM3414082v1
->NC_089041.1 Oryza sativa Japonica Group chromosome 7, ASM3414082v1
->NC_089042.1 Oryza sativa Japonica Group chromosome 8, ASM3414082v1
->NC_089043.1 Oryza sativa Japonica Group chromosome 9, ASM3414082v1
->NC_089044.1 Oryza sativa Japonica Group chromosome 10, ASM3414082v1
->NC_089045.1 Oryza sativa Japonica Group chromosome 11, ASM3414082v1
->NC_089046.1 Oryza sativa Japonica Group chromosome 12, ASM3414082v1
-
-sed 's/NC_089035.1/chr1/' NRE1-2_snps.tsv > NRE1-2_snps_1.tsv
-sed 's/NC_089036.1/chr2/' NRE1-2_snps_1.tsv > NRE1-2_snps_2.tsv
-sed 's/NC_089037.1/chr3/' NRE1-2_snps_2.tsv > NRE1-2_snps_3.tsv
-sed 's/NC_089038.1/chr4/' NRE1-2_snps_3.tsv > NRE1-2_snps_4.tsv
-sed 's/NC_089039.1/chr5/' NRE1-2_snps_4.tsv > NRE1-2_snps_5.tsv
-sed 's/NC_089040.1/chr6/' NRE1-2_snps_5.tsv > NRE1-2_snps_6.tsv
-sed 's/NC_089041.1/chr7/' NRE1-2_snps_6.tsv > NRE1-2_snps_7.tsv
-sed 's/NC_089042.1/chr8/' NRE1-2_snps_7.tsv > NRE1-2_snps_8.tsv
-sed 's/NC_089043.1/chr9/' NRE1-2_snps_8.tsv > NRE1-2_snps_9.tsv
-sed 's/NC_089044.1/chr10/' NRE1-2_snps_9.tsv > NRE1-2_snps_10.tsv
-sed 's/NC_089045.1/chr11/' NRE1-2_snps_10.tsv > NRE1-2_snps_11.tsv
-sed 's/NC_089046.1/chr12/' NRE1-2_snps_11.tsv > NRE1-2_snps_12.tsv
-
-grep -i "chr" NRE1-2_snps_12.tsv > NRE1-2_snps2.tsv
-
-
-
-###Alter the table to match required SNP file format
-ml R/4.3.2-foss-2022b
-R
-snps <- read.csv("/scratch/jms53460/Rice_DNA/NRE1-2_snps2.tsv", sep="")
-SNPs = snps[,(1:4)]
-SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
-colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
-SNPs$"SNP value" = 1
-write.table(SNPs, file = 'NRE1-2_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
-q()
-
-wc -l NRE1-2_SNPs.tab
-#572954 ###This is less than I have for Arabidopsis (795403), although rice has a larger genome (~400 Mb vs At 120 Mb)
-
-ml BEDTools/2.31.1-GCC-13.3.0
-bedtools sort -i Nipponbare.gtf > Nipponbare_s.gtf
-
-
-
-#!/bin/bash
-#SBATCH --job-name=Rice_DNA_markdup                                # Job name
-#SBATCH --partition=batch                                          # Partition (queue) name
-#SBATCH --ntasks=1                                                 # Single task job
-#SBATCH --cpus-per-task=6                                          # Number of cores per task
-#SBATCH --mem=100gb                                                # Total memory for job
-#SBATCH --time=12:00:00                                            # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_DNA/Rice_markdup.out       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_DNA/Rice_markdup.err        # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
-#SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /scratch/jms53460/Rice_DNA
-module load SAMtools/1.16.1-GCC-11.3.0
-mkdir markdup
-
-#This first collate command can be omitted if the file is already name ordered or collated:
-samtools collate -@ 6 -o markdup/namecollate.bam hisat2_out/NRE1-2_s.bam
-#Add ms and MC tags for markdup to use later:
-samtools fixmate -@ 6 -m markdup/namecollate.bam markdup/fixmate.bam
-#Markdup needs position order:
-samtools sort -@ 6 -o markdup/positionsort.bam markdup/fixmate.bam
-#Finally mark duplicates:
-samtools markdup -@ 6 --duplicate-count markdup/positionsort.bam markdup/NRE1-2_markdup.bam
-samtools index -@ 6 markdup/NRE1-2_markdup.bam
-
-
-
-#!/bin/bash
-#SBATCH --job-name=Rice_DNA_rmdup                                  # Job name
-#SBATCH --partition=batch                                          # Partition (queue) name
-#SBATCH --ntasks=1                                                 # Single task job
-#SBATCH --cpus-per-task=6                                          # Number of cores per task
-#SBATCH --mem=100gb                                                # Total memory for job
-#SBATCH --time=12:00:00                                            # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_DNA/Rice_rmdup.out         # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_DNA/Rice_rmdup.err          # Location of error log file
-#SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
-#SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
-
-cd /scratch/jms53460/Rice_DNA
-module load SAMtools/1.16.1-GCC-11.3.0
-mkdir rmdup
-
-samtools rmdup hisat2_out/NRE1-2_s.bam rmdup/NRE1-2_rmdup.bam
-samtools index -@ 6 rmdup/NRE1-2_rmdup.bam
+ml BCFtools
+bcftools view -i 'GT="hom"' NTE7_snps.vcf > NTE7_hom_snps.vcf
+bcftools view -i 'GT="hom"' NTE8_snps.vcf > NTE8_hom_snps.vcf
+bcftools view -i 'GT="hom"' NTE9_snps.vcf > NTE9_hom_snps.vcf
 
