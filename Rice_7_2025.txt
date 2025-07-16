@@ -146,7 +146,7 @@ for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
 
-    SNPsplit --conflicting -o SNPsplit --snp_file Sl_SNPs.tab "$file"
+    SNPsplit --conflicting -o SNPsplit --snp_file NRE1-2_SNPs.tab "$file"
     samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
     
 done
@@ -237,7 +237,7 @@ done
 
 ml R/4.3.1-foss-2022a
 R
-annots = strsplit(read.table('Sl_12.gff', sep = '\t', quote = "")[,9], ';')
+annots = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
 annots = annots[grep('ID=gene-', annots)]
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
 names(annots) = sub('ID=', '', names(annots))
@@ -304,8 +304,8 @@ for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 }
 g2 = B
 
-genes = read.table('Sl_12.gff', sep = '\t', quote = "")[,c(1,5)]
-annots2 = strsplit(read.table('Sl_12.gff', sep = '\t', quote = "")[,9], ';')
+genes = read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
 names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
 annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
 genes[,3] = annots2
@@ -321,19 +321,16 @@ g1 = g1[rownames(genes),]
 g2 = g2[rownames(genes),]
 genes[,1] = sub('chr', '', genes[, 1])
 
-D_Sl_3_2025 = D
-g1_Sl_3_2025 = g1
-g2_Sl_3_2025 = g2
-Sl_genes = genes
+Rice_genes = genes
 
-save(D_Sl_3_2025,g1_Sl_3_2025,g2_Sl_3_2025,Sl_genes, file = "3_2025_Sl.RData")
+save(D,g1,g2,Rice_genes, file = "Rice_7_2025.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/3_2025_Sl/3_2025_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/3_2025_Sl/Rice_7_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
-load('3_2025_Sl.RData')
+load('Rice_7_2025.RData')
