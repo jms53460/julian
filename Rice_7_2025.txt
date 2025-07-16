@@ -55,7 +55,6 @@ done
 conda deactivate
 
 
-
 ###Trim UMI containing read to only the UMI
 
 #!/bin/bash
@@ -65,12 +64,12 @@ conda deactivate
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/3_2025_Sl/SRA_prep.out                 # Location of standard output file
-#SBATCH --error=/scratch/jms53460/3_2025_Sl/SRA_prep.err                  # Location of error log file
+#SBATCH --output=/scratch/jms53460/Rice_7_2025/SRA_prep.out               # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_7_2025/SRA_prep.err                # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/3_2025_Sl/
+cd /scratch/jms53460/Rice_7_2025/
 mkdir SRA_upload
 module load fastp/0.23.2-GCC-11.3.0
 
@@ -82,14 +81,6 @@ for file in Demultiplexed/*s.fastq.gz; do
 done
 
 
-###Move Ran's data out of folders with my data
-cd /scratch/jms53460/3_2025_Sl
-mkdir Ran_dm
-mv Demultiplexed/Ran* Ran_dm
-mkdir Ran_data
-mv SRA_upload/Ran* Ran_data
-
-
 #!/bin/bash
 #SBATCH --job-name=Hisat2                                                 # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
@@ -97,12 +88,12 @@ mv SRA_upload/Ran* Ran_data
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/3_2025_Sl/Hs2.out                      # Location of standard output file
-#SBATCH --error=/scratch/jms53460/3_2025_Sl/Hs2.err                       # Location of error log file
+#SBATCH --output=/scratch/jms53460/Rice_7_2025/Hs2.out                    # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_7_2025/Hs2.err                     # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/3_2025_Sl
+cd /scratch/jms53460/Rice_7_2025
 
 module load fastp/0.23.2-GCC-11.3.0
 mkdir hisat2_out
@@ -117,6 +108,7 @@ fi
 done
 
 ml HISAT2/3n-20201216-gompi-2022a
+hisat2-build NRE1-2_N-masked_12.fa NRE1-2_N-masked_12_index
 ml SAMtools/1.16.1-GCC-11.3.0
 for file in hisat2_out/*s.fastq.gz
 do
@@ -124,7 +116,7 @@ do
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
-	hisat2 -p 6 --dta -x Sl_N-masked_genome_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	hisat2 -p 6 --dta -x NRE1-2_N-masked_12_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
 	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
     samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
 	
@@ -141,12 +133,12 @@ done
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=50gb                                                                  # Total memory for job
 #SBATCH --time=6:00:00                                                              # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/3_2025_Sl/SNPsplit.out                       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/3_2025_Sl/SNPsplit.err                        # Location of error log file
+#SBATCH --output=/scratch/jms53460/Rice_7_2025/SNPsplit.out                         # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_7_2025/SNPsplit.err                          # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/3_2025_Sl
+cd /scratch/jms53460/Rice_7_2025
 mkdir SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
@@ -179,12 +171,12 @@ done
 #SBATCH --cpus-per-task=6                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
 #SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/3_2025_Sl/Features_UMIs.out            # Location of standard output file
-#SBATCH --error=/scratch/jms53460/3_2025_Sl/Features_UMIs.err             # Location of error log file
+#SBATCH --output=/scratch/jms53460/Rice_7_2025/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_7_2025/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/3_2025_Sl
+cd /scratch/jms53460/Rice_7_2025
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
@@ -194,9 +186,9 @@ ml purge_dups/1.2.5-foss-2021b
 ml Miniconda3/23.5.2-0
 source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a Sl_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+featureCounts -T 6 -s 1 -a Nipponbare_12.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Nipponbare_12.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Nipponbare_12.gtf -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
 
 conda deactivate
 
