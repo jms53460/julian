@@ -238,11 +238,13 @@ done
 ml R/4.3.1-foss-2022a
 R
 annots = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
-annots = annots[grep('ID=gene-', annots)]
+annots = annots[grep('gene_id', annots)]
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
-names(annots) = sub('ID=', '', names(annots))
+names(annots) = sub('gene_id ', '', names(annots))
+names(annots) = gsub("\"", "", names(annots))
 annots = annots[!duplicated(names(annots))]
 annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+annots = gsub("\"", "", annots)
 
 files = dir('UMIcounts')
 A = matrix(NA, nrow = length(annots), ncol = length(files))
@@ -252,7 +254,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit.tsv', '', sub('S2_L007_', '', files))
+colnames(A) = sub('_SNPsplit.tsv', '', sub('S42_L008_', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -309,17 +311,19 @@ annots2 = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], 
 names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
 annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
 genes[,3] = annots2
-genes2 = genes[grepl('ID=gene-', genes[,3]),]
+#genes2 = genes[grepl('gene_id', genes[,3]),]
 genes = genes2[order(genes2[,2]),] #order by position
 genes = genes[order(genes[,1]),] #order by chr
 genes = genes[!duplicated(genes[,3]),]
+
 colnames(genes) = c('Chr', 'Position', 'Gene')
+genes[,3] = sub('gene_id ', '', genes[, 3])
+genes[,3] = gsub('\"', '', genes[,3])
 rownames(genes) = genes[,3]
 
 D = D[rownames(genes),]
 g1 = g1[rownames(genes),]
 g2 = g2[rownames(genes),]
-genes[,1] = sub('chr', '', genes[, 1])
 
 Rice_genes = genes
 
@@ -329,8 +333,58 @@ q()
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/3_2025_Sl/Rice_7_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/Rice_7_2025/Rice_7_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('Rice_7_2025.RData')
+
+summary(colSums(D))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      3    6132    7892   33573   14653  201273
+summary(colSums(g1))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0   305.8   408.5  1559.3   743.8  9771.0 
+summary(colSums(g2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0   265.8   353.0  1541.9   722.5 13425.0
+
+
+NC_001320.1 
+NC_011033.1 
+
+
+Rice_genes[,1] = sub('chr', '', Rice_genes[,1])
+BINR = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Rice_genes[, 1]) * 10^6 + round(Rice_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINR(g1)
+g2_bin = BINR(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-R_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+library('ComplexHeatmap')
+
+Heatmap(AlleleFrac_bin, name = 'Sl AlleleFrac 
+2-2025',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
+    "FracMono" = FracMono_all, "Over 5,000 UMIs" = colSums(D) > 5000,
+    col = list("Over 5,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+
+
+
+#Make correlation matrix of g1 ratio
