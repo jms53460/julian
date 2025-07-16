@@ -16,21 +16,93 @@ cp F* /scratch/jms53460/Fame/Raw_Data
 
 
 
+cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/Rice_7_2025
 
+
+#Demultiplex data in a way that it is nearly ready for upload with SRA.
 
 #!/bin/bash
-#SBATCH --job-name=Sl_hisat2                                              # Job name
+#SBATCH --job-name=Dm                                                     # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=50gb                                                       # Total memory for job
-#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Sl_hs2.out                  # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Sl_hs2.err                   # Location of error log file
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_7_2025/Dm.out                     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_7_2025/Dm.err                      # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/Rice_7_2025/
+mkdir Demultiplexed
+ml Miniconda3/23.5.2-0
+source activate /home/jms53460/Fastq-Multx
+
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+    if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
+        module load fastp/0.23.2-GCC-11.3.0
+	    #Move UMI to header
+        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        
+        #Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/umi_""$file2""_R2.fastq.gz" "Demultiplexed/umi_""$file2""_R1.fastq.gz" "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2.fastq.gz" "Demultiplexed/""$file2""_%.fastq.gz" "Demultiplexed/""$file2""_%_umi.fastq.gz"
+
+    fi
+done
+conda deactivate
+
+
+
+###Trim UMI containing read to only the UMI
+
+#!/bin/bash
+#SBATCH --job-name=SRA_prep                                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/3_2025_Sl/SRA_prep.out                 # Location of standard output file
+#SBATCH --error=/scratch/jms53460/3_2025_Sl/SRA_prep.err                  # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/3_2025_Sl/
+mkdir SRA_upload
+module load fastp/0.23.2-GCC-11.3.0
+
+for file in Demultiplexed/*s.fastq.gz; do
+	file2="${file:14:-9}"
+
+    #Trim UMI containing read to only contain the UMI
+    fastp -w 6 -B 10 -i "Demultiplexed/""$file2"".fastq.gz" -I "Demultiplexed/""$file2""_umi.fastq.gz" -o "SRA_upload/""$file2"".fastq.gz" -O "SRA_upload/""$file2""_umi.fastq.gz" -A -Q -L -G
+done
+
+
+###Move Ran's data out of folders with my data
+cd /scratch/jms53460/3_2025_Sl
+mkdir Ran_dm
+mv Demultiplexed/Ran* Ran_dm
+mkdir Ran_data
+mv SRA_upload/Ran* Ran_data
+
+
+#!/bin/bash
+#SBATCH --job-name=Hisat2                                                 # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/3_2025_Sl/Hs2.out                      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/3_2025_Sl/Hs2.err                       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/3_2025_Sl
 
 module load fastp/0.23.2-GCC-11.3.0
 mkdir hisat2_out
@@ -45,8 +117,6 @@ fi
 done
 
 ml HISAT2/3n-20201216-gompi-2022a
-hisat2-build -p 6 Sl_N-masked_genome.fa Sl_N-masked_genome_index
-
 ml SAMtools/1.16.1-GCC-11.3.0
 for file in hisat2_out/*s.fastq.gz
 do
@@ -62,24 +132,21 @@ fi
 done
 
 
-cp Sl_N-masked_genome_index* /home/jms53460
-
-
 ###Running SNPsplit
 
 #!/bin/bash
-#SBATCH --job-name=SNPsplit                                                      # Job name
+#SBATCH --job-name=SNPsplit                                                         # Job name
 #SBATCH --partition=batch                                                           # Partition (queue) name
 #SBATCH --ntasks=1                                                                  # Single task job
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=50gb                                                                  # Total memory for job
 #SBATCH --time=6:00:00                                                              # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/SNPsplit.out                       # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/SNPsplit.err                        # Location of error log file
+#SBATCH --output=/scratch/jms53460/3_2025_Sl/SNPsplit.out                       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/3_2025_Sl/SNPsplit.err                        # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/3_2025_Sl
 mkdir SNPsplit
 ml SAMtools/1.16.1-GCC-11.3.0
 ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
@@ -106,18 +173,18 @@ done
 
 
 #!/bin/bash
-#SBATCH --job-name=Features_UMIs                                           # Job name
+#SBATCH --job-name=Features_UMIs                                              # Job name
 #SBATCH --partition=batch                                                     # Partition (queue) name
 #SBATCH --ntasks=1                                                            # Single task job
 #SBATCH --cpus-per-task=6                                                     # Number of cores per task
 #SBATCH --mem=50gb                                                            # Total memory for job
-#SBATCH --time=6:00:00                                                       # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Features_UMIs.out            # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Features_UMIs.err             # Location of error log file
+#SBATCH --time=12:00:00                                                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/3_2025_Sl/Features_UMIs.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/3_2025_Sl/Features_UMIs.err             # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                          # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                  # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
+cd /scratch/jms53460/3_2025_Sl
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
@@ -193,7 +260,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit.tsv', '', files))
+colnames(A) = sub('_SNPsplit.tsv', '', sub('S2_L007_', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -213,7 +280,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit_g1.tsv', '', files))
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('S2_L007_', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -233,7 +300,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('A267-277_S3_L002_', '', sub('_SNPsplit_g2.tsv', '', files))
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('S2_L007_', '', files))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -260,14 +327,21 @@ rownames(genes) = genes[,3]
 D = D[rownames(genes),]
 g1 = g1[rownames(genes),]
 g2 = g2[rownames(genes),]
+genes[,1] = sub('chr', '', genes[, 1])
 
-save(D,g1,g2,genes, file = "11_2024_Sl.RData")
+D_Sl_3_2025 = D
+g1_Sl_3_2025 = g1
+g2_Sl_3_2025 = g2
+Sl_genes = genes
+
+save(D_Sl_3_2025,g1_Sl_3_2025,g2_Sl_3_2025,Sl_genes, file = "3_2025_Sl.RData")
 q()
 
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/11_2024_Sl/11_2024_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/3_2025_Sl/3_2025_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('3_2025_Sl.RData')

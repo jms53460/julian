@@ -220,6 +220,19 @@ sed 's/NC_089045.*/chr11/' Nipponbare_10.fna > Nipponbare_11.fna
 sed 's/NC_089046.*/chr12/' Nipponbare_11.fna > Nipponbare_12.fna
 
 
+sed 's/NC_089035.1/chr1/' Nipponbare.gtf > Nipponbare_1.gtf
+sed 's/NC_089036.1/chr2/' Nipponbare_1.gtf > Nipponbare_2.gtf
+sed 's/NC_089037.1/chr3/' Nipponbare_2.gtf > Nipponbare_3.gtf
+sed 's/NC_089038.1/chr4/' Nipponbare_3.gtf > Nipponbare_4.gtf
+sed 's/NC_089039.1/chr5/' Nipponbare_4.gtf > Nipponbare_5.gtf
+sed 's/NC_089040.1/chr6/' Nipponbare_5.gtf > Nipponbare_6.gtf
+sed 's/NC_089041.1/chr7/' Nipponbare_6.gtf > Nipponbare_7.gtf
+sed 's/NC_089042.1/chr8/' Nipponbare_7.gtf > Nipponbare_8.gtf
+sed 's/NC_089043.1/chr9/' Nipponbare_8.gtf > Nipponbare_9.gtf
+sed 's/NC_089044.1/chr10/' Nipponbare_9.gtf > Nipponbare_10.gtf
+sed 's/NC_089045.1/chr11/' Nipponbare_10.gtf > Nipponbare_11.gtf
+sed 's/NC_089046.1/chr12/' Nipponbare_11.gtf > Nipponbare_12.gtf
+
 
 
 #!/bin/bash
@@ -239,21 +252,21 @@ ml BEDTools/2.30.0-GCC-12.2.0
 bedtools maskfasta -fi Nipponbare.fna -fo NRE1-2_N-masked.fa -bed NRE1-2_snps.vcf -fullHeader
 
 
-
 sed 's/NC_089035.*/chr1/' NRE1-2_N-masked.fa > NRE1-2_N-masked_1.fa
 sed 's/NC_089036.*/chr2/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089037.*/chr3/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089038.*/chr4/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089039.*/chr5/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089040.*/chr6/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089041.*/chr7/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089042.*/chr8/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089043.*/chr9/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089044.*/chr10/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089045.*/chr11/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
-sed 's/NC_089046.*/chr12/' NRE1-2_N-masked_1.fa > NRE1-2_N-masked_2.fa
+sed 's/NC_089037.*/chr3/' NRE1-2_N-masked_2.fa > NRE1-2_N-masked_3.fa
+sed 's/NC_089038.*/chr4/' NRE1-2_N-masked_3.fa > NRE1-2_N-masked_4.fa
+sed 's/NC_089039.*/chr5/' NRE1-2_N-masked_4.fa > NRE1-2_N-masked_5.fa
+sed 's/NC_089040.*/chr6/' NRE1-2_N-masked_5.fa > NRE1-2_N-masked_6.fa
+sed 's/NC_089041.*/chr7/' NRE1-2_N-masked_6.fa > NRE1-2_N-masked_7.fa
+sed 's/NC_089042.*/chr8/' NRE1-2_N-masked_7.fa > NRE1-2_N-masked_8.fa
+sed 's/NC_089043.*/chr9/' NRE1-2_N-masked_8.fa > NRE1-2_N-masked_9.fa
+sed 's/NC_089044.*/chr10/' NRE1-2_N-masked_9.fa > NRE1-2_N-masked_10.fa
+sed 's/NC_089045.*/chr11/' NRE1-2_N-masked_10.fa > NRE1-2_N-masked_11.fa
+sed 's/NC_089046.*/chr12/' NRE1-2_N-masked_11.fa > NRE1-2_N-masked_12.fa
 
 
 
-cp Sl_N-masked_genome.fa /home/jms53460
-cp Sl_SNPs.tab /home/jms53460
+cp NRE1-2_N-masked_12.fa /scratch/jms53460/Rice_7_2025
+cp NRE1-2_SNPs.tab /scratch/jms53460/Rice_7_2025
+cp Nipponbare_12.gtf /scratch/jms53460/Rice_7_2025
