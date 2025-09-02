@@ -178,7 +178,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit.tsv', '', sub('S2_L007_', '', files))
+colnames(A) = sub('_SNPsplit.tsv', '', sub('S40_L008_', '', sub('S41_L008_', '', sub('S43_L008_', '', files))))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -198,7 +198,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('S2_L007_', '', files))
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('S40_L008_', '', sub('S41_L008_', '', sub('S43_L008_', '', files))))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -218,7 +218,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('S2_L007_', '', files))
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('S40_L008_', '', sub('S41_L008_', '', sub('S43_L008_', '', files))))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
@@ -247,19 +247,220 @@ g1 = g1[rownames(genes),]
 g2 = g2[rownames(genes),]
 genes[,1] = sub('chr', '', genes[, 1])
 
-D_Sl_3_2025 = D
-g1_Sl_3_2025 = g1
-g2_Sl_3_2025 = g2
+D_Sl_7_2025 = D[,c(193:240, 242:288)]
+g1_Sl_7_2025 = g1[,c(193:240, 242:288)]
+g2_Sl_7_2025 = g2[,c(193:240, 242:288)]
 Sl_genes = genes
+save(D_Sl_7_2025,g1_Sl_7_2025,g2_Sl_7_2025,Sl_genes, file = "7_2025_Sl.RData")
 
-save(D_Sl_3_2025,g1_Sl_3_2025,g2_Sl_3_2025,Sl_genes, file = "3_2025_Sl.RData")
+UMIs = D[,c(61:65, 67:76, 78:87, 89:95, 97:182, 184, 192)]
+save(UMIs, Sl_genes, file = "Fame_7_2025.RData")
+
 q()
 
 
+ml R
+R
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,c(193:240, 242:288)]
+load('7_2025_Sl.RData')
+colnames(reads) = colnames(D_Sl_7_2025)
+reads_per_UMI = t(reads/colSums(D_Sl_7_2025))
+reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D_Sl_7_2025), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
+save(D_Sl_7_2025,g1_Sl_7_2025,g2_Sl_7_2025,Sl_genes, reads_UMIs, file = "7_2025_Sl.RData")
+q()
+
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/3_2025_Sl/3_2025_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/Sol_7_2025/7_2025_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/Sol_7_2025/Fame_7_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
-load('3_2025_Sl.RData')
+load('7_2025_Sl.RData')
+
+hist(reads_UMIs$reads_per_UMI)
+plot(reads_UMIs$reads_per_UMI, colSums(D_Sl_7_2025), pch=19, cex=2)
+
+tetrad 3
+UM 2
+BM 4
+BM shed 3
+
+
+D_Sl = D_Sl_7_2025
+g1_Sl = g1_Sl_7_2025
+g2_Sl = g2_Sl_7_2025
+
+
+BIN2_Sl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes[, 1]) * 10^6 + round(Sl_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_Sl)))
+    colnames(out2) = colnames(g1_Sl)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin_Sl = BIN2_Sl(g1_Sl)
+g2_bin_Sl = BIN2_Sl(g2_Sl)
+g1_frac_Sl = g1_bin_Sl/(g1_bin_Sl + g2_bin_Sl)
+AlleleFrac_Sl = g1_frac_Sl
+AlleleFrac_Sl[(g1_bin_Sl+g2_bin_Sl) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse_Sl = which(abs(rowMeans(AlleleFrac_Sl, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_Sl[-binUse_Sl,] = NA
+
+
+Sl_plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Sl_genes[,2])/10^6 + 10), breaks = seq(0,300,20)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+plotChr3 = function (cell, chr, pad = 10) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac_Sl[, cell], Chr = floor(as.numeric(rownames(AlleleFrac_Sl))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac_Sl))%%10^6) + 0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 1) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell_bin_Sl = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr3(cell, chr = 1), plotChr3(cell, 
+        chr = 2), plotChr3(cell, chr = 3), Sl_plotScaleBar, ncol = 1, nrow = 4, align = "v", 
+        heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+
+
+
+
+
+ml R
+R
+A_reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[,c(193:240, 242:288)+5]
+load('7_2025_Sl.RData')
+D = D_Sl_7_2025
+colnames(A_reads) = colnames(D)
+
+rownames(A_reads) = gsub("gene", "ID=gene", rownames(A_reads))
+which(!(rownames(D) %in% rownames(A_reads))) #1457 genes are in D but not in A_reads
+summary(colSums(D[which(!(rownames(D) %in% rownames(A_reads))),])) #these 1457 genes all have 0 UMIs across all samples
+#Adding the 1457 genes that are in D but not in A_reads into A_reads for compatibility
+addin = matrix(0, nrow = 1457, ncol = ncol(D))
+colnames(addin) = colnames(D)
+rownames(addin) = rownames(D[which(!(rownames(D) %in% rownames(A_reads))),])
+B_reads = rbind(A_reads, addin)
+
+D_reads = matrix(NA, nrow = nrow(D), ncol = ncol(D))
+colnames(D_reads) = colnames(D)
+rownames(D_reads) = rownames(D)
+for (x in colnames(D)){
+    D_reads[,x] = B_reads[match(rownames(D_reads),rownames(B_reads)),x]
+}
+
+#g1
+A_reads = read.table('featurecounts/read_counts_g1.tab', sep = '\t', quote = "", header=T, row.names=1)[,c(193:240, 242:288)+5]
+colnames(A_reads) = colnames(D)
+rownames(A_reads) = gsub("gene", "ID=gene", rownames(A_reads))
+B_reads = rbind(A_reads, addin)
+
+g1_reads = matrix(NA, nrow = nrow(D), ncol = ncol(D))
+colnames(g1_reads) = colnames(D)
+rownames(g1_reads) = rownames(D)
+for (x in colnames(D)){
+    g1_reads[,x] = B_reads[match(rownames(g1_reads),rownames(B_reads)),x]
+}
+
+#g2
+A_reads = read.table('featurecounts/read_counts_g2.tab', sep = '\t', quote = "", header=T, row.names=1)[,c(193:240, 242:288)+5]
+colnames(A_reads) = colnames(D)
+rownames(A_reads) = gsub("gene", "ID=gene", rownames(A_reads))
+B_reads = rbind(A_reads, addin)
+
+g2_reads = matrix(NA, nrow = nrow(D), ncol = ncol(D))
+colnames(g2_reads) = colnames(D)
+rownames(g2_reads) = rownames(D)
+for (x in colnames(D)){
+    g2_reads[,x] = B_reads[match(rownames(g2_reads),rownames(B_reads)),x]
+}
+
+save(D_Sl_7_2025,g1_Sl_7_2025,g2_Sl_7_2025,Sl_genes,reads_UMIs,D_reads,g1_reads,g2_reads, file = "7_2025_Sl.RData")
+q()
+scp sapelo2:/scratch/jms53460/Sol_7_2025/7_2025_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('7_2025_Sl.RData')
+
+D_Sl = D_Sl_7_2025
+g1_Sl = g1_Sl_7_2025
+g2_Sl = g2_Sl_7_2025
+
+
+AlleleFrac = g1_Sl/(g1_Sl + g2_Sl)
+AlleleFrac[(g1_Sl+g2_Sl) < 10] = NA #remove bins with <10 genoinformative transcripts
+geneUse = which(abs(rowMeans(AlleleFrac, na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac[-geneUse,] = NA
+
+
+AlleleFrac2 = g1_reads/(g1_reads + g2_reads)
+AlleleFrac2[(g1_reads+g2_reads) < 10] = NA #remove bins with <10 genoinformative transcripts
+geneUse2 = which(abs(rowMeans(AlleleFrac2, na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac2[-geneUse2,] = NA
+
+
+
+plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Sl_genes[,2])/10^6 + 10), breaks = seq(0,300,50)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+
+library(ggplot2)
+library(ggpubr)
+
+plotChr2 = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac2[, cell], Chr = Sl_genes[,1], 
+        Position = Sl_genes[,2]/10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 10, 
+        ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell3 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr2(cell, chr = 1), plotChr2(cell, 
+        chr = 2), plotChr2(cell, chr = 3), plotChr2(cell, chr = 4), 
+        plotChr2(cell, chr = 5), plotChr2(cell, chr = 6), plotChr2(cell, 
+            chr = 7), plotChr2(cell, chr = 8), plotChr2(cell, chr = 9), 
+        plotChr2(cell, chr = 10), plotChr2(cell, chr = 11), plotChr2(cell, 
+            chr = 12), plotScaleBar, ncol = 1, nrow = 13, align = "v", 
+        heights = c(rep(1, 12), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+plotCell3('S152-163_76s') #UM
+plotCell3('S152-163_69s') #sep tetrad
+plotCell3('S152-163_95s') #pollen

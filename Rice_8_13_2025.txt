@@ -1,0 +1,9 @@
+#Downloading data to the cluster and onto hard drives
+
+ssh jms53460@xfer.gacrc.uga.edu
+mkdir Aug_13_2025_Seq
+
+sftp 24323-Taylor.Scroggs@38.122.175.98
+#enter the password: v8gRmM
+get -r 24323-08-08192025_173538
+
