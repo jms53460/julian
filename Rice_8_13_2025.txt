@@ -6,4 +6,152 @@ mkdir Aug_13_2025_Seq
 sftp 24323-Taylor.Scroggs@38.122.175.98
 #enter the password: v8gRmM
 get -r 24323-08-08192025_173538
+exit
+
+ssh sapelo2
+cd /scratch/jms53460
+mkdir Rice_8_2025
+
+cd Rice_8_2025
+mkdir NRE1-1
+mkdir NRE1-2
+mkdir NRE1-3
+mkdir NRE1-4
+mkdir NRE1-5
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-1
+cp /home/jms53460/Nipponbare_12.gtf NRE1-1
+cp /home/jms53460/NRE1-1_N-masked_12.fa NRE1-1
+cp /home/jms53460/NRE1-1_SNPs.tab NRE1-1
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-2
+cp /home/jms53460/Nipponbare_12.gtf NRE1-2
+cp /home/jms53460/NRE1-2_N-masked_12.fa NRE1-2
+cp /home/jms53460/NRE1-2_SNPs.tab NRE1-2
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-3
+cp /home/jms53460/Nipponbare_12.gtf NRE1-3
+cp /home/jms53460/NRE1-3_N-masked_12.fa NRE1-3
+cp /home/jms53460/NRE1-3_SNPs.tab NRE1-3
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-4
+cp /home/jms53460/Nipponbare_12.gtf NRE1-4
+cp /home/jms53460/NRE1-4_N-masked_12.fa NRE1-4
+cp /home/jms53460/NRE1-4_SNPs.tab NRE1-4
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-5
+cp /home/jms53460/Nipponbare_12.gtf NRE1-5
+cp /home/jms53460/NRE1-5_N-masked_12.fa NRE1-5
+cp /home/jms53460/NRE1-5_SNPs.tab NRE1-5
+
+mkdir Raw_Data
+mkdir NRE1-1/Demultiplexed
+mkdir NRE1-2/Demultiplexed
+mkdir NRE1-3/Demultiplexed
+mkdir NRE1-4/Demultiplexed
+mkdir NRE1-5/Demultiplexed
+
+
+ssh jms53460@xfer.gacrc.uga.edu
+cp /work/bnlab/Aug_13_2025_Seq/24323-08-08192025_173538/R* /scratch/jms53460/Rice_8_2025/Raw_Data
+cp /work/bnlab/Aug_27_2025_Seq/24323-09-09062025_153845/R1* /scratch/jms53460/Rice_8_2025/Raw_Data
+cp /work/bnlab/Jul2025Seq/R* /scratch/jms53460/Rice_8_2025/Raw_Data
+
+
+#Demultiplex data in a way that it is ready for upload with SRA.
+
+#!/bin/bash
+#SBATCH --job-name=Dm                                                     # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=100gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_8_2025/Dm.out                     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_8_2025/Dm.err                      # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Rice_8_2025/
+mkdir Demultiplexed
+ml Mamba/23.11.0-0
+source activate /home/jms53460/Fastq-Multx
+
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+    if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
+        module load fastp/0.23.4-GCC-13.2.0
+	    #Move UMI to header
+        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        
+        #Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/umi_""$file2""_R2.fastq.gz" "Demultiplexed/umi_""$file2""_R1.fastq.gz" "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2.fastq.gz" "Demultiplexed/""$file2""_%.fastq.gz" "Demultiplexed/""$file2""_%_umi.fastq.gz"
+
+    fi
+done
+conda deactivate
+
+mkdir SRA_upload
+module load fastp/0.23.4-GCC-13.2.0
+
+for file in Demultiplexed/*s.fastq.gz; do
+	file2="${file:14:-9}"
+
+    #Trim UMI containing read to only contain the UMI
+    fastp -w 6 -B 10 -i "Demultiplexed/""$file2"".fastq.gz" -I "Demultiplexed/""$file2""_umi.fastq.gz" -o "SRA_upload/""$file2"".fastq.gz" -O "SRA_upload/""$file2""_umi.fastq.gz" -A -Q -L -G
+done
+
+
+
+###Loading meta data in R to help with separating rice samples for mapping based on which plant the samples were collected from
+
+library(readxl)
+Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Rice_Stages.xlsx")
+
+Rice_meta <- Rice_Stages[rep(row.names(Rice_Stages), times = 8), ]
+library(tidyverse)
+Rice_meta = arrange(Rice_meta, Sample)
+
+for (x in 1:length(unique(Rice_meta$Plate))){
+    Rice_meta$Sample[which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])] = c(paste(rep(unique(Rice_meta$Plate)[x], times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), rep('_', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), 1:length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])), rep('s', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), sep=''))
+}
+
+rownames(Rice_meta) = Rice_meta$Sample
+
+Samples_1_1 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-1"),5])
+Samples_1_1 = gsub("R", "mv R", Samples_1_1)
+Samples_1_1 = gsub("_", "*", Samples_1_1)
+Samples_1_1 = gsub("s", "s.fastq.gz /scratch/jms53460/Rice_8_2025/NRE1-1/Demultiplexed", Samples_1_1)
+print(as.data.frame(Samples_1_1), row.names=F) 
+
+Samples_1_2 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-2"),5])
+Samples_1_2 = gsub("R", "mv R", Samples_1_2)
+Samples_1_2 = gsub("_", "*", Samples_1_2)
+Samples_1_2 = gsub("s", "s.fastq.gz /scratch/jms53460/Rice_8_2025/NRE1-2/Demultiplexed", Samples_1_2)
+print(as.data.frame(Samples_1_2), row.names=F) 
+
+Samples_1_3 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-3"),5])
+Samples_1_3 = gsub("R", "mv R", Samples_1_3)
+Samples_1_3 = gsub("_", "*", Samples_1_3)
+Samples_1_3 = gsub("s", "s.fastq.gz /scratch/jms53460/Rice_8_2025/NRE1-3/Demultiplexed", Samples_1_3)
+print(as.data.frame(Samples_1_3), row.names=F) 
+
+Samples_1_4 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-4"),5])
+Samples_1_4 = gsub("R", "mv R", Samples_1_4)
+Samples_1_4 = gsub("_", "*", Samples_1_4)
+Samples_1_4 = gsub("s", "s.fastq.gz /scratch/jms53460/Rice_8_2025/NRE1-4/Demultiplexed", Samples_1_4)
+print(as.data.frame(Samples_1_4), row.names=F) 
+
+Samples_1_5 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-5"),5])
+Samples_1_5 = gsub("R", "mv R", Samples_1_5)
+Samples_1_5 = gsub("_", "*", Samples_1_5)
+Samples_1_5 = gsub("s", "s.fastq.gz /scratch/jms53460/Rice_8_2025/NRE1-5/Demultiplexed", Samples_1_5)
+print(as.data.frame(Samples_1_5), row.names=F) 
+
+#Copy the results of the print lines and paste into command line on cluster while in Demultiplexed directory that has these files
+
+mv_samples = 
+
 

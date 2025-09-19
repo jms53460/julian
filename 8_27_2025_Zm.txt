@@ -1,0 +1,16 @@
+#Checking Rice DNA-seq
+
+ssh jms53460@xfer.gacrc.uga.edu
+mkdir /work/bnlab/Aug_27_2025_Seq
+cd /work/bnlab/Aug_27_2025_Seq
+
+sftp 24323-Julian.Mary.Somers@38.122.175.98
+#Password: vQ3yCb
+
+get -r 24323-09-09062025_153845
+
+exit
+###
+mkdir /scratch/jms53460/Rice_DNA2
+mkdir /scratch/jms53460/Rice_DNA2/Raw_Data
+cp /work/bnlab/Aug_2025_Azenta/30-1222177457/00_fastq/NRE*gz /scratch/jms53460/Rice_DNA2/Raw_Data
