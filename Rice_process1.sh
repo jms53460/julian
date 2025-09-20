@@ -3,7 +3,7 @@
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=100gb                                                        # Total memory for job
+#SBATCH --mem=200gb                                                        # Total memory for job
 #SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Rice_8_2025/NRE1-1/Hs2.out             # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Rice_8_2025/NRE1-1/Hs2.err              # Location of error log file
@@ -42,8 +42,7 @@ done
 
 
 mkdir SNPsplit
-ml Mamba/23.11.0-0
-conda activate /home/jms53460/SNPsplit_env
+module load SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
 for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
@@ -52,7 +51,7 @@ do
     samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
     
 done
-conda deactivate
+
 
 for file in "SNPsplit/"*_s.genome1.bam
 do
