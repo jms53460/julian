@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=Rice_process1                                          # Job name
+#SBATCH --job-name=Rice_process5                                          # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=200gb                                                        # Total memory for job
 #SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_8_2025/NRE1-1/Hs2.out             # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_8_2025/NRE1-1/Hs2.err              # Location of error log file
+#SBATCH --output=/scratch/jms53460/Rice_8_2025/NRE1-5/Hs2.out             # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_8_2025/NRE1-5/Hs2.err              # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/Rice_8_2025/NRE1-1
+cd /scratch/jms53460/Rice_8_2025/NRE1-5
 
 module load fastp/0.23.4-GCC-13.2.0
 mkdir hisat2_out
@@ -25,7 +25,7 @@ fi
 done
 
 ml HISAT2/2.2.1-gompi-2023a
-hisat2-build NRE1-1_N-masked_12.fa NRE1-1_N-masked_12_index
+hisat2-build NRE1-5_N-masked_12.fa NRE1-5_N-masked_12_index
 ml SAMtools/1.21-GCC-13.3.0
 for file in hisat2_out/*s.fastq.gz
 do
@@ -33,7 +33,7 @@ do
 
 if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 
-	hisat2 -p 6 --dta -x NRE1-1_N-masked_12_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	hisat2 -p 6 --dta -x NRE1-5_N-masked_12_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
 	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
     samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
 	
@@ -47,7 +47,7 @@ for file in "hisat2_out/"*_s.bam
 do
     file2="${file:11:-6}"
 
-    SNPsplit --conflicting -o SNPsplit --snp_file NRE1-1_SNPs.tab "$file"
+    SNPsplit --conflicting -o SNPsplit --snp_file NRE1-5_SNPs.tab "$file"
     samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
     
 done
