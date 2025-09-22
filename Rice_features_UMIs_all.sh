@@ -3,7 +3,7 @@
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=200gb                                                       # Total memory for job
+#SBATCH --mem=100gb                                                       # Total memory for job
 #SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Rice_8_2025/Rice_feautures_UMIs.out    # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Rice_8_2025/Rice_feautures_UMIs.err               # Location of error log file
