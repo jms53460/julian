@@ -358,3 +358,8 @@ result = HapCallV4(cellS, mx = mx, recs = recs, etc)
 plotA(result)
 plotB(result)
 }
+
+
+
+
+HapCallCell_At = HapCallV4(cell,chr=1,recs=1.5, mx=(2.5), ss=1, niter=10000, burnin=4000)
