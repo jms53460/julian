@@ -175,13 +175,15 @@ HapCallCell = function(cell){
                          Genes = c(HapChr1$Genes, HapChr2$Genes, HapChr3$Genes, HapChr4$Genes, HapChr5$Genes))
     rownames(HapCell) = HapCell$Genes
     HapCallGenes = rownames(D[which(rownames(D) %in% rownames(HapCell)),])
+    Hap = HapCell$Hap
+    names(Hap) = HapCell$Genes
     HapCell$Hap = round(HapCell$Hap)
     HapCell$Hap[which(round(HapCell$Hap) == 0)] = NA
     HapCell$Hap[which(round(HapCell$Hap) == -1)] = 0
     AlleleFrac_genes_cell = round(AlleleFrac_genes[HapCallGenes,cell])
-    HapMatch = AlleleFrac_genes_cell == HapCell$Hap
+    HapMatch = AlleleFrac_genes_cell == HapCell$Hap #for each gene, does AlleleFrac match expected haplotype?
     HapFrac = length(which(AlleleFrac_genes_cell == HapCell$Hap))/length(HapCallGenes)
-    return(list(HapMatch = HapMatch, HapFrac = HapFrac))
+    return(list(HapMatch = HapMatch, HapFrac = HapFrac, Hap = Hap))
 }
 
 
@@ -202,15 +204,90 @@ for (cell in cells){
 }
 a2 = proc.time()
 a2-a1
+#    user   system  elapsed
+#11765.23   153.72 11969.48  #It took ~200 mins (3 hr 20 min) for this to run
+###Something odd happened with HapFrac_all adding on new values to the end instead of replacing existing NA values
+#This can be fixed by subsetting to keep the second half of the vector and matching the order to AlleleFrac2
+
+HapFrac_all_fixed = HapFrac_all[495:988]
+HapFrac_all_fixed = HapFrac_all_fixed[colnames(AlleleFrac2)]
+#saving this to avoid having to rerun the 3 hr 20 min code to get HapMatch_all and HapFrac_all
+save(D, g1, g2, genes, HapMatch_all, HapFrac_all_fixed, No_cell, plotChr, plotScaleBar, plotCell2, BIN2, g1_bin, 
+    g2_bin, AlleleFrac, AlleleFrac2, HapCallV4, AlleleFrac_genes, HapCallCell, file = "At_data_9_2025.RData")
+
+
+#I tested and found the problem with HapFrac_all can be fixed by creating a vector instead of a matrix. 
+#I will use the below code in the future:
+
+cells = colnames(AlleleFrac2)
+
+HapMatch_all = matrix(data = NA, nrow = nrow(D), ncol = ncol(AlleleFrac2))
+rownames(HapMatch_all) = rownames(D)
+colnames(HapMatch_all) = colnames(AlleleFrac2)
+
+HapFrac_all = vector(length = ncol(AlleleFrac2))
+names(HapFrac_all) = colnames(AlleleFrac2)
+
 
 a1 = proc.time()
-HapMatch_cell = HapCallCell(cell)
+for (cell in cells){
+    HapMatch_cell = HapCallCell(cell)
     HapMatch_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$HapMatch
     HapFrac_all[cell] = HapMatch_cell$HapFrac
+}
 a2 = proc.time()
 a2-a1
 
 
+
+
+HapMatch_all = matrix(data = NA, nrow = nrow(D), ncol = ncol(AlleleFrac2))
+rownames(HapMatch_all) = rownames(D)
+colnames(HapMatch_all) = colnames(AlleleFrac2)
+
+HapFrac_all = vector(length = ncol(AlleleFrac2))
+names(HapFrac_all) = colnames(AlleleFrac2)
+
+Hap_all = HapMatch_all
+
+a1 = proc.time()
+for (cell in cells[c(1,10,20,30,100,400)]){
+    HapMatch_cell = HapCallCell(cell)
+    HapMatch_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$HapMatch
+    HapFrac_all[cell] = HapMatch_cell$HapFrac
+    Hap_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$Hap
+}
+a2 = proc.time()
+a2-a1
+
+
+###
+load("At_data_9_2025.RData")
+
+library('ComplexHeatmap')
+
+FracMono = 100*colMeans(abs(AlleleFrac2 - .5) >= .3, na.rm=T)
+plot(FracMono, HapFrac_all_fixed, cex = 2, pch=20)
+
+library(circlize)
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4, 5.3), c("white", "forestgreen"))
+HapFrac_col = colorRamp2(c(0.47, 0.97), c("white", "purple4"))
+
+Heatmap(AlleleFrac2, cluster_rows=F, cluster_columns=T)                   
+Heatmap(AlleleFrac2, name = 'At AlleleFrac',
+    top_annotation = HeatmapAnnotation("UMIcounts" = log(colSums(D[,colnames(AlleleFrac2)]),10),
+    "No cell" = At_meta$No_cell_well[which(colnames(D) %in% colnames(AlleleFrac2))], "FracMono" = FracMono,
+    "Stage" = At_meta$Stage[which(colnames(D) %in% colnames(AlleleFrac2))],
+    "HapFrac" = HapFrac_all_fixed,
+    col = list(FracMono = FracMono_col, UMIcounts = UMI_col, Stage = c("tetrad" = "#eeeeee", "UM" = "#cccccc", "UM/BM" = "#aaaaaa", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), 
+    "No cell" = c("Y" = "#111111", "N" = "#eeeeee"), "HapFrac" = HapFrac_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+
+
+
+#Used to check how HapCallCell$Hap looked
 plot(HapCallCell$Hap, cex=1.5, pch=19, ylim = c(-1,1))
     abline(v=max(grep("AT1", HapCallCell$Genes)))
     abline(v=max(grep("AT2", HapCallCell$Genes)))
@@ -219,47 +296,51 @@ plot(HapCallCell$Hap, cex=1.5, pch=19, ylim = c(-1,1))
 	abline(h=1-0.025)
 	abline(h=0.025-1)
 
+
 plot(HapCallChr5$Scores, cex=1.5, pch=19, type='l')
 abline(v=4000, col="red2")
 
 
+c(1,10,20,30,100,400)
+plot(genes[1:max(grep("AT1", rownames(D))),2], Hap_all[1:max(grep("AT1", rownames(D))),1], cex=1.5, pch=19, ylim = c(-1,1), col = "red2")
+    abline(v=max(grep("AT1", rownames(D))))
+    abline(v=max(grep("AT2", rownames(D))))
+    abline(v=max(grep("AT3", rownames(D))))
+    abline(v=max(grep("AT4", rownames(D))))
+	abline(h=1-0.025)
+	abline(h=0.025-1)
+    points(genes[names(which((g1[,cells[1]] + g2[,cells[1]]) > 0)),2], 2*(AlleleFrac_genes[names(which((g1[,cells[1]] + g2[,cells[1]]) > 0)),1])-1, cex=1.5, pch=19)
 
-
-
-
-plotCellChr = function(cell, chr, maxs = 20) {
-	keeps = ((g1[,cell] + g2[,cell]) > 0) & (genes$Chr == chr)
-    keeps2 = which(round(as.numeric(rownames(AlleleFrac))/(10^6)) == chr)
-    keeps3 = which(!is.na(AlleleFrac[keeps2,cell]))
-
-    g1a = g1[keeps,cell]
-	g1a[g1a > maxs] = maxs
-    g1b = g1[,cell]
-    g1b[g1b > maxs] = maxs
-	g2a = g2[keeps,cell]
-	g2a[g2a > maxs] = maxs
-    g2b = g2[,cell]
-    g2b[g2b > maxs] = maxs
-
-    par(mar = c(5.1, 5.1, 4.1, 4.1))
-	plot(genes$Position[keeps], g1a, pch = 19, cex=0.5, col = 'red', ylab=NA, xlab = 'chromosome position (Mb)', ylim = c(-maxs,maxs), xaxt = 'n', yaxt = 'n')
-	abline(h=0)
-	for (ii in which(keeps)) { lines(rep(genes$Position[ii], times=2), c(g1b[ii], -g2b[ii]), col='#777777') }
-	points(genes$Position[keeps], -g2a, pch = 19, cex=1.5, col = 'blue')
-	points(genes$Position[keeps], g1a, pch = 19, cex=1.5, col = 'red')
-    lines(((1:length(keeps2) - 0.5)*10^6)[keeps3], (AlleleFrac[names(keeps3),cell]*40)-20, col='black', lwd = 6, lty='dashed')
-
-    points(HapCallEx$Pos, HapCallEx$HapOut*20, cex=1.5, pch=19, ylim = c(-1,1), col="purple2")
-
-    axis(1, at=seq(0,max(genes$Position[keeps]),(5*10^6)), labels=seq(0,max(genes$Position[keeps])/(10^6),5))
-    axis(2, at=seq(-20,0,10), labels=c(20,10,0), col = 'blue', col.axis = 'blue', las=2)
-    axis(2, at=seq(20,0,-10), labels=c(20,10,0), col = 'red', col.axis = 'red', las=2)
-    axis(2, at=0, labels=0, las=2)
-    axis(4, at=seq(-20,20,10), labels=seq(0,100,25), col = 'black', col.axis = 'black', las=2)
-    mtext("% of transcripts from Col-0 allele", side=4, line=3, col="black")
-    mtext("transcript counts", side=2, line=4)
-    mtext("Col-0", side=2, at=10, line=2.5, col="red")
-    mtext("Ler-0", side=2, at=-10, line=2.5, col="blue")
+plotChr_Hap = function (cell, chr = 1, pad = 3, chro = "AT1") 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac[, cell], Chr = floor(as.numeric(rownames(AlleleFrac))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac))%%10^6)*10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    HapDat = data.frame(Hap = (Hap_all[min(grep(chro, rownames(D))):max(grep(chro, rownames(D))),cell]+1)/2, 
+    loc = genes[min(grep(chro, rownames(D))):max(grep(chro, rownames(D))),2])
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(data = Cdat, aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm")) + geom_point(data = HapDat, aes(y = Hap, x = loc), cex = 3, col = "red2")
 }
 
-plotCellChr(cell, chr)
+plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-3, max(genes[,2])/10^6 + 3), breaks = seq(0,300,5)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+
+plotCell_Hap = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1, chro = "AT1"), 
+        plotChr(cell, chr = 2, chro = "AT2"), plotChr(cell, chr = 3, chro = "AT3"), 
+        plotChr(cell, chr = 4, chro = "AT4"), plotChr(cell, chr = 5, chro = "AT5"), 
+        plotScaleBar, ncol = 1, nrow = 6, align = "v", heights = c(rep(1, 5), 0.4)), 
+        left = text_grob("          % Transcripts from Col-0 allele", 
+        rot = 90, size = 10), top = cell)
+}
+
