@@ -113,12 +113,16 @@ Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab
 Rice_meta <- Rice_Stages[rep(row.names(Rice_Stages), times = 8), ]
 library(tidyverse)
 Rice_meta = arrange(Rice_meta, Sample)
+Rice_meta = arrange(Rice_meta, XGEN_primer)
+Rice_meta[,12] = Rice_meta$Sample
+colnames(Rice_meta)[12] = "Bud"
 
 for (x in 1:length(unique(Rice_meta$Plate))){
     Rice_meta$Sample[which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])] = c(paste(rep(unique(Rice_meta$Plate)[x], times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), rep('_', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), 1:length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])), rep('s', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), sep=''))
 }
 
 rownames(Rice_meta) = Rice_meta$Sample
+write.csv(Rice_meta, "Rice_meta.csv")
 
 Samples_1_1 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-1"),5])
 Samples_1_1 = gsub("R", "mv R", Samples_1_1)
@@ -368,3 +372,281 @@ do
 done
 
 
+interact --mem=5G
+cd /scratch/jms53460/Rice_8_2025
+
+
+ml R/4.4.2-gfbf-2024a
+R
+annots = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('gene_id', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('gene_id ', '', names(annots))
+names(annots) = gsub("\"", "", names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+annots = gsub("\"", "", annots)
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2 = B
+
+genes = read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes = genes[order(genes[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+genes = genes[!duplicated(genes[,3]),]
+
+colnames(genes) = c('Chr', 'Position', 'Gene')
+genes[,3] = sub('gene_id ', '', genes[, 3])
+genes[,3] = gsub('\"', '', genes[,3])
+rownames(genes) = genes[,3]
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+
+Rice_genes = genes
+Rice_genes[,1] = sub('chr', '', Rice_genes[,1])
+
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
+colnames(reads) = colnames(D)
+reads_per_UMI = t(reads/colSums(D))
+reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
+save(D,g1,g2,Rice_genes,reads_UMIs, file = "Rice_7-8_2025.RData")
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/Rice_8_2025/Rice_7-8_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('Rice_7-8_2025.RData')
+
+#Had the R code from before still loaded, so I will reorder tables by samples names and save Rice_Stages and Rice_meta in the Rice R file now
+
+D = D[,rownames(Rice_meta)]
+g1 = g1[,rownames(Rice_meta)]
+g2 = g2[,rownames(Rice_meta)]
+
+save(D,g1,g2,Rice_genes,reads_UMIs,Rice_Stages,Rice_meta, file = "Rice_7-8_2025_with_meta.RData")
+
+BINR = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Rice_genes[, 1]) * 10^6 + round(Rice_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINR(g1)
+g2_bin = BINR(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-R_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+over10k = names(which(colSums(D) >10000))
+length(which(Rice_meta[over10k,9] == "tetrads")) #37 tetrads, 67 UM, 11 UM/BM, 74 BM, 15 BM/Tri, 129 Tri
+
+library('ComplexHeatmap')
+#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
+Heatmap(AlleleFrac_bin, name = 'AlleleFrac',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
+    "FracMono" = FracMono_all, ">10,000 UMIs" = colSums(D) > 10000,
+    col = list(">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+#dev.off()
+
+
+Stage_order = order(factor(Rice_meta$Stage, levels = c('tetrads', 'UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri')))
+names(Stage_order) = Rice_meta$Sample[Stage_order]
+Stage_order2 = Stage_order[which(names(Stage_order) %in% over10k)]
+
+FracMonoVsStage = data.frame(FracMono = FracMono_all[Stage_order2], Stage = Rice_meta$Stage[Stage_order2], Bud = Rice_meta$Bud[Stage_order2], No_cell = Rice_meta$No_cell[Stage_order2], UMIs = colSums(D[,Stage_order2]))
+
+#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
+Heatmap(AlleleFrac_bin[,Stage_order2], name = 'AlleleFrac',
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[Stage_order2,9]), UMIcounts = log(colSums(D[,Stage_order2]),10), 
+    "FracMono" = FracMono_all[Stage_order2], ">10,000 UMIs" = colSums(D[,Stage_order2]) > 10000,
+    col = list(Stage = c("tetrads" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), ">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+#dev.off()
+
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+
+
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,names(which(colSums(D) > 10000))]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+library(circlize)
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4, 5.3), c("white", "forestgreen"))
+
+#library('ComplexHeatmap')
+
+#svg('Rice_7_2025_Expression_heatmap.svg', width=6, height=4.5)
+Heatmap(minmax(hmat), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(FracMono = FracMono_all[names(which(colSums(D) > 10000))], UMIcounts = log(colSums(D[,names(which(colSums(D) > 10000))]),10),
+    col = list(FracMono = FracMono_col, UMIcounts = UMI_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+#dev.off()
+
+
+Heatmap(minmax(hmat[,names(Stage_order2)]), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[Stage_order2,9]), 
+    FracMono = FracMono_all[Stage_order2], UMIcounts = log(colSums(D[,Stage_order2]),10),
+    col = list(Stage = c("tetrads" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", 
+    "BM/Tri" = "#444444", "Tri" = "#111111"), FracMono = FracMono_col, UMIcounts = UMI_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+
+Rice_plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Rice_genes[,2])/10^6 + 10), breaks = seq(0,300,20)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+Rice_plotChr = function (cell, chr, pad = 10) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac_bin[, cell], Chr = floor(as.numeric(rownames(AlleleFrac_bin))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac_bin))%%10^6) + 0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Rice_genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell_bin_Rice = function (cell) 
+{
+    annotate_figure(ggarrange(Rice_plotChr(cell, chr = 1), Rice_plotChr(cell, 
+        chr = 2), Rice_plotChr(cell, chr = 3), Rice_plotScaleBar, ncol = 1, nrow = 4, align = "v", 
+        heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts matching reference", 
+        rot = 90, size = 10), top = cell)
+}
+
+
+reads_UMIs = reads_UMIs[colnames(D),]
+> summary(reads_UMIs[which(Rice_meta$Plate == "R1-78"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   1.404   1.675   2.612   2.978   6.738
+> summary(reads_UMIs[which(Rice_meta$Plate == "R31-84"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.305   1.735   2.040   4.159   5.960  13.064
+> summary(reads_UMIs[which(Rice_meta$Plate == "R37-90"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.251   1.335   1.470   3.147   1.988  11.755
+> summary(reads_UMIs[which(Rice_meta$Plate == "R7-30"),3]) 
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.241   1.967   2.754   5.270   6.052  20.079
+> summary(reads_UMIs[which(Rice_meta$Plate == "R13-24"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  2.707   2.992   3.291   4.612   3.884  16.431
+> summary(reads_UMIs[which(Rice_meta$Plate == "R41-96"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.332   1.547   2.144   4.585   5.213  19.291
+> summary(reads_UMIs[which(Rice_meta$Plate == "R47-102"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.358   1.517   2.235   4.593   4.569  15.509
+> summary(reads_UMIs[which(Rice_meta$Plate == "R53-108"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.285   1.542   2.017   4.134   6.744  12.421
+> summary(reads_UMIs[which(Rice_meta$Plate == "R59-114"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.392   2.199   4.272   5.884   8.899  20.285
+> summary(reads_UMIs[which(Rice_meta$Plate == "R65-118"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.277   1.515   2.085   2.931   4.748   6.399 
+> summary(reads_UMIs[which(Rice_meta$Plate == "R119-136"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.272   4.494   6.968   6.603   8.557  10.402
+> summary(reads_UMIs[which(Rice_meta$Plate == "R125-142"),3])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.463   2.821   4.048   4.622   6.063  10.001
+
+
+###Bioinformatics to do list:
+#Merge Ran's fastq files and send them to her
+#

@@ -344,3 +344,7 @@ plotCell_Hap = function (cell)
         rot = 90, size = 10), top = cell)
 }
 
+
+
+###source("calc_Haplotypes_v0.2.R"), one for QC, one for HapCalling. Running source is like pasting code into terminal
+#predict 2nd no cell control from 1st for tomato/rice
