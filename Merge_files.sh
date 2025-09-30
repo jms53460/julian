@@ -17,7 +17,7 @@ for file in "Raw_Data/"*L004_R1_001.fastq.gz
 do
     file2="${file:9:-25}"
 
-cat "Raw_Data/""$file2""*L004_R1_001.fastq.gz" "Raw_Data/""$file2""*L008_R1_001.fastq.gz" > "Raw_Data_merged/""$file2""R1.fastq.gz"
-cat "Raw_Data/""$file2""*L004_R2_001.fastq.gz" "Raw_Data/""$file2""*L008_R2_001.fastq.gz" > "Raw_Data_merged/""$file2""R2.fastq.gz"
+cat Raw_Data/"$file2"*L004_R1_001.fastq.gz Raw_Data/"$file2"*L008_R1_001.fastq.gz > Raw_Data_merged/"$file2"R1.fastq.gz
+cat Raw_Data/"$file2"*L004_R2_001.fastq.gz Raw_Data/"$file2"*L008_R2_001.fastq.gz > Raw_Data_merged/"$file2"R2.fastq.gz
 
 done
