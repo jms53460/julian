@@ -1,15 +1,15 @@
 #!/bin/bash
-#SBATCH --job-name=combiningfiles
-#SBATCH --partition=batch                   # Partition (queue) name, i.e., highmem_p
-#SBATCH --ntasks=1                          # Run a single task
-#SBATCH --cpus-per-task=8                   # Number of CPU cores per task
-#SBATCH --mem=100gb                         # Job memory request
-#SBATCH --time=24:00:00                     # Time limit hrs:min:sec
-#SBATCH --output=combofiles_output
-#SBATCH --error=combofiles_error
-#SBATCH --mail-type=END,FAIL                # Mail events (NONE, BEGIN, END, FAIL, ALL)
-#SBATCH --mail-user=jms53460@uga.edu        # Where to send mail
-#SBATCH --export=NONE                       # do not load any env variables to compute node
+#SBATCH --job-name=merge_files
+#SBATCH --partition=batch                           # Partition (queue) name, i.e., highmem_p
+#SBATCH --ntasks=1                                  # Run a single task
+#SBATCH --cpus-per-task=8                           # Number of CPU cores per task
+#SBATCH --mem=100gb                                 # Job memory request
+#SBATCH --time=12:00:00                             # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/merge.out
+#SBATCH --error=/scratch/jms53460/Ran/merge.err
+#SBATCH --mail-type=END,FAIL                        # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=jms53460@uga.edu                # Where to send mail
+#SBATCH --export=NONE                               # do not load any env variables to compute node
 
 cd /scratch/jms53460/Ran
 mkdir Raw_Data_merged
