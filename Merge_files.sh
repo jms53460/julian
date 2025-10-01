@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1                                  # Run a single task
 #SBATCH --cpus-per-task=8                           # Number of CPU cores per task
 #SBATCH --mem=100gb                                 # Job memory request
-#SBATCH --time=12:00:00                             # Time limit hrs:min:sec
+#SBATCH --time=1:00:00                             # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Ran/merge.out
 #SBATCH --error=/scratch/jms53460/Ran/merge.err
 #SBATCH --mail-type=END,FAIL                        # Mail events (NONE, BEGIN, END, FAIL, ALL)

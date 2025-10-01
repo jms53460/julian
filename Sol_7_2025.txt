@@ -346,6 +346,17 @@ plotCell_bin_Sl = function (cell)
 
 
 
+library(readxl)
+Sl_7_2025_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages_7_2025.xlsx")
+
+Sl_7_2025_meta <- Sl_7_2025_Stages[rep(row.names(Sl_7_2025_Stages), times = 8), ]
+library(tidyverse)
+Sl_7_2025_meta = arrange(Sl_7_2025_meta, Bud_order)
+
+Sl_7_2025_meta[,12] = unlist(lapply(Sl_7_2025_Stages$No_cell_well, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
 
 
 
