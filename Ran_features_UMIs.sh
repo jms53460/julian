@@ -22,21 +22,23 @@ cd /scratch/jms53460/Ran
 
 #conda deactivate
 
+mkdir bams2
+mkdir UMIcounts2
 
 ml SAMtools/1.21-GCC-13.3.0
-for file in "featurecounts/"*.bam
+for file in "featurecounts2/"*.bam
 do
-    file2="${file:14:-22}"
+    file2="${file:15:-22}"
 
-        samtools sort -@ 6 "$file" -o "bams/$file2"
-        samtools index "bams/$file2"
+        samtools sort -@ 6 "$file" -o "bams2/$file2"
+        samtools index "bams2/$file2"
 done
 
 
 module load UMI-tools/1.1.4-foss-2023a
-for file in "featurecounts/"*.bam
+for file in "featurecounts2/"*.bam
 do
-    file2="${file:14:-22}"
+    file2="${file:15:-22}"
 
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts2/${file2}.tsv"
 done
