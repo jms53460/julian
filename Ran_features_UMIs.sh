@@ -12,19 +12,19 @@
 
 cd /scratch/jms53460/Ran
 
-mkdir featurecounts
-mkdir bams
-mkdir UMIcounts
-ml Mamba/23.11.0-0
-source activate /home/jms53460/subread-env
+#mkdir featurecounts
+#mkdir bams
+#mkdir UMIcounts
+#ml Mamba/23.11.0-0
+#source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a JEC21_56.gff -t 'protein_coding_gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM Mapped/*.bam
+#featureCounts -T 6 -s 1 -a JEC21_56.gff -t 'protein_coding_gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM Mapped/*.bam
 
-conda deactivate
+#conda deactivate
 
 ml SAMtools/1.21-GCC-13.3.0
 module load UMI-tools/1.1.4-foss-2023a
-for file in "featurecounts/".bam*
+for file in "featurecounts/"*.bam
 do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts/${file2}.tsv" ]; then
