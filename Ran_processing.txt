@@ -82,7 +82,8 @@ cp /scratch/jms53460/Ran/SRA_upload/*_1s.fastq.gz /project/bnlab/Ran_data/
 mkdir /scratch/jms53460/Ran/Mapped
 #Got the mapped data from Xiaofeng and the gff from Xiaofeng through Globus. Downloaded all the files and then moved them to /scratch/jms53460/Ran/Mapped with FileZilla
 
-
+cd /scratch/jms53460/Ran
+mv Mapped/JEC21_56.gff .
 
 #!/bin/bash
 #SBATCH --job-name=Ran_features_UMIs                                     # Job name
@@ -104,7 +105,7 @@ mkdir UMIcounts
 ml Mamba/23.11.0-0
 source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a JEC21_56.gff -t 'gene' -g 'gene_id' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM Mapped/*.bam
+featureCounts -T 6 -s 1 -a JEC21_56.gff -t 'protein_coding_gene' -g 'gene_id' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM Mapped/*.bam
 
 conda deactivate
 
