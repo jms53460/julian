@@ -109,13 +109,16 @@ done
 
 library(readxl)
 Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Rice_Stages.xlsx")
-set.seed(1)
-Rice_Stages = Rice_Stages[sample(1,nrow(Rice_Stages), round(nrow(Rice_Stages)/2)),]
+#set.seed(1)
+#Rice_Stages = Rice_Stages[sample(nrow(Rice_Stages), round(nrow(Rice_Stages)/2)),]
 
 Rice_meta <- Rice_Stages[rep(row.names(Rice_Stages), each = 8), ]
 Rice_meta = as.data.frame(Rice_meta)
 rownames(Rice_meta) = paste(rep(Rice_Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Rice_Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Rice_Stages)), 's', sep ='')
 
+Rice_meta[which(Rice_meta[,10] == "shed"),9] = "Tri_shed"
+Rice_meta[grep("sep only", Rice_meta[,10]),9] = "tetrad_sep"
+Rice_meta[grep("sep,", Rice_meta[,10])[c(6:8,13:16,23:24)],9] = "tetrad_sep"
 
 library(tidyverse)
 
@@ -135,25 +138,126 @@ NCpairs0 = cbind(NCpairs0, abs(NCpairs0[,2] - NCpairs0[,1]))
 
 #each row is a pair, the value in matrix is row number
 
-plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19)
-Heatmap(cor(D[NCpairs,]))
+plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+abline(b=2, a=5000)
+abline(b=1/2, a=-2500)
+abline(h=0)
+abline(v=0)
+(done this way, 2 no cell control pairs gave a false positive (2/22))
 
-#false pos = 3/total pairs for (abline(b=2, a=0))
-#train on half data, test the other half
-#set.seed 
+plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+abline(b=3, a=5000)
+abline(b=1/3, a=-(5000/3))
+abline(h=0)
+abline(v=0)
+(done this way, 2 no cell control pairs gave a false positive (2/22))
+
+plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+abline(b=2, a=10000)
+abline(b=1/2, a=-5000)
+abline(h=0)
+abline(v=0)
+(done this way, 2 no cell control pairs gave a false positive (2/22))
+
+Rice_meta$UMIs = colSums(D[,rownames(Rice_meta)])
+
+NCpairs_UMIs = data.frame(UMIs_1 = colSums(D)[NCpairs[,1]], UMIs_2 = colSums(D)[NCpairs[,2]], Mean_UMIs = (colSums(D)[NCpairs[,1]] + colSums(D)[NCpairs[,2]])/2)
+CV = (NCpairs_UMIs$UMIs_1 - NCpairs_UMIs$Mean_UMIs)/NCpairs_UMIs$Mean_UMIs      #(value in no cell control 1 - average of pair) / (average of pair)
+relativeDiff = (NCpairs_UMIs$UMIs_1 - NCpairs_UMIs$UMIs_2)/NCpairs_UMIs$UMIs_1   #(value in no cell control 1 - value in NCC2) / (value in NCC1)
+relativeDiff2 = (NCpairs_UMIs$UMIs_2 - NCpairs_UMIs$UMIs_1)/NCpairs_UMIs$UMIs_2
+
+hist(relativeDiff, breaks=50)
+
+NCpairs_UMIs$Threshold = (NCpairs_UMIs$UMIs_1)*2 + 2000
+NCpairs_UMIs$Threshold[which(is.na(NCpairs_UMIs$UMIs_2))] = NA
+
+NCpairs_UMIs$Threshold2 = (NCpairs_UMIs$UMIs_2)*2 + 2000
+#NCpairs_UMIs$Threshold2[which(is.na(NCpairs_UMIs$Threshold2))] = NCpairs_UMIs$Threshold[which(is.na(NCpairs_UMIs$Threshold2))]
+
+
+Rice_meta$Min5000_2x = rep(NCpairs_UMIs$Threshold, each=8)
+Pass_Min5000_2x = rownames(Rice_meta[(which(Rice_meta$UMIs > Rice_meta$Min5000_2x)),]) #1/46 NCC pass, 30/138 samples pass
+length(which(Rice_meta[Pass_Min5000_2x,12] == "Y")) / 46 #False positive rate #0.022
+#length(which(Rice_meta[Pass_Min5000_2x,12] == "Y")) / length(Pass_Min5000_2x) #FDR 0.032
+#(138 - length(which(Rice_meta[Pass_Min5000_2x,12] == "N")))/138 #False negative rate 0.783
+
+Rice_meta$Min5000_2x_2 = rep(NCpairs_UMIs$Threshold2, each=8)
+Pass_Min5000_2x_2 = rownames(Rice_meta[(which(Rice_meta$UMIs > Rice_meta$Min5000_2x_2)),]) #1/46 NCC pass, 30/138 samples pass
+length(which(Rice_meta[Pass_Min5000_2x_2,12] == "Y")) / 46 #False positive rate #0.022
+length(which(Rice_meta[Pass_Min5000_2x_2,12] == "Y")) / length(Pass_Min5000_2x) #FDR 0.032
+(138 - length(which(Rice_meta[Pass_Min5000_2x_2,12] == "N")))/138 #False negative rate 0.783
+
+
+#NCpairs_UMIs$Mean_or_only = NCpairs_UMIs$Mean_UMIs
+#NCpairs_UMIs[which(is.na(NCpairs_UMIs$Mean_or_only)),4] = NCpairs_UMIs[which(is.na(NCpairs_UMIs$Mean_or_only)),1]
 
 
 
-Rice_meta = arrange(Rice_meta, XGEN_primer)
-Rice_meta[,13] = Rice_meta$Sample
-colnames(Rice_meta)[13] = "Bud"
 
-for (x in 1:length(unique(Rice_meta$Plate))){
-    Rice_meta$Sample[which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])] = c(paste(rep(unique(Rice_meta$Plate)[x], times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), rep('_', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), 1:length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])), rep('s', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), sep=''))
+NCpairs_UMIs = data.frame(UMIs_1 = colSums(D)[NCpairs[,1]], UMIs_2 = colSums(D)[NCpairs[,2]], Mean_UMIs = (colSums(D)[NCpairs[,1]] + colSums(D)[NCpairs[,2]])/2)
+
+Set_QC = function(multiplier, minUMI, NCs = 23, realCells = 138){
+    NCpairs_UMIs$Threshold = (NCpairs_UMIs$UMIs_1)*multiplier + minUMI
+    NCpairs_UMIs$Threshold[which(is.na(NCpairs_UMIs$UMIs_2))] = NA
+    Rice_meta$Threshold = rep(NCpairs_UMIs$Threshold, each=8)
+    PassThreshold = rownames(Rice_meta[(which(Rice_meta$UMIs > Rice_meta$Threshold)),])
+    FPR = length(which(Rice_meta[PassThreshold,12] == "Y")) / NCs
+
+    FPR2 = mean(NCpairs_UMIs[,2] >= ((NCpairs_UMIs$UMIs_1)*multiplier + minUMI), na.rm=T)
+    FDR = (FPR*realCells)/(length(which(Rice_meta[PassThreshold,12] == "N")))
+    TPR = (length(which(Rice_meta[PassThreshold,12] == "N")))/realCells
+    return(list(PassThreshold=PassThreshold, FPR=FPR, FDR=FDR, TPR=TPR))
+    #return(list(TPR=TPR,FPR=FPR, FPR2=FPR2))
 }
 
-rownames(Rice_meta) = Rice_meta$Sample
-write.csv(Rice_meta, "Rice_meta.csv")
+Min_5000 = Set_QC(multiplier=0, minUMI=5000, NCs = 46)
+Min_10000 = Set_QC(multiplier=0, minUMI=10000, NCs = 46)
+Min_20000 = Set_QC(multiplier=0, minUMI=20000, NCs = 46)
+Min_30000 = Set_QC(multiplier=0, minUMI=30000, NCs = 46)
+Min0_1.5x = Set_QC(multiplier=1.5, minUMI=0)
+Min2000_1.5x = Set_QC(multiplier=1.5, minUMI=2000)
+Min5000_1.5x = Set_QC(multiplier=1.5, minUMI=5000)
+Min0_2x = Set_QC(multiplier=2, minUMI=0)
+Min2000_2x = Set_QC(multiplier=2, minUMI=2000)
+Min5000_2x = Set_QC(multiplier=2, minUMI=5000)
+Min0_3x = Set_QC(multiplier=3, minUMI=0)
+Min2000_3x = Set_QC(multiplier=3, minUMI=2000)
+Min5000_3x = Set_QC(multiplier=3, minUMI=5000)
+
+QC_options = t(cbind(Min_5000,Min_10000,Min_20000,Min_30000,Min0_1.5x,Min2000_1.5x,Min5000_1.5x,Min0_2x,Min2000_2x,Min5000_2x,Min0_3x,Min2000_3x,Min5000_3x))
+
+plot(as.data.frame(QC_options)$TPR,as.data.frame(QC_options)$FPR2, pch=19, cex=3, xlab="TPR", ylab="FPR")
+#plot(c(Min0_2x$TPR,Min2000_2x$TPR,Min5000_2x$TPR,Min0_3x$TPR,Min2000_3x$TPR,Min5000_3x$TPR), c(Min0_2x$FDR,Min2000_2x$FDR,Min5000_2x$FDR,Min0_3x$FDR,Min2000_3x$FDR,Min5000_3x$FDR), pch=19, cex=3, xlab="TPR", ylab="FDR")
+#950 real cells in total for my rice data I think. Based on TPR, Min2000_2x would give ~255 samples passing QC
+
+
+Rice_meta_noNCC = Rice_meta[which(Rice_meta$No_cell2 == "N"),]
+Rice_meta_noNCC = Rice_meta_noNCC[which(!is.na(Rice_meta_noNCC$Threshold)),]
+NCpairs_UMIs8 = NCpairs_UMIs[which(!is.na(NCpairs_UMIs$UMIs_2)),c(1:2)]
+NCpairs_UMIs8 = as.matrix(cbind(NCpairs_UMIs8, t(matrix(Rice_meta_noNCC$UMIs, ncol=23))))
+
+Heatmap(log(NCpairs_UMIs8,10), col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = T)
+Heatmap(NCpairs_UMIs8, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = T)
+
+#training on half data, test the other half
+
+
+
+
+
+Rice_meta$Bud = Rice_meta$Sample
+Rice_meta$Sample = rownames(Rice_meta)
+Rice_meta = arrange(Rice_meta, XGEN_primer)
+Rice_meta$UMIs = colSums(D[,rownames(Rice_meta)])
+
+#for (x in 1:length(unique(Rice_meta$Plate))){
+#    Rice_meta$Sample[which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])] = c(paste(rep(unique(Rice_meta$Plate)[x], times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), rep('_', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), 1:length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x])), rep('s', times = length(which(Rice_meta$Plate == unique(Rice_meta$Plate)[x]))), sep=''))
+#}
+
+#rownames(Rice_meta) = Rice_meta$Sample
+#write.csv(Rice_meta, "Rice_meta.csv")
 
 Samples_1_1 = as.matrix(Rice_meta[which(Rice_meta$Plant == "NRE1-1"),5])
 Samples_1_1 = gsub("R", "mv R", Samples_1_1)
@@ -520,7 +624,7 @@ g1 = g1[,rownames(Rice_meta)]
 g2 = g2[,rownames(Rice_meta)]
 
 save(D,g1,g2,Rice_genes,reads_UMIs,Rice_Stages,Rice_meta, file = "Rice_7-8_2025_with_meta.RData")
-
+load("Rice_7-8_2025_with_meta.RData")
 BINR = function (xx, bin = 10^6) 
 {
     bin = as.numeric(Rice_genes[, 1]) * 10^6 + round(Rice_genes[, 2]/bin)
@@ -542,31 +646,41 @@ R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bi
 AlleleFrac_bin[-R_binUse,] = NA
 FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
 
-over10k = names(which(colSums(D) >10000))
-length(which(Rice_meta[over10k,9] == "tetrads")) #37 tetrads, 67 UM, 11 UM/BM, 74 BM, 15 BM/Tri, 129 Tri
+#over10k = names(which(colSums(D) >10000))
+#length(which(Rice_meta[over10k,9] == "tetrads")) #37 tetrads, 67 UM, 11 UM/BM, 74 BM, 15 BM/Tri, 129 Tri
+
+over30k = names(which(colSums(D) >25000))
+over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 2 no cell controls
+length(which(Rice_meta[over30k,9] == "tetrads")) #9 tetrads, 7 tetrad_sep, 12 UM, 11 UM/BM, 41 BM, 15 BM/Tri, 107 Tri >25k
+length(which(Rice_meta[which(Rice_meta[,9] == "Tri"),12] == "N")) #31 tetrads, 50 tetrad_sep, 397 UM, 54 UM/BM, 132 BM, 21 BM/Tri, 177 Tri samples total
+
+
+length(which(Rice_meta[over30k,9] == "tetrads")) #8 tetrads, 4 tetrad_sep, 11 UM, 10 UM/BM, 40 BM, 15 BM/Tri, 103 Tri >30k
+
+
 
 library('ComplexHeatmap')
 #svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
 Heatmap(AlleleFrac_bin, name = 'AlleleFrac',
     top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
-    "FracMono" = FracMono_all, ">10,000 UMIs" = colSums(D) > 10000,
-    col = list(">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    "FracMono" = FracMono_all, ">30,000 UMIs" = colSums(D) > 30000,
+    col = list(">30,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
     cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
 #dev.off()
 
 
-Stage_order = order(factor(Rice_meta$Stage, levels = c('tetrads', 'UM', 'UM/BM', 'BM', 'BM/Tri', 'Tri')))
-names(Stage_order) = Rice_meta$Sample[Stage_order]
-Stage_order2 = Stage_order[which(names(Stage_order) %in% over10k)]
+Stage_order = order(factor(Rice_meta$Stage, levels = c('tetrads','tetrad_sep','UM','UM/BM','BM','BM/Tri','Tri','Tri_shed')))
+names(Stage_order) = rownames(Rice_meta[Stage_order,])
+Stage_order2 = Stage_order[which(names(Stage_order) %in% over30k)]
 
-FracMonoVsStage = data.frame(FracMono = FracMono_all[Stage_order2], Stage = Rice_meta$Stage[Stage_order2], Bud = Rice_meta$Bud[Stage_order2], No_cell = Rice_meta$No_cell[Stage_order2], UMIs = colSums(D[,Stage_order2]))
+FracMonoVsStage = data.frame(FracMono = FracMono_all[Stage_order2], Stage = Rice_meta$Stage[Stage_order2], Bud = Rice_meta$Sample[Stage_order2], No_cell = Rice_meta$No_cell2[Stage_order2], UMIs = colSums(D[,Stage_order2]))
 
 #svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
 Heatmap(AlleleFrac_bin[,Stage_order2], name = 'AlleleFrac',
     top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[Stage_order2,9]), UMIcounts = log(colSums(D[,Stage_order2]),10), 
-    "FracMono" = FracMono_all[Stage_order2], ">10,000 UMIs" = colSums(D[,Stage_order2]) > 10000,
-    col = list(Stage = c("tetrads" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111"), ">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    "FracMono" = FracMono_all[Stage_order2], ">30,000 UMIs" = colSums(D[,Stage_order2]) > 30000,
+    col = list(Stage = c("tetrads" = "#ffffff","tetrad_sep" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111", "Tri_shed" = "#111111"), ">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
     cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
 #dev.off()
@@ -579,21 +693,21 @@ A2b = log(A2+pseudocount,10)  # Log transform
 
 A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
 fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
-hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,names(which(colSums(D) > 10000))]
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
 minmax = function(x) {
 	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
 }
 
 library(circlize)
 FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
-UMI_col = colorRamp2(c(4, 5.3), c("white", "forestgreen"))
+UMI_col = colorRamp2(c(4.4, 5.6), c("white", "forestgreen"))
 
 #library('ComplexHeatmap')
 
 #svg('Rice_7_2025_Expression_heatmap.svg', width=6, height=4.5)
 Heatmap(minmax(hmat), name = 'expression
 level (TPM)', 
-    top_annotation = HeatmapAnnotation(FracMono = FracMono_all[names(which(colSums(D) > 10000))], UMIcounts = log(colSums(D[,names(which(colSums(D) > 10000))]),10),
+    top_annotation = HeatmapAnnotation(FracMono = FracMono_all[over30k], UMIcounts = log(colSums(D[,over30k]),10),
     col = list(FracMono = FracMono_col, UMIcounts = UMI_col)),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
 #dev.off()
@@ -603,9 +717,93 @@ Heatmap(minmax(hmat[,names(Stage_order2)]), name = 'expression
 level (TPM)', 
     top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[Stage_order2,9]), 
     FracMono = FracMono_all[Stage_order2], UMIcounts = log(colSums(D[,Stage_order2]),10),
-    col = list(Stage = c("tetrads" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", 
-    "BM/Tri" = "#444444", "Tri" = "#111111"), FracMono = FracMono_col, UMIcounts = UMI_col)),
-    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = FALSE)
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col, UMIcounts = UMI_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+source('Pseudotime Velocity Functions.R')
+
+
+stages = as.character(Rice_meta[over30k,9])
+stages = factor(stages, levels = c('tetrads','tetrad_sep','UM','UM/BM','BM','BM/Tri','Tri','Tri_shed'))
+
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    #M1_samples = names(which(stages <= 5))
+    #G_samples = names(which(stages >= 5))
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+
+        #pT[, 2] = pT[, 2] - mean(apply(pT, 1, diff), na.rm = T)
+        #pT = rowMeans(pT, na.rm = T)
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,over30k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+peaks = pseudoPeaks(pseudos,ords)
+#stages2 = as.character(stages)
+#stages2[ords][stages2[ords] == 'UM-BM'] = c('Early','Middle','Late','BM')[sapply(1:349, function(i) { sum(i >= peaks) })[stages2[ords] == 'UM-BM']]
+#stages = factor(stages2, levels = c("Interphase", "Leptotene", "Zygotene", "Pachytene", "M1", "Dyad", "Tetrad", "Early", "Middle", "Late", "BM", "Pollen"))
+
+
+hmat2 = A2d[,over30k][rank(-fano[rownames(A2d)]) <= 500,ords]
+
+Anther_length_col = colorRamp2(c(0.9, 2.0), c("white", "#A8450C"))
+library(seriation)
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+
+svg('Rice_expression_AntherL.svg', width=9, height=7)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[over30k,9][ords]), 
+    FracMono = FracMono_all[over30k][ords], UMIcounts = log(colSums(D[,over30k][,ords]),10), Anther_length = Rice_meta[over30k,6][ords],
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col, UMIcounts = UMI_col, Anther_length = Anther_length_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+svg('Rice_expression_10_8_25.svg', width=6, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[over30k,9][ords]), 
+    FracMono = FracMono_all[over30k][ords], 
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col),
+    annotation_legend_param = list(Stage = list(at = c("tetrads", "tetrad_sep", "UM", "UM/BM", "BM", "BM/Tri", "Tri")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+svg('Rice_expression_10_8_25_noHap.svg', width=6, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[over30k,9][ords]),  
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5")),
+    annotation_legend_param = list(Stage = list(at = c("tetrads", "tetrad_sep", "UM", "UM/BM", "BM", "BM/Tri", "Tri")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
 
 
 

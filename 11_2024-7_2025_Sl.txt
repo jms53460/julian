@@ -1,0 +1,229 @@
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load('11_2024_Sl_2.RData')
+D_11_2024_2 = D
+g1_11_2024_2 = g1
+g2_11_2024_2 = g2
+
+load('12_2024_Sl_2.RData')
+M_2 = D[,1:32]
+M_g1_2 = g1[,1:32]
+M_g2_2 = g2[,1:32]
+D_12_2024_2 = D[,33:752]
+g1_12_2024_2 = g1[,33:752]
+g2_12_2024_2 = g2[,33:752]
+
+load('7_2025_Sl.RData')
+
+D = cbind(D_11_2024_2,D_12_2024_2,D_Sl_7_2025)
+g1 = cbind(g1_11_2024_2,g1_12_2024_2,g1_Sl_7_2025)
+g2 = cbind(g2_11_2024_2,g2_12_2024_2,g2_Sl_7_2025)
+
+library(readxl)
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages_10_2025.xlsx")
+
+Sl_meta <- Sl_Stages[rep(row.names(Sl_Stages), each = 8), ]
+Sl_meta = as.data.frame(Sl_meta)
+
+Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S152-163_', times = 96), 1:96, rep('s', times=96), sep=''))
+
+
+rownames(Sl_meta) = Sl_meta$Sample
+
+Sl_meta$No_cell2 = unlist(lapply(Sl_Stages$No_cell_well, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+#vals is the values in the per bud metadata table
+#the result will be per cell with buds in the same order as that table
+
+NCpairs0 = t(sapply(strsplit(Sl_Stages$No_cell_well, ','), function(xx) { as.numeric(xx)[1:2] }))
+NCpairs = sweep(NCpairs0, 1, (1:nrow(NCpairs0) - 1)*8, '+')
+NCpairs = data.frame(NC1 = rownames(Sl_meta)[NCpairs[,1]], NC2 = rownames(Sl_meta)[NCpairs[,2]])
+
+NCpairs0 = cbind(NCpairs0, abs(NCpairs0[,2] - NCpairs0[,1]))
+
+#each row is a pair, the value in matrix is row number
+
+
+plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+
+
+Sl_meta = Sl_meta[-which(Sl_meta$Sample == "S152-163_54s"),]
+
+D = D[,Sl_meta$Sample]
+g1 = g1[,Sl_meta$Sample]
+g2 = g2[,Sl_meta$Sample]
+
+
+save(D,g1,g2,Sl_genes,reads_UMIs,Sl_Stages,Sl_meta, file = "Sl_11_2024-7_2025_with_meta.RData")
+
+load("Sl_11_2024-7_2025_with_meta.RData")
+
+BIN_Sl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes[, 1]) * 10^6 + round(Sl_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BIN_Sl(g1)
+g2_bin = BIN_Sl(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+over30k = names(which(colSums(D) >25000))
+length(which(Sl_meta[over30k,8] == "tetrad")) #3 tetrad, 1 UM, 8 UM/BM, 36 BM, 25 BM_shed >25k
+length(which(Sl_meta[which(Sl_meta[,8] == "tetrad"),14] == "N")) #35 tetrad, 6 tetrad_sep, 359 UM, 42 UM/BM, 202 BM, 83 BM_shed samples total
+
+
+library('ComplexHeatmap')
+#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
+Heatmap(AlleleFrac_bin, name = 'AlleleFrac',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
+    "FracMono" = FracMono_all, ">30,000 UMIs" = colSums(D) > 30000,
+    col = list(">30,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+#dev.off()
+
+
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+
+
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+#hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+library(circlize)
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.4, 5.6), c("white", "forestgreen"))
+
+#library('ComplexHeatmap')
+
+source('Pseudotime Velocity Functions.R')
+
+stages = as.character(Sl_meta[over30k,8])
+stages = factor(stages, levels = c('tetrad','tetrad_sep','UM','UM/BM','BM','BM_shed'))
+
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    #M1_samples = names(which(stages <= 5))
+    #G_samples = names(which(stages >= 5))
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+
+        #pT[, 2] = pT[, 2] - mean(apply(pT, 1, diff), na.rm = T)
+        #pT = rowMeans(pT, na.rm = T)
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+
+over30k = names(which(colSums(D) >25000))
+stages = as.character(Sl_meta[over30k,8])
+stages = factor(stages, levels = c('tetrad','tetrad_sep','UM','UM/BM','BM','BM_shed'))
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,over30k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+#peaks = pseudoPeaks(pseudos,ords)
+#stages2 = as.character(stages)
+#stages2[ords][stages2[ords] == 'UM-BM'] = c('Early','Middle','Late','BM')[sapply(1:349, function(i) { sum(i >= peaks) })[stages2[ords] == 'UM-BM']]
+#stages = factor(stages2, levels = c("Interphase", "Leptotene", "Zygotene", "Pachytene", "M1", "Dyad", "Tetrad", "Early", "Middle", "Late", "BM", "Pollen"))
+
+
+hmat2 = A2d[,over30k][rank(-fano[rownames(A2d)]) <= 500,ords]
+
+#Bud_length_col = colorRamp2(c(5, 17), c("white", "#A8450C"))
+#library(seriation)
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+
+svg('Sl_expression_AntherL.svg', width=9, height=50)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Sl_meta[over30k,8][ords]), No_cell = Sl_meta[over30k,14][ords],
+    FracMono = FracMono_all[over30k][ords], UMIcounts = log(colSums(D[,over30k][,ords]),10), Bud_length = Sl_meta[over30k,6][ords],
+    col = list(Stage = c("tetrad" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM_shed" = "#64CDCC"), No_cell = c("Y" = "black", "N" = "white"), FracMono = FracMono_col, UMIcounts = UMI_col, Bud_length = Bud_length_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE)
+dev.off()
+
+svg('Sl_expression_10_8_25.svg', width=10, height=80)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Sl_meta[over30k,8][ords]),
+    FracMono = FracMono_all[over30k][ords],
+    col = list(Stage = c("tetrad" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM_shed" = "#64CDCC"), FracMono = FracMono_col), 
+    annotation_legend_param = list(Stage = list(at = c("tetrad", "UM", "UM/BM", "BM", "BM_shed")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE)
+dev.off()
+
+
+svg('Sl_expression_10_8_25_noHap.svg', width=6, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Sl_meta[over30k,8][ords]),
+    col = list(Stage = c("tetrad" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM_shed" = "#64CDCC")), 
+    annotation_legend_param = list(Stage = list(at = c("tetrad", "UM", "UM/BM", "BM", "BM_shed")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+
+
+Sl_hmat2 = draw(Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(Sl_meta[over30k,8][ords]), No_cell = Sl_meta[over30k,14][ords],
+    FracMono = FracMono_all[over30k][ords], UMIcounts = log(colSums(D[,over30k][,ords]),10),
+    col = list(Stage = c("tetrad" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM_shed" = "#64CDCC"), No_cell = c("Y" = "black", "N" = "white"), FracMono = FracMono_col, UMIcounts = UMI_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE))
+row_order(Sl_hmat2)
+
+Sl_hmat2_genes = rownames(hmat2[row_order(Sl_hmat2),])
+
+check_annot = matrix(data=NA, nrow=length(224:319), ncol=1)
+for (n in 224:319){
+    check_annot[(n-223)] = paste("grep", Sl_hmat2_genes[n], "Sl_14.gff")
+}
+print(as.data.frame(check_annot), row.names=F) #These genes are almost all ribosomal RNAs. The first is a signal recognition particle 7S RNA, one is uncharacterized LOC138338492
+#This was done with 25,000 UMI cutoff
+

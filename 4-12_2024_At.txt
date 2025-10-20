@@ -617,3 +617,227 @@ by(colSums(D), sub('.+_','',colnames(D)), summary)
 
 save(D,g1,g2,genes, file = "4-12_At.RData")
 
+
+
+________________________________
+
+#load("4-12_At.RData")
+
+load("At_data_9_2025.RData")
+
+library(readxl)
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages2.xlsx")
+
+At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta2.xlsx")
+At_meta = as.data.frame(At_meta)
+rownames(At_meta) = At_meta$Sample
+At_meta[grep("tetrad", At_meta[,9]),9] = "tetrads"
+At_meta[which(At_meta[,8] == "35"),8] = "0.35"
+
+No_cell = At_meta$Sample[which(At_meta$No_cell_well == 'Y')]
+
+summary(colSums(D[,No_cell]))
+
+
+plotChr = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac[, cell], Chr = floor(as.numeric(rownames(AlleleFrac))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac))%%10^6) + 
+            0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-3, max(genes[,2])/10^6 + 3), breaks = seq(0,300,5)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+
+plotCell2 = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), 
+        plotChr(cell, chr = 5), plotScaleBar, ncol = 1, nrow = 6, 
+        align = "v", heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from Col-0 allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+BIN2 = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINR(g1)
+g2_bin = BINR(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-R_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+over30k = names(which(colSums(D) >25000))
+length(which(At_meta[over30k,9] == "tetrads")) #2 tetrads, 25 UM, 8 UM/BM, 44 BM, 2 BM/Tri, 67 Tri passed QC >30k
+length(which(At_meta[over30k,9] == "tetrads")) #2 tetrads, 33 UM, 11 UM/BM, 54 BM, 2 BM/Tri, 71 Tri passed QC >25k
+length(which(At_meta[which(At_meta[,9] == "Tri"),12] == "N")) #7 tetrads, 354 UM, 93 UM/BM, 301 BM, 45 BM/Tri, 300 Tri samples total
+#28.6% tetrads, 7.1% UM, 8.6% UM/BM, 14.6% BM, 4.4% BM/Tri, 22.3% Tri passed QC >30k
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+
+
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+library(circlize)
+HapFrac_col = colorRamp2(c(0.5, 1), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.4, 5.3), c("white", "forestgreen"))
+
+
+#source('Pseudotime Velocity Functions.R')
+
+
+stages = as.character(At_meta[over30k,9])
+stages = factor(stages, levels = c('tetrads','UM','UM/BM','BM','BM/Tri','Tri'))
+
+pseudotime = function (x, stages) 
+{
+    PCs = pcaFn(x)
+    pT = principal_curve(PCs)$lambda
+    pT = pT * sign(cor(pT, stages[rownames(x)]))
+    names(pT) = rownames(x)
+    return(pT)
+}
+
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+        #pT = pseudotime(xx[samps, ])
+
+
+        #pT[, 2] = pT[, 2] - mean(apply(pT, 1, diff), na.rm = T)
+        #pT = rowMeans(pT, na.rm = T)
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,over30k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+#peaks = pseudoPeaks(pseudos,ords)
+
+hmat2 = A2d[,over30k][rank(-fano[rownames(A2d)]) <= 500,ords]
+
+#Bud_length_col = colorRamp2(c(0.5, 2.2), c("white", "#A8450C"))
+#library(seriation)
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+
+svg('At_expression_AntherL.svg', width=9, height=7)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(At_meta[over30k,9][ords]),
+    HapFrac = HapFrac_all_fixed[over30k][ords], UMIcounts = log(colSums(D[,over30k][,ords]),10), Bud_length = as.numeric(At_meta[over30k,7][ords]),
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), HapFrac = HapFrac_col, UMIcounts = UMI_col, Bud_length = Bud_length_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(At_meta[over30k,9][ords]),
+    HapFrac = HapFrac_all_fixed[over30k][ords], UMIcounts = log(colSums(D[,over30k][,ords]),10), Yellow = At_meta[over30k,13][ords],
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), HapFrac = HapFrac_col, UMIcounts = UMI_col, Yellow = c("Y" = "yellow", "N" = "white"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+svg('At_expression_10_8_25.svg', width=6, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(At_meta[over30k,9][ords]), 
+    HapFrac = HapFrac_all_fixed[over30k][ords], 
+    col = list(Stage = c("tetrads" = "#EB1E2C", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5"), HapFrac = HapFrac_col),
+    annotation_legend_param = list(Stage = list(at = c("tetrads", "UM", "UM/BM", "BM", "BM/Tri", "Tri")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+svg('At_expression_10_8_25_noHap.svg', width=6, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(At_meta[over30k,9][ords]), 
+    col = list(Stage = c("tetrads" = "#EB1E2C", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5")),
+    annotation_legend_param = list(Stage = list(at = c("tetrads", "UM", "UM/BM", "BM", "BM/Tri", "Tri")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+
+
+At_hmat2 = draw(Heatmap(minmax(hmat2), name = 'expression 
+level (TPM)', 
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(At_meta[over30k,9][ords]), 
+    HapFrac = HapFrac_all_fixed[over30k][ords], UMIcounts = log(colSums(D[,over30k][,ords]),10),
+    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), HapFrac = HapFrac_col, UMIcounts = UMI_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE))
+row_order(At_hmat2)
+
+At_hmat2_genes = rownames(hmat2[row_order(At_hmat2),])
+
+check_annot = matrix(data=NA, nrow=length(1:9), ncol=1)
+for (n in 1:9){
+    check_annot[(n)] = paste("grep", At_hmat2_genes[n], "TAIR10.1_Col_5.gff")
+}
+print(as.data.frame(check_annot), row.names=F) #These genes are almost all ribosomal RNAs. The first is a signal recognition particle 7S RNA, one is uncharacterized LOC138338492
+#This was done with 30,000 UMI cutoff
+#1:9 are:
+ID=gene-AT1G76490;Name=HMG1;Note=Encodes a 3-hydroxy-3-methylglutaryl coenzyme A reductase%2C which is involved in melavonate biosynthesis and performs the first committed step in isoprenoid biosynthesis. Expression is activated in dark in leaf tissue but not controlled by light in the root 
+ID=gene-AT2G23170;Name=GH3.3;Note=encodes an IAA-amido synthase that conjugates Asp and other amino acids to auxin in vitro
+ID=gene-AT1G77590;Name=LACS9;Note=Encodes major plastidic long chain acyl-CoA synthetase with a slight substrate preference of oleic acid over any of the other fatty acids
+ID=gene-AT3G47340;Name=ASN1;Note=encodes a glutamine-dependent asparagine synthetase%2C the predicted ASN1 peptide contains a purF-type glutamine-binding domain%2C and is expressed predominantly in shoot tissues%2C where light has a negative effect on its mRNA accumulation. Expression is induced within 3 hours of dark treatment%2C in senescing leaves and treatment with exogenous photosynthesis inhibitor. Induction of gene expression was suppressed in excised leaves supplied with sugar. The authors suggest that the gene's expression pattern is responding to the level of sugar in the cell
+ID=gene-AT1G20450;Name=ERD10;Note=Encodes a gene induced by low temperature and dehydration. Inhibits e.coli growth while overexpressed. Belongs to the dehydrin protein family%2C which contains highly conserved stretches of 7-17 residues that are repetitively scattered in their sequences%2C the K-%2C S-%2C Y- and lysine rich segments. LTI29 and LTI30 double overexpressors confer cold tolerance. Localized to membranes and cytoplasm
+ID=gene-AT1G20440;Name=COR47;Note=Belongs to the dehydrin protein family%2C which contains highly conserved stretches of 7-17 residues that are repetitively scattered in their sequences%2C the K-%2C S-%2C Y- and lysine rich segments. Cold regulated gene%2C amino acid sequence homology with Group II LEA (late embryogenesis abundant) proteins. Also responds to osmotic stress%2C ABA%2C dehydration and inhibits e.coli growth while overexpressed. COR47 and RAB18 double overexpressor plants are cold tolerant
+ID=gene-AT3G10985;Name=SAG20;Note=A senescence-associated gene whose expression is induced in response to treatment with Nep1%2C a fungal protein that causes necrosis
+ID=gene-AT3G22910;Name=AT3G22910;gene_synonym=ACA13,auto-inhibited Ca2+ ATPase 13
+ID=gene-AT4G24380;Name=AT4G24380;gene_synonym=T22A6.210,T22A6_210;product=dihydrofolate reductase
