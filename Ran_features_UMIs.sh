@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=Ran_features_UMIs                                     # Job name
+#SBATCH --job-name=Ran_features_UMIs                                      # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
-#SBATCH --mem=300gb                                                       # Total memory for job
+#SBATCH --mem=600gb                                                       # Total memory for job
 #SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Ran/Ran_features_UMIs.out              # Location of standard output file
 #SBATCH --error=/scratch/jms53460/Ran/Ran_features_UMIs.err               # Location of error log file
@@ -22,23 +22,21 @@ cd /scratch/jms53460/Ran
 
 #conda deactivate
 
-mkdir bams2
-mkdir UMIcounts2
 
-ml SAMtools/1.21-GCC-13.3.0
-for file in "featurecounts2/"*.bam
-do
-    file2="${file:15:-22}"
+#ml SAMtools/1.21-GCC-13.3.0
+#for file in "featurecounts2/"*.bam
+#do
+#    file2="${file:15:-22}"
 
-        samtools sort -@ 6 "$file" -o "bams2/$file2"
-        samtools index "bams2/$file2"
-done
+#        samtools sort -@ 6 "$file" -o "bams2/$file2"
+#        samtools index "bams2/$file2"
+#done
 
-
+mkdir UMIcounts3
 module load UMI-tools/1.1.4-foss-2023a
 for file in "featurecounts2/"*.bam
 do
     file2="${file:15:-22}"
 
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts2/${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams2/$file2" -S "UMIcounts3/${file2}.tsv"
 done
