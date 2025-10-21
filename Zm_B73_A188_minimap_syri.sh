@@ -13,7 +13,7 @@
 cd /scratch/jms53460/Maize_8-10_2025
 
 ml minimap2/2.28-GCCcore-13.2.0
-minimap2 -t 6 -ax asm20 --eqx Zm-B73-REFERENCE-NAM-5.0.fa Zm_A188.fa > A188_aligned_to_B73.sam
+minimap2 -t 6 -ax asm10 --eqx Zm-B73-REFERENCE-NAM-5.0.fa Zm_A188.fa > A188_aligned_to_B73.sam
 
 ml SyRI/1.7.1-foss-2023a
 syri -c A188_aligned_to_B73.sam -r Zm-B73-REFERENCE-NAM-5.0.fa -q Zm_A188.fa -k -F S
