@@ -32,6 +32,20 @@ gzip -d Zm_A188.fa.gz
 
 cp /home/jms53460/CELSeq_barcodes.txt .
 
+#Need to get rid of unplaced scaffolds, only leaving the chromosomes, for syri to work.
+
+grep -n ">" Zm-B73-REFERENCE-NAM-5.0.fa
+24742658:>chr10
+26648102:>scaf_21
+head -26648101 Zm-B73-REFERENCE-NAM-5.0.fa > Zm_B73_trim.fa
+
+
+grep -n ">" Zm_A188.fa
+24992964:>chr10
+26915829:>c01_001
+head -26915828 Zm_A188.fa > Zm_A188_trim.fa
+
+
 
 #!/bin/bash
 #SBATCH --job-name=Zm_minimap_syri                                         # Job name
@@ -48,10 +62,10 @@ cp /home/jms53460/CELSeq_barcodes.txt .
 cd /scratch/jms53460/Maize_8-10_2025
 
 ml minimap2/2.28-GCCcore-13.2.0
-minimap2 -t 6 -ax asm10 --eqx Zm-B73-REFERENCE-NAM-5.0.fa Zm_A188.fa > A188_aligned_to_B73.sam
+minimap2 -t 6 -ax asm10 --eqx Zm_B73_trim.fa Zm_A188_trim.fa > A188_aligned_to_B73.sam
 
 ml SyRI/1.7.1-foss-2023a
-syri -c A188_aligned_to_B73.sam -r Zm-B73-REFERENCE-NAM-5.0.fa -q Zm_A188.fa -k -F S
+syri -c A188_aligned_to_B73.sam -r Zm_B73_trim.fa -q Zm_A188_trim.fa -k -F S
 
 
 ###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
