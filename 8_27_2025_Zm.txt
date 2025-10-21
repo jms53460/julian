@@ -57,22 +57,24 @@ syri -c A188_aligned_to_B73.sam -r Zm-B73-REFERENCE-NAM-5.0.fa -q Zm_A188.fa -k 
 ###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
 
 #!/bin/bash
-#SBATCH --job-name=Sl_vcf2tsvpy                                           # Job name
+#SBATCH --job-name=Zm_vcf2tsvpy                                           # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=1                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=6:00:00                                                    # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.out        # Location of standard output file
-#SBATCH --error=/scratch/jms53460/11_2024_Sl/Zm_vcf2tsvpy.err         # Location of error log file
+#SBATCH --output=/scratch/jms53460/Maize_8-10_2025/Zm_vcf2tsvpy.out       # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Maize_8-10_2025/Zm_vcf2tsvpy.err        # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/11_2024_Sl
-ml Miniconda3/23.5.2-0
+cd /scratch/jms53460/Maize_8-10_2025
+ml Mamba/23.11.0-0
 source activate /home/jms53460/vcf2tsvpy
-vcf2tsvpy --input_vcf syri.vcf --out_tsv Sl_vcf_table.tsv 
+vcf2tsvpy --input_vcf syri.vcf --out_tsv Zm_B73_A188_vcf_table.tsv 
 conda deactivate
+
+
 
 
 ###Selected columns from the vcf_table
@@ -138,5 +140,104 @@ svg('3_maize_pollen_chr4_mdr1.svg', width=2, height=2.5)
 Fig1e
 dev.off()
 
+
+
+######
+
+# For General plotting
+require(ggplot2)
+require(ggpubr)
+
+# For the heatmap in Fig. 1f
+require(ComplexHeatmap)
+require(seriation)
+
+# To calculate pseudotime and pseudotime velocity for Fig. 1f
+require(princurve)
+require(RSpectra)
+
+# Load transcript count data and metadata from GEO accession GSE175505
+meta = read.csv('GSE175505_Sample_Metadata.csv.gz', row.names=1)  # This file is also identical to Table S1 of Nelms and Walbot (2021)
+A = read.csv('GSE175505_Pollen_scRNAseq_transcript_counts.csv.gz', row.names=1)
+
+# Remove samples that did not pass quality control
+A = A[,sub('s_.+','s',colnames(A)) %in% (rownames(meta)[meta[,11] == 'Y'])]  
+meta = meta[unique(sub('s_.+','s',colnames(A))),]
+
+# Separate data into 3 matrices: the total number of transcripts per precursor (UMIs), the number of genoinformative transcripts matching the B73 allele (g1), and the number of genoinformative transcripts matching the A188 allele (g2)
+UMIs = A[,seq(1,ncol(A),4)] + A[,seq(2,ncol(A),4)] + A[,seq(3,ncol(A),4)] + A[,seq(4,ncol(A),4)]
+colnames(UMIs) = sub('_cf', '', colnames(UMIs))
+g1 = A[,seq(2,ncol(A),4)]
+g2 = A[,seq(3,ncol(A),4)]
+
+B = read.csv(file = 'Gene locations.csv', row.names = 1)
+
+
+source('Pseudotime Velocity Functions.R')
+
+# The stages variable contains all the stages as defined by morphology alone
+stages = as.character(meta[,4])
+stages[meta[,3] %in% c('UM','UM-BM','BM')] = 'UM-BM'
+stages = factor(stages, levels = c("Interphase", "Leptotene", "Zygotene", "Pachytene", "M1", "Dyad", "Tetrad", "UM-BM", "Pollen"))
+
+pseudocount = 1*10^6/quantile(colSums(UMIs), p = .1)
+A2 = sweep(UMIs, 2, colSums(UMIs), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(UMIs[,colnames(A2b)] >= 10) >= 10, ]  # For pseudotime analysis, require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+peaks = pseudoPeaks(pseudos,ords)
+stages2 = as.character(stages)
+stages2[ords][stages2[ords] == 'UM-BM'] = c('Early','Middle','Late','BM')[sapply(1:349, function(i) { sum(i >= peaks) })[stages2[ords] == 'UM-BM']]
+stages = factor(stages2, levels = c("Interphase", "Leptotene", "Zygotene", "Pachytene", "M1", "Dyad", "Tetrad", "Early", "Middle", "Late", "BM", "Pollen"))
+
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+BINZ = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(B[, 1]) * 10^6 + round(B[, 3]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINZ(g1[rownames(B),])
+g2_bin = BINZ(g2[rownames(B),])
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+Z_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-Z_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+names(FracMono_all) = sub("_g1", "", names(FracMono_all))
+
+
+hmat2 = A2d[rank(-fano[rownames(A2d)]) <= 500,ords][,127:349]
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+
+stages = sub("Early", "Early UM", sub("Middle", "Middle UM", sub("Late", "Late UM", stages)))
+stages[grep("Floret", meta[,5])] = "UM/BM"
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+
+
+svg('Zm_tetrad-pollen_expression_2022_data.svg', width=6, height=4)
+Heatmap(as.matrix(minmax(hmat2)), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = as.matrix(stages[ords][127:349]), 
+    FracMono = as.matrix(FracMono_all[ords][127:349]),
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "Early UM" = "#FF6F00", "Middle UM" = "#F9A729", "Late UM" = "#FFC107", 
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "Pollen" = "#A4A4D5"), FracMono = FracMono_col),
+    annotation_legend_param = list(Stage = list(at = c("Tetrad", "Early UM", "Middle UM", "Late UM", "UM/BM", "BM", "Pollen")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
 
 

@@ -721,6 +721,7 @@ level (TPM)',
     "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col, UMIcounts = UMI_col)),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 
+#colors from paletteer_d("ggthemes::Jewel_Bright")
 
 source('Pseudotime Velocity Functions.R')
 
