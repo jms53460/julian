@@ -104,14 +104,14 @@ AlleleFrac = g1_frac
 AlleleFrac[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
 AlleleFrac2 = AlleleFrac[,which(colSums(D) >= 10000)] ###491/1120 passed >= 10000, 5 of these are no cell controls
 
-
+over30k = names(which(colSums(D) >25000))
 
 HapCallV4 = function(cell, chr, recs=1.5, mx = (2.5), ss=1, niter = 10000, burnin = 2000) {
 	keeps0 = names(which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .3)) #exclude genes with >80% transcripts matching the same allele
     keeps = names(which(((g1[,cell] + g2[,cell]) > 0) & (genes$Chr == chr)))
     
-    g1b = g1[keeps[keeps %in% keeps0],colnames(AlleleFrac2)]
-    g2b = g2[keeps[keeps %in% keeps0],colnames(AlleleFrac2)]
+    g1b = g1[keeps[keeps %in% keeps0],over30k]#colnames(AlleleFrac2)]
+    g2b = g2[keeps[keeps %in% keeps0],over30k]#colnames(AlleleFrac2)]
     g1bFracMean = rowMeans(g1b/(g1b+g2b), na.rm=T)
     g2bFracMean = rowMeans(g2b/(g1b+g2b), na.rm=T)
 
@@ -160,7 +160,7 @@ HapCallV4 = function(cell, chr, recs=1.5, mx = (2.5), ss=1, niter = 10000, burni
 set.seed(1)
 
 cell = "A230-241_79s"
-
+cell = "A242-253_62s"
 
 AlleleFrac_genes = (g1/(g1+g2))
 
@@ -182,8 +182,10 @@ HapCallCell = function(cell){
     HapCell$Hap[which(round(HapCell$Hap) == -1)] = 0
     AlleleFrac_genes_cell = round(AlleleFrac_genes[HapCallGenes,cell])
     HapMatch = AlleleFrac_genes_cell == HapCell$Hap #for each gene, does AlleleFrac match expected haplotype?
+    HapFrac_genes = AlleleFrac_genes[HapCallGenes,cell]
+    HapFrac_genes[which(HapCell$Hap == 0)] = abs(HapFrac_genes[which(HapCell$Hap == 0)] - 1)
     HapFrac = length(which(AlleleFrac_genes_cell == HapCell$Hap))/length(HapCallGenes)
-    return(list(HapMatch = HapMatch, HapFrac = HapFrac, Hap = Hap))
+    return(list(Hap = Hap, HapMatch = HapMatch, HapFrac_genes = HapFrac_genes, HapFrac = HapFrac))
 }
 
 
@@ -219,14 +221,18 @@ save(D, g1, g2, genes, HapMatch_all, HapFrac_all_fixed, No_cell, plotChr, plotSc
 #I tested and found the problem with HapFrac_all can be fixed by creating a vector instead of a matrix. 
 #I will use the below code in the future:
 
-cells = colnames(AlleleFrac2)
+#cells = colnames(AlleleFrac2)
+cells = over30k
 
-HapMatch_all = matrix(data = NA, nrow = nrow(D), ncol = ncol(AlleleFrac2))
+HapMatch_all = matrix(data = NA, nrow = nrow(D), ncol = length(over30k)) #ncol(AlleleFrac2))
 rownames(HapMatch_all) = rownames(D)
-colnames(HapMatch_all) = colnames(AlleleFrac2)
+colnames(HapMatch_all) = over30k #colnames(AlleleFrac2)
 
-HapFrac_all = vector(length = ncol(AlleleFrac2))
-names(HapFrac_all) = colnames(AlleleFrac2)
+Hap_all = HapMatch_all
+HapFrac_genes_all = HapMatch_all
+
+HapFrac_all = vector(length = length(over30k)) #ncol(AlleleFrac2))
+names(HapFrac_all) = over30k #colnames(AlleleFrac2)
 
 
 a1 = proc.time()
@@ -234,6 +240,8 @@ for (cell in cells){
     HapMatch_cell = HapCallCell(cell)
     HapMatch_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$HapMatch
     HapFrac_all[cell] = HapMatch_cell$HapFrac
+    Hap_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$Hap
+    HapFrac_genes_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$HapFrac_genes
 }
 a2 = proc.time()
 a2-a1
@@ -249,6 +257,7 @@ HapFrac_all = vector(length = ncol(AlleleFrac2))
 names(HapFrac_all) = colnames(AlleleFrac2)
 
 Hap_all = HapMatch_all
+HapFrac_genes_all = HapMatch_all
 
 a1 = proc.time()
 for (cell in cells[c(1,10,20,30,100,400)]){

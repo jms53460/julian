@@ -2,7 +2,7 @@
 #SBATCH --job-name=Ran_features_UMIs                                      # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
-#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
 #SBATCH --mem=600gb                                                       # Total memory for job
 #SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/Ran/Ran_features_UMIs1.out              # Location of standard output file
