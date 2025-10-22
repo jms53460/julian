@@ -807,6 +807,47 @@ level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
 dev.off()
 
 
+#Trying to look for early haploid genes
+stages = as.character(At_meta[over30k,9])
+stages = factor(stages, levels = c('tetrads','UM','UM/BM','BM','BM/Tri','Tri'))
+
+ratio = g1/(g1+g2)
+ratio[(g1+g2) < 10] = NA  # Remove measurements with under 10 genoinformative transcripts
+#geneUse = which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+
+calcFracs = function(stage) {
+	F_Col0 = ratio[,At_meta[over30k,9] == stage]
+
+	frac = abs(F_Col0 - 0.5) + .5
+
+#	keeps = rowSums(!is.na(frac)) >= 2  # Only consider genes with at least 10 genoinformative transcripts in at least 2 cells 
+	keeps = rowSums(!is.na(frac)) >= 5  # Only consider genes with at least 10 genoinformative transcripts in at least 5 cells 
+	frac = rowMeans(frac[keeps, ], na.rm=T)
+	meanBias = rowMeans(F_Col0, na.rm=T)[names(frac)]
+	data.frame(gene=names(frac),bias=meanBias,frac=frac,stage=stage)
+}
+
+fracs = Reduce(function(...) merge(...,all=T), lapply(levels(droplevels(stages)), calcFracs))
+fracs = fracs[order(fracs$stage != 'Tri', fracs$stage),]
+fracs$class = factor(c('<.8','<.8','exc','>.8','exc','>.95'), levels = c('exc','<.8','>.8','>.95'))[2*(fracs$frac > .95) + 2*(fracs$frac > .8) + 1 + (abs(fracs$bias - .5) < (fracs$frac-.5)*.9)]
+fracs$frac = fracs$frac*100
+fracs$bias = fracs$bias*100
+
+MonoCols = c('#D4D4D4', '#BCBDDC', '#FF9955', '#D45500')
+ggFnFracs = function(stageS) {
+	stage = grepl(stageS, fracs$stage)
+	if (stageS == 'Int') { stageS = 'PMC' }
+	ggscatter(fracs[stage,], x = 'bias', y = 'frac', color = 'class', size = 1) + scale_color_manual(values = c('#d4d4d4', MonoCols[-1])) + theme(legend.position = 'none', plot.title = element_text(hjust = 0.5), axis.title = element_blank()) + ylim(c(50,100)) + scale_x_continuous(breaks = seq(0,100,10), labels=c('0', rep('',4), '50', rep('',4), '100'), limits = c(0,100)) + ggtitle(stageS)
+}
+
+
+svg('At_volcanos.svg', width=6, height=2)
+ggarrange(ggFnFracs('UM'), ggFnFracs('UM/BM'), ggFnFracs('BM'), ggFnFracs('Tri'), ncol = 4, align = 'h')
+dev.off()
+
+
+
+
 
 
 Rice_plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Rice_genes[,2])/10^6 + 10), breaks = seq(0,300,20)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
@@ -878,4 +919,6 @@ reads_UMIs = reads_UMIs[colnames(D),]
 
 
 Figure out assigning which are no cell controls
+
+
 

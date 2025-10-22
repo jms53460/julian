@@ -184,3 +184,6 @@ scp sapelo2:/scratch/jms53460/Ran/Ran.RData 'C:/Users/julia/OneDrive/Desktop/Gra
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('Ran.RData')
+
+
+UMIcounts2/13Aligned.sortedByCoord.out.tsv

@@ -841,3 +841,73 @@ ID=gene-AT1G20440;Name=COR47;Note=Belongs to the dehydrin protein family%2C whic
 ID=gene-AT3G10985;Name=SAG20;Note=A senescence-associated gene whose expression is induced in response to treatment with Nep1%2C a fungal protein that causes necrosis
 ID=gene-AT3G22910;Name=AT3G22910;gene_synonym=ACA13,auto-inhibited Ca2+ ATPase 13
 ID=gene-AT4G24380;Name=AT4G24380;gene_synonym=T22A6.210,T22A6_210;product=dihydrofolate reductase
+
+
+
+
+
+#Trying to look for early haploid genes
+
+load("At_data_9_2025.RData")
+
+library(readxl)
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages2.xlsx")
+
+At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta2.xlsx")
+At_meta = as.data.frame(At_meta)
+rownames(At_meta) = At_meta$Sample
+At_meta[grep("tetrad", At_meta[,9]),9] = "tetrads"
+At_meta[which(At_meta[,8] == "35"),8] = "0.35"
+
+over30k = names(which(colSums(D) >25000))
+
+stages = as.character(At_meta[over30k,9])
+stages = factor(stages, levels = c('tetrads','UM','UM/BM','BM','BM/Tri','Tri'))
+
+ratio = g1/(g1+g2)
+ratio[(g1+g2) < 10] = NA  # Remove measurements with under 10 genoinformative transcripts
+#geneUse = which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+#ratio = ratio[,over30k]
+
+lowHapFrac = which(HapFrac_all_fixed[over30k] < 0.6)
+ratio = ratio[,lowHapFrac]
+stages = stages[lowHapFrac]
+stages[which(stages == "UM" | stages == "BM")] = "UM/BM"
+
+calcFracs = function(stage) {
+	F_Col0 = ratio[,stages == stage]
+
+	frac = abs(F_Col0 - 0.5) + .5
+
+	keeps = rowSums(!is.na(frac)) >= 5  # Only consider genes with at least 10 genoinformative transcripts in at least 5 cells 
+	frac = rowMeans(frac[keeps, ], na.rm=T)
+	meanBias = rowMeans(F_Col0, na.rm=T)[names(frac)]
+	data.frame(gene=names(frac),bias=meanBias,frac=frac,stage=stage)
+}
+
+fracs = Reduce(function(...) merge(...,all=T), lapply(c("UM/BM", "Tri"), calcFracs))
+#fracs = Reduce(function(...) merge(...,all=T), lapply(c("UM","UM/BM", "BM", "Tri"), calcFracs))
+
+fracs = fracs[order(fracs$stage != 'Tri', fracs$stage),]
+fracs$class = factor(c('<.8','<.8','exc','>.8','exc','>.95'), levels = c('exc','<.8','>.8','>.95'))[2*(fracs$frac > .95) + 2*(fracs$frac > .8) + 1 + (abs(fracs$bias - .5) < (fracs$frac-.5)*.9)]
+fracs$frac = fracs$frac*100
+fracs$bias = fracs$bias*100
+
+MonoCols = c('#D4D4D4', '#BCBDDC', '#FF9955', '#D45500')
+ggFnFracs = function(stageS) {
+	stage = grepl(stageS, fracs$stage)
+	if (stageS == 'Int') { stageS = 'PMC' }
+	ggscatter(fracs[stage,], x = 'bias', y = 'frac', color = 'class', size = 1) + scale_color_manual(values = c('#d4d4d4', MonoCols[-1])) + theme(legend.position = 'none', plot.title = element_text(hjust = 0.5), axis.title = element_blank()) + ylim(c(50,100)) + scale_x_continuous(breaks = seq(0,100,10), labels=c('0', rep('',4), '50', rep('',4), '100'), limits = c(0,100)) + ggtitle(stageS)
+}
+
+
+svg('At_volcanos.svg', width=6, height=2)
+ggarrange(ggFnFracs('tetrads'), ggFnFracs('UM'), ggFnFracs('UM/BM'), ggFnFracs('BM'), ggFnFracs('Tri'), ncol = 5, align = 'h')
+dev.off()
+
+svg('At_volcano_UM_BM.svg', width=1.5, height=1.5)
+ggFnFracs('UM/BM')
+dev.off()
+
+
+
