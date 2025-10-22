@@ -5,8 +5,8 @@
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=600gb                                                       # Total memory for job
 #SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Ran/Ran_features_UMIs.out              # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Ran/Ran_features_UMIs.err               # Location of error log file
+#SBATCH --output=/scratch/jms53460/Ran/Ran_features_UMIs1.out              # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_features_UMIs1.err               # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
@@ -32,7 +32,7 @@ cd /scratch/jms53460/Ran
 #        samtools index "bams2/$file2"
 #done
 
-mkdir UMIcounts3
+
 module load UMI-tools/1.1.4-foss-2023a
 for file in "bams3/"*.bam
 do
