@@ -38,5 +38,5 @@ for file in "bams4/"*.bam
 do
     file2="${file:6:-25}"
 
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts3/"Ran""${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts3/Ran""${file2}.tsv"
 done
