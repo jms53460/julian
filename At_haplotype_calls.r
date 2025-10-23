@@ -246,6 +246,11 @@ for (cell in cells){
 a2 = proc.time()
 a2-a1
 
+   user  system elapsed
+5494.53   69.25 5603.26
+
+save(D, g1, g2, genes, HapMatch_all, HapFrac_all, Hap_all, HapFrac_genes_all, No_cell, plotChr, plotScaleBar, plotCell2, BIN2, g1_bin, 
+    g2_bin, AlleleFrac, HapCallV4, AlleleFrac_genes, HapCallCell, file = "At_data_10_2025.RData")
 
 
 

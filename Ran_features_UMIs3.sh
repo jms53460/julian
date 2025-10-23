@@ -36,7 +36,7 @@ cd /scratch/jms53460/Ran
 module load UMI-tools/1.1.4-foss-2023a
 for file in "bams5/"*.bam
 do
-    file2="${file:6:-22}"
+    file2="${file:6:-25}"
 
-        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams5/$file2" -S "UMIcounts3/${file2}.tsv"
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts3/"Ran""${file2}.tsv"
 done
