@@ -34,7 +34,7 @@ cd /scratch/jms53460/Ran
 
 
 module load UMI-tools/1.1.4-foss-2023a
-for file in "bams5/"*.bam
+for file in "bams5/"*.out
 do
     file2="${file:6:-25}"
 
