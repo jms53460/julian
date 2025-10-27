@@ -129,28 +129,52 @@ done
 
 
 
+#!/bin/bash
+#SBATCH --job-name=Ran_features_rev                                       # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=300gb                                                       # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/Ran_features_rev.out               # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_features_rev.err                # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Ran
+mkdir featurecounts_rev
+
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 2 -a JEC21_56.gff -t 'protein_coding_gene' -g 'ID' -o featurecounts_rev/read_counts.tab --readExtension5 500 -R BAM Mapped/*2*.bam
+
+conda deactivate
+
 
 ml R/4.4.2-gfbf-2024a
 R
+genes = read.table('JEC21_56.gff', sep = '\t', quote = "")[,c(1,3,5,9)]
+annots = strsplit(genes[,4], ';')
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+rownames(genes) = annots
+genes[,4] = annots
+genes = genes[grep('protein_coding_gene', genes[,2]),]
+genes = genes[,c(1,3,4)]
+colnames(genes) = c('Chr', 'Position', 'Gene')
 
-annots = strsplit(read.table('JEC21_56.gff', sep = '\t', quote = "")[,9], ';')
-annots = annots[grep('ID=gene-', annots)]
-names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
-names(annots) = sub('ID=', '', names(annots))
-annots = annots[!duplicated(names(annots))]
-annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
 
-files = dir('UMIcounts2')
-A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
+files = dir('UMIcounts3')
+A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
+rownames(A) = rownames(genes)
 colnames(A) = files
 for (f in files) {
-	xx = read.table(paste('UMIcounts2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
+	xx = read.table(paste('UMIcounts3/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit.tsv', '', sub('S42_L008_', '', files))
+colnames(A) = sub('.tsv', '', colnames(A))
 A[is.na(A)] = 0
-#A = A[rowSums(A) > 0,]
 
 B = A[order(rownames(A)),]
 B2 = B
@@ -158,23 +182,17 @@ B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
-D = B
 
-genes = read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,c(1,5)]
-annots2 = strsplit(read.table('TAIR10.1_Col_5.gff', sep = '\t', quote = "")[,9], ';')
-names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
-annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
-genes[,3] = annots2
-genes2 = genes[grepl('ID=gene-', genes[,3]),]
-genes = genes2[order(genes2[,2]),] #order by position
+genes = genes[order(genes[,2]),] #order by position
 genes = genes[order(genes[,1]),] #order by chr
-genes = genes[!duplicated(genes[,3]),]
-colnames(genes) = c('Chr', 'Position', 'Gene')
-rownames(genes) = genes[,3]
 
-UMIs = D[rownames(genes),]
+UMIs = B[rownames(genes),]
 
-save(UMIs,genes, file = "Ran.RData")
+reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[,6:24]
+colnames(reads) = sub('Mapped.', 'Ran', sub('Aligned.sortedByCoord.out.bam', '', colnames(reads)))
+reads = reads[rownames(UMIs),colnames(UMIs)]
+
+save(UMIs,genes,reads, file = "Ran.RData")
 q()
 
 
@@ -185,5 +203,3 @@ scp sapelo2:/scratch/jms53460/Ran/Ran.RData 'C:/Users/julia/OneDrive/Desktop/Gra
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('Ran.RData')
 
-
-UMIcounts2/13Aligned.sortedByCoord.out.tsv
