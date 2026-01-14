@@ -10,7 +10,7 @@
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/RedoAnnotations
+cd /scratch/jms53460/Rice_RedoAnnotations
 
 mkdir featurecounts
 mkdir bams
