@@ -84,7 +84,7 @@ binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins
 AlleleFrac_bin[-binUse,] = NA
 FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
 
-over30k = names(which(colSums(D) >25000))
+over30k = names(which(colSums(D) >10000))
 length(which(Sl_meta[over30k,8] == "tetrad")) #3 tetrad, 1 UM, 8 UM/BM, 36 BM, 25 BM_shed >25k
 length(which(Sl_meta[which(Sl_meta[,8] == "tetrad"),14] == "N")) #35 tetrad, 6 tetrad_sep, 359 UM, 42 UM/BM, 202 BM, 83 BM_shed samples total
 
@@ -122,7 +122,12 @@ UMI_col = colorRamp2(c(4.4, 5.6), c("white", "forestgreen"))
 source('Pseudotime Velocity Functions.R')
 
 stages = as.character(Sl_meta[over30k,8])
-stages = factor(stages, levels = c('tetrad','tetrad_sep','UM','UM/BM','BM','BM_shed'))
+names(stages) = over30k
+stages[which(stages == "BM_shed")] = "BM"
+stages = factor(stages, levels = c('tetrad', 'UM','UM/BM','BM'))
+
+
+#stages = factor(stages, levels = c('tetrad','tetrad_sep','UM','UM/BM','BM','BM_shed'))
 
 pVel = function (xx, nboot = 200) 
 {
@@ -155,9 +160,9 @@ pVel = function (xx, nboot = 200)
     return(list(pT = pT, pV = pV))
 }
 
-over30k = names(which(colSums(D) >25000))
-stages = as.character(Sl_meta[over30k,8])
-stages = factor(stages, levels = c('tetrad','tetrad_sep','UM','UM/BM','BM','BM_shed'))
+#over30k = names(which(colSums(D) >25000))
+#stages = as.character(Sl_meta[over30k,8])
+#stages = factor(stages, levels = c('tetrad','tetrad_sep','UM','UM/BM','BM','BM_shed'))
 
 pseudos = pVel(A2d[rank(-fano) <= 2000,over30k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
 ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
@@ -169,6 +174,7 @@ ords = order(stages, pseudos$pT)  # order samples based on morphologically-defin
 
 
 hmat2 = A2d[,over30k][rank(-fano[rownames(A2d)]) <= 500,ords]
+hmat2 = A2d[,over30k][rank(-fano[rownames(A2d)]) <= 500,order(stages)]
 
 #Bud_length_col = colorRamp2(c(5, 17), c("white", "#A8450C"))
 #library(seriation)
@@ -184,16 +190,24 @@ level (TPM)',
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE)
 dev.off()
 
-svg('Sl_expression_10_8_25.svg', width=10, height=80)
+svg('Sl_expression_11_11_25.svg', width=7, height=4)
 Heatmap(minmax(hmat2), name = 'expression
-level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
-    top_annotation = HeatmapAnnotation(Stage = as.matrix(Sl_meta[over30k,8][ords]),
-    FracMono = FracMono_all[over30k][ords],
-    col = list(Stage = c("tetrad" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
-    "BM_shed" = "#64CDCC"), FracMono = FracMono_col), 
-    annotation_legend_param = list(Stage = list(at = c("tetrad", "UM", "UM/BM", "BM", "BM_shed")))),
-    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE)
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords],
+    "% Monoallelic" = FracMono_all[over30k][ords],
+    col = list(Stage = c("tetrad" = "#EB1E2C","UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68"), "% Monoallelic" = FracMono_col), 
+    annotation_legend_param = list(Stage = list(at = c("tetrad", "UM", "UM/BM", "BM")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 dev.off()
+
+
+Heatmap(minmax(hmat2), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[order(stages)], No_cell = Sl_meta[over30k,14][order(stages)],
+    "% Monoallelic" = FracMono_all[over30k][order(stages)],
+    col = list(Stage = c("tetrad" = "#EB1E2C","UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68"), No_cell = c("Y" = "black", "N" = "white"), "% Monoallelic" = FracMono_col), 
+    annotation_legend_param = list(Stage = list(at = c("tetrad", "UM", "UM/BM", "BM")))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 
 
 svg('Sl_expression_10_8_25_noHap.svg', width=6, height=4)

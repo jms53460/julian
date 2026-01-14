@@ -292,6 +292,409 @@ done
 
 
 
+ml R/4.4.2-gfbf-2024a
+R
+genes = read.table('Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3', sep = '\t', quote = "")[,c(1,3,5,9)]
+annots = strsplit(genes[,4], ';')
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+genes[,4] = annots
+genes = genes[grep('gene', genes[,2]),]
+rownames(genes) = genes[,4]
+genes = genes[,c(1,3,4)]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
+rownames(A) = rownames(genes)
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D=B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
+rownames(A) = rownames(genes)
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1=B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
+rownames(A) = rownames(genes)
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2=B
+
+genes = genes[order(genes[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+
+reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[,6:485]
+colnames(reads) = sub('SNPsplit.', '', sub('_SNPsplit.bam', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A))))))))))
+
+D = D[rownames(genes),order(colnames(D))]
+reads = reads[rownames(D),colnames(D)]
+g1 = g1[rownames(genes), colnames(D)]
+g2 = g2[rownames(genes), colnames(D)]
+
+genes[,1] = sub('chr', '', genes[, 1])
+
+save(D,g1,g2,genes,reads, file = "Maize_8-10_2025.RData")
+
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/Maize_8-10_2025/Maize_8-10_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('Maize_8-10_2025.RData')
+
+library(readxl)
+Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Maize_Stages.xlsx")
+#set.seed(1)
+#Stages = Maize_Stages[sample(nrow(Stages), round(nrow(Stages)/2)),]
+
+Meta <- Stages[rep(row.names(Stages), each = 8), ]
+Meta = as.data.frame(Meta)
+rownames(Meta) = paste(rep(Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Stages)), 's', sep ='')
+
+library(tidyverse)
+
+Meta$No_cell2 = unlist(lapply(Stages$No_cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+#vals is the values in the per bud metadata table
+#the result will be per cell with buds in the same order as that table
+
+D = D[,rownames(Meta)]
+g1 = g1[,rownames(Meta)]
+g2 = g2[,rownames(Meta)]
+
+
+NCpairs0 = t(sapply(strsplit(Stages$No_cell, ','), function(xx) { as.numeric(xx)[1:2] }))
+NCpairs = sweep(NCpairs0, 1, (1:nrow(NCpairs0) - 1)*8, '+')
+NCpairs = data.frame(NC1 = rownames(Meta)[NCpairs[,1]], NC2 = rownames(Meta)[NCpairs[,2]])
+
+NCpairs0 = cbind(NCpairs0, abs(NCpairs0[,2] - NCpairs0[,1]))
+NCpairs_UMIs = data.frame(UMIs_1 = colSums(D)[NCpairs[,1]], UMIs_2 = colSums(D)[NCpairs[,2]], Mean_UMIs = (colSums(D)[NCpairs[,1]] + colSums(D)[NCpairs[,2]])/2)
+
+summary(NCpairs_UMIs[-grep("ETOH", rownames(NCpairs_UMIs)),1]) #No cell UMIs summary for BBB samples
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    593    1047    1456    1871    1978   10861
+summary(NCpairs_UMIs[grep("ETOH", rownames(NCpairs_UMIs)),1]) #No cell UMIs summary for ETOH samples
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   7400    9434   15884   18639   21324   50931
+
+plot(colSums(D[,grep("BBB", rownames(Meta))][,which(Meta[grep("BBB", rownames(Meta)),13] == "Y")]), colSums(D[,grep("ETOH", rownames(Meta))][,which(Meta[grep("BBB", rownames(Meta)),13] == "Y")]), xlim=c(0,1400), ylim=c(0,51000), pch=19, cex=3, xlab = 'original bead purification', ylab = 'ethanol precipitation with bead purification')
+abline(b=30,a=-10000, col='purple2')
+abline(b=2,a=0, col='red2')
+
+
+
+
+colSums(D[,grep('BBB', colnames(D))])
+
+plot(colSums(D[,grep('BBB', colnames(D))]),colSums(D[,grep('ETOH', colnames(D))]), pch=19, cex=1, xlab = 'original bead purification', ylab = 'ethanol precipitation with bead purification')
+#abline(b=1,a=0)
+abline(b=2,a=0, col='red2')
+abline(h=50000)
+abline(v=2500)
+abline(v=25000, col='green2')
+abline(b=20,a=0, col='purple2')
+
+
+BINZ = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINZ(g1)
+g2_bin = BINZ(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+#over30k = names(which(colSums(D) >52000))
+#over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 2 no cell controls
+#length(which(Rice_meta[over30k,9] == "tetrads")) #9 tetrads, 7 tetrad_sep, 12 UM, 11 UM/BM, 41 BM, 15 BM/Tri, 107 Tri >25k
+#length(which(Rice_meta[which(Rice_meta[,9] == "Tri"),12] == "N")) #31 tetrads, 50 tetrad_sep, 397 UM, 54 UM/BM, 132 BM, 21 BM/Tri, 177 Tri samples total
+
+ratio = g1/(g1+g2)
+ratio[(g1+g2) < 10] = NA
+geneExclude = which(abs(rowMeans(ratio, na.rm=T) - .5) < .4)
+ratio[-geneExclude,] = NA
+
+
+plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(genes[,2])/10^6 + 10), breaks = seq(0,300,20)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+plotChr = function (cell, chr, pad = 10) 
+{
+    Cdat = data.frame(f_col0 = ratio[, cell], Chr = genes[,1], 
+        Position = genes[,2]/10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+
+plotChr2 = function (cell, chr = 1, pad = 3) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac2[, cell], Chr = Sl_genes[,1], 
+        Position = Sl_genes[,2]/10^6)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 10, 
+        ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+
+plotCell = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), 
+        plotChr(cell, chr = 5), plotChr(cell, chr = 6), plotChr(cell, chr = 7),
+        plotChr(cell, chr = 8), plotChr(cell, chr = 9), plotChr(cell, chr = 10),
+        plotScaleBar, ncol = 1, nrow = 11, align = "v", 
+        heights = c(rep(1, 10), 0.4)), left = text_grob("          % Transcripts from B73 allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+names(which(FracMono_all[over30k] < 90)) #Checked these, ones below look a bit intermediate?
+plotCell('M37_48_ETOH_32s') #no cell
+plotCell('M37_48_ETOH_51s') #no cell
+
+
+plotCell('M25-36_90s')
+plotCell('M37_48_ETOH_1s')
+plotCell('M37_48_ETOH_4s')
+plotCell('M37_48_ETOH_19s')
+plotCell('M37_48_ETOH_62s')
+plotCell('M37_48_ETOH_64s')
+plotCell('M37_48_ETOH_70s')
+plotCell('M37_48_ETOH_71s')
+plotCell('M37_48_ETOH_72s')
+plotCell('M37_48_ETOH_76s')
+plotCell('M37_48_ETOH_82s')
+plotCell('M37_48_ETOH_95s')
+
+
+
+plot(FracMono_all[over30k[grep('BBB', over30k)]],FracMono_all[sub('BBB', 'ETOH', over30k[grep('BBB', over30k)])], pch=19, cex=3, xlab = 'original bead purification', ylab = 'ethanol precipitation with bead purification')
+
+
+#length(which(Rice_meta[over30k,9] == "tetrads")) #8 tetrads, 4 tetrad_sep, 11 UM, 10 UM/BM, 40 BM, 15 BM/Tri, 103 Tri >30k
+
+
+
+library('ComplexHeatmap')
+#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
+Heatmap(AlleleFrac_bin, name = 'AlleleFrac',
+    top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
+    "FracMono" = FracMono_all, ">30,000 UMIs" = colSums(D) > 30000,
+    col = list(">30,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F, use_raster=F)
+#dev.off()
+
+
+#Stage_order = order(factor(Rice_meta$Stage, levels = c('tetrads','tetrad_sep','UM','UM/BM','BM','BM/Tri','Tri','Tri_shed')))
+#names(Stage_order) = rownames(Rice_meta[Stage_order,])
+#Stage_order2 = Stage_order[which(names(Stage_order) %in% over30k)]
+
+#FracMonoVsStage = data.frame(FracMono = FracMono_all[Stage_order2], Stage = Rice_meta$Stage[Stage_order2], Bud = Rice_meta$Sample[Stage_order2], No_cell = Rice_meta$No_cell2[Stage_order2], UMIs = colSums(D[,Stage_order2]))
+
+#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
+#Heatmap(AlleleFrac_bin[,Stage_order2], name = 'AlleleFrac',
+#    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[Stage_order2,9]), UMIcounts = log(colSums(D[,Stage_order2]),10), 
+#    "FracMono" = FracMono_all[Stage_order2], ">30,000 UMIs" = colSums(D[,Stage_order2]) > 30000,
+#    col = list(Stage = c("tetrads" = "#ffffff","tetrad_sep" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111", "Tri_shed" = "#111111"), ">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
+#    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+#    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
+#dev.off()
+
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+
+
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+
+over30k = names(which(colSums(D) >25000))
+ETOH_Remove = names(which(colSums(D[,over30k[grep("ETOH", over30k)]]) < 51000))
+over30k = over30k[-which(over30k %in% ETOH_Remove)]
+
+#over30k = over30k[1:136]
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+library(circlize)
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.4, 6.0), c("white", "forestgreen"))
+
+
+
+source('Pseudotime Velocity Functions.R')
+
+
+stages = as.character(Meta[over30k,10])
+names(stages) = over30k
+stages = factor(stages, levels = c('UM','UM/BM','BM','BM/Tri','Tri','Tri_shed'))
+
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    #M1_samples = names(which(stages <= 5))
+    #G_samples = names(which(stages >= 5))
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+
+        #pT[, 2] = pT[, 2] - mean(apply(pT, 1, diff), na.rm = T)
+        #pT = rowMeans(pT, na.rm = T)
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,over30k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+peaks = pseudoPeaks(pseudos,ords)
+#stages2 = as.character(stages)
+#stages2[ords][stages2[ords] == 'UM-BM'] = c('Early','Middle','Late','BM')[sapply(1:349, function(i) { sum(i >= peaks) })[stages2[ords] == 'UM-BM']]
+#stages = factor(stages2, levels = c("Interphase", "Leptotene", "Zygotene", "Pachytene", "M1", "Dyad", "Tetrad", "Early", "Middle", "Late", "BM", "Pollen"))
+
+hmat2 = A2d[,over30k][rank(-fano[rownames(A2d)]) <= 500,ords]
+
+#Anther_length_col = colorRamp2(c(0.9, 2.0), c("white", "#A8450C"))
+#library(seriation)
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+
+
+#library('ComplexHeatmap')
+
+
+#svg('Maize_12_1_Express_heatmap.svg', width=7, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], #"No cell" = Meta[over30k,13][ords],
+    "% Monoallelic" = FracMono_all[over30k][ords], 
+    col = list(Stage = c("UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
+    "Tri_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+#dev.off()
+
+svg('Maize_12_1_AlleleFrac_cor.svg', width=7, height=40)
+Heatmap(cor(AlleleFrac_bin[,over30k], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+svg('Maize_12_1_AlleleFrac_cor.svg', width=7, height=40)
+Heatmap(cor(AlleleFrac_bin[,over30k], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+
+ggarrange(plotCell("M25-36_32s"), plotCell("M25-36_80s"), ncol=2)
+
+
+
+#svg('Rice_7_2025_Expression_heatmap.svg', width=6, height=4.5)
+Heatmap(minmax(hmat), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(FracMono = FracMono_all[over30k], UMIcounts = log(colSums(D[,over30k]),10),
+    No_cell = Meta[over30k,13], Stage = Meta[over30k,10],
+    col = list(Stage = c("UM" = "#F9A729", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
+    "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col, UMIcounts = UMI_col, 
+    No_cell = c('Y' = 'black', 'N' = 'white'))), 
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = TRUE)
+#dev.off()
 
 
 
@@ -350,12 +753,19 @@ g2 = A[,seq(3,ncol(A),4)]
 
 B = read.csv(file = 'Gene locations.csv', row.names = 1)
 
+stages = as.character(meta[,4])
+Late_UM_table = as.data.frame(matrix(data = c(g1["Zm00001d022124",which(stages == "Late")],g2["Zm00001d022124",which(stages == "Late")]), nrow = 2, ncol = length(which(stages == "Late")), byrow=TRUE))
+Late_UM_table = as.data.frame(matrix(data = c(g1["Zm00001d012675",which(stages == "Late")],g2["Zm00001d012675",which(stages == "Late")]), nrow = 2, ncol = length(which(stages == "Late")), byrow=TRUE))
+
+BM_table = as.data.frame(matrix(data = c(g1["Zm00001d012675",which(stages == "BM")],g2["Zm00001d012675",which(stages == "BM")]), nrow = 2, ncol = length(which(stages == "BM")), byrow=TRUE))
+
+
 
 source('Pseudotime Velocity Functions.R')
 
 # The stages variable contains all the stages as defined by morphology alone
 stages = as.character(meta[,4])
-stages[meta[,3] %in% c('UM','UM-BM','BM')] = 'UM-BM'
+#stages[meta[,3] %in% c('UM','UM-BM','BM')] = 'UM-BM'
 stages = factor(stages, levels = c("Interphase", "Leptotene", "Zygotene", "Pachytene", "M1", "Dyad", "Tetrad", "UM-BM", "Pollen"))
 
 pseudocount = 1*10^6/quantile(colSums(UMIs), p = .1)

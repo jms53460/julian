@@ -624,6 +624,7 @@ g1 = g1[,rownames(Rice_meta)]
 g2 = g2[,rownames(Rice_meta)]
 
 save(D,g1,g2,Rice_genes,reads_UMIs,Rice_Stages,Rice_meta, file = "Rice_7-8_2025_with_meta.RData")
+
 load("Rice_7-8_2025_with_meta.RData")
 BINR = function (xx, bin = 10^6) 
 {
@@ -727,7 +728,14 @@ source('Pseudotime Velocity Functions.R')
 
 
 stages = as.character(Rice_meta[over30k,9])
-stages = factor(stages, levels = c('tetrads','tetrad_sep','UM','UM/BM','BM','BM/Tri','Tri','Tri_shed'))
+names(stages) = over30k
+stages[c("R119-136_79s", "R119-136_80s")] = "tetrad_sep0"
+stages[names(which(FracMono_all[names(which(stages == "UM"))] < 10))] = "UM_bi"
+stages[names(which(FracMono_all[names(which(stages == "UM"))] > 10))] = "UM_mono"
+stages = factor(stages, levels = c('tetrads', 'tetrad_sep0','tetrad_sep','UM_bi', 'UM_mono','UM/BM','BM','BM/Tri','Tri'))
+
+
+#stages = factor(stages, levels = c('tetrads','tetrad_sep','UM','UM/BM','BM','BM/Tri','Tri','Tri_shed'))
 
 pVel = function (xx, nboot = 200) 
 {
@@ -763,6 +771,8 @@ pVel = function (xx, nboot = 200)
 pseudos = pVel(A2d[rank(-fano) <= 2000,over30k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
 ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
 
+
+
 peaks = pseudoPeaks(pseudos,ords)
 #stages2 = as.character(stages)
 #stages2[ords][stages2[ords] == 'UM-BM'] = c('Early','Middle','Late','BM')[sapply(1:349, function(i) { sum(i >= peaks) })[stages2[ords] == 'UM-BM']]
@@ -785,14 +795,13 @@ level (TPM)',
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 dev.off()
 
-svg('Rice_expression_10_8_25.svg', width=6, height=4)
+svg('Rice_expression_11_11_25.svg', width=7, height=4)
 Heatmap(minmax(hmat2), name = 'expression
 level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
-    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[over30k,9][ords]), 
-    FracMono = FracMono_all[over30k][ords], 
-    col = list(Stage = c("tetrads" = "#EB1E2C","tetrad_sep" = "#FD6F30", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
-    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col),
-    annotation_legend_param = list(Stage = list(at = c("tetrads", "tetrad_sep", "UM", "UM/BM", "BM", "BM/Tri", "Tri")))),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], 
+    "% Monoallelic" = FracMono_all[over30k][ords], 
+    col = list(Stage = c("tetrads" = "#EB1E2C", "tetrad_sep0" = "#EB1E2C", "tetrad_sep" = "#EB1E2C", "UM_bi" = "#F9A729", "UM_mono" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5"), "% Monoallelic" = FracMono_col)),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 dev.off()
 
@@ -921,4 +930,188 @@ reads_UMIs = reads_UMIs[colnames(D),]
 Figure out assigning which are no cell controls
 
 
+mkdir /scratch/jms53460/Rice_RedoAnnotations
+cd /scratch/jms53460/Rice_RedoAnnotations
+curl https://rice.uga.edu/osa1r7_download/osa1_r7.all_models.gff3.gz > Nipponbare_v7.gff3.gz
+gzip -d Nipponbare_v7.gff3.gz
+sed 's/Chr/chr/' Nipponbare_v7.gff3 > Nipponbare_r7.gff3
 
+mkdir SNPsplit
+cp /scratch/jms53460/Rice_8_2025/SNPsplit/* SNPsplit/
+
+#!/bin/bash
+#SBATCH --job-name=Rice_feautures_UMIs                                              # Job name
+#SBATCH --partition=batch                                                           # Partition (queue) name
+#SBATCH --ntasks=1                                                                  # Single task job
+#SBATCH --cpus-per-task=6                                                           # Number of cores per task
+#SBATCH --mem=200gb                                                                 # Total memory for job
+#SBATCH --time=24:00:00                                                             # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_RedoAnnotations/Rice_feautures_UMIs.out     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_RedoAnnotations/Rice_feautures_UMIs.err      # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/RedoAnnotations
+
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+ml SAMtools/1.21-GCC-13.3.0
+module load UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
+done
+
+
+interact --mem=5G
+cd /scratch/jms53460/Rice_8_2025
+
+
+ml R/4.4.2-gfbf-2024a
+R
+annots = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('gene_id', annots)]
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('gene_id ', '', names(annots))
+names(annots) = gsub("\"", "", names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+annots = gsub("\"", "", annots)
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(names(annots),rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2 = B
+
+genes = read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+genes[,3] = annots2
+genes = genes[order(genes[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+genes = genes[!duplicated(genes[,3]),]
+
+colnames(genes) = c('Chr', 'Position', 'Gene')
+genes[,3] = sub('gene_id ', '', genes[, 3])
+genes[,3] = gsub('\"', '', genes[,3])
+rownames(genes) = genes[,3]
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+
+Rice_genes = genes
+Rice_genes[,1] = sub('chr', '', Rice_genes[,1])
+
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
+colnames(reads) = colnames(D)
+reads_per_UMI = t(reads/colSums(D))
+reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
+save(D,g1,g2,Rice_genes,reads_UMIs, file = "Rice_7-8_2025.RData")
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/Rice_8_2025/Rice_7-8_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('Rice_7-8_2025.RData')

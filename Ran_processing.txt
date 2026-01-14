@@ -77,6 +77,7 @@ done
 
 
 cp /scratch/jms53460/Ran/SRA_upload/*_1s.fastq.gz /project/bnlab/Ran_data/
+cp /scratch/jms53460/Ran/SRA_upload/*_1s_umi.fastq.gz /project/bnlab/Ran_data/
 
 
 mkdir /scratch/jms53460/Ran/Mapped
@@ -202,4 +203,7 @@ scp sapelo2:/scratch/jms53460/Ran/Ran.RData 'C:/Users/julia/OneDrive/Desktop/Gra
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('Ran.RData')
+
+write.csv(UMIs, "Ran_UMIs.csv")
+write.csv(genes, "Ran_genes.csv")
 

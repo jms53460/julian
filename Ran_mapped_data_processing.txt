@@ -1,0 +1,204 @@
+#Mapped data is in /scratch/jms53460/Ran/Mapped. The gff file is in /scratch/jms53460/Ran
+
+#You will need to install the subread conda environment. I installed this in /home/jms53460 a long time ago:
+interact --mem 10GB
+ml Mamba/23.11.0-0 #I used ml Miniconda3/4.12.0 when I did this, but Miniconda is no longer available, so I'd use Mamba
+conda create -p subread-env -y
+source activate ./subread-env/
+conda install -c bioconda subread -y
+conda deactivate
+
+#Running featurecounts. The time and memory requirement here are probably excessive
+
+#!/bin/bash
+#SBATCH --job-name=Ran_features                                           # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=300gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/Ran_features.out                   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_features.err                    # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Ran
+
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a JEC21_56.gff -t 'protein_coding_gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM Mapped/*.bam
+
+conda deactivate
+
+ml SAMtools/1.21-GCC-13.3.0
+for file in "featurecounts/"*.bam
+do
+    file2="${file:14:-22}"
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+done
+
+
+#Running UMI-tools count takes a lot of time and memory for large files like Ran's and cannot do threads, so I split the files in the bams directory into 4 directories and ran a job for each
+mkdir bams2
+mkdir bams3
+mkdir bams4
+mv bams/6A* bams2
+mv bams/7A* bams2
+mv bams/8A* bams2
+mv bams/9A* bams2
+mv bams/10A* bams2
+mv bams/11A* bams3
+mv bams/12A* bams3
+mv bams/13A* bams3
+mv bams/14A* bams3
+mv bams/15A* bams3
+mv bams/16A* bams4
+mv bams/18A* bams4
+mv bams/19A* bams4
+mv bams/20A* bams4
+
+#!/bin/bash
+#SBATCH --job-name=Ran_UMIs1                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=600gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/Ran_UMIs1.out                      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_UMIs1.err                       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Ran
+module load UMI-tools/1.1.4-foss-2023a
+for file in "bams/"*.out
+do
+    file2="${file:6:-25}"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts/Ran""${file2}.tsv"
+done
+
+#!/bin/bash
+#SBATCH --job-name=Ran_UMIs2                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=600gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/Ran_UMIs2.out                      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_UMIs2.err                       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Ran
+module load UMI-tools/1.1.4-foss-2023a
+for file in "bams2/"*.out
+do
+    file2="${file:6:-25}"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts/Ran""${file2}.tsv"
+done
+
+#!/bin/bash
+#SBATCH --job-name=Ran_UMIs3                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=600gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/Ran_UMIs3.out                      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_UMIs3.err                       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Ran
+module load UMI-tools/1.1.4-foss-2023a
+for file in "bams3/"*.out
+do
+    file2="${file:6:-25}"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts/Ran""${file2}.tsv"
+done
+
+#!/bin/bash
+#SBATCH --job-name=Ran_UMIs4                                              # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=600gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Ran/Ran_UMIs4.out                      # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Ran/Ran_UMIs4.err                       # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Ran
+module load UMI-tools/1.1.4-foss-2023a
+for file in "bams4/"*.out
+do
+    file2="${file:6:-25}"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "$file" -S "UMIcounts/Ran""${file2}.tsv"
+done
+
+
+#Make tables in R. If R crashes, it is probably due to running out of memory. When this happens, increasing the memory requirement for interact fixes it
+ml R/4.4.2-gfbf-2024a
+R
+genes = read.table('JEC21_56.gff', sep = '\t', quote = "")[,c(1,3,5,9)]
+annots = strsplit(genes[,4], ';')
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+rownames(genes) = annots
+genes[,4] = annots
+genes = genes[grep('protein_coding_gene', genes[,2]),]
+genes = genes[,c(1,3,4)]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
+rownames(A) = rownames(genes)
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
+}
+colnames(A) = sub('.tsv', '', colnames(A))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+
+genes = genes[order(genes[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+
+UMIs = B[rownames(genes),]
+
+reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[,6:24]
+colnames(reads) = sub('Mapped.', 'Ran', sub('Aligned.sortedByCoord.out.bam', '', colnames(reads)))
+reads = reads[rownames(UMIs),colnames(UMIs)]
+
+save(UMIs,genes,reads, file = "Ran.RData")
+q()
+
+
+###Copying RData file to my local computer
+scp sapelo2:/scratch/jms53460/Ran/Ran.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('Ran.RData')
+
+#Write csv tables
+write.csv(UMIs, "Ran_UMIs.csv")
+write.csv(genes, "Ran_genes.csv")
