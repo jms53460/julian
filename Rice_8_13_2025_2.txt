@@ -1007,16 +1007,21 @@ done
 
 
 interact --mem=5G
-cd /scratch/jms53460/Rice_8_2025
+cd /scratch/jms53460/Rice_RedoAnnotations
 
 
 ml R/4.4.2-gfbf-2024a
 R
-annots = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
-annots = annots[grep('gene_id', annots)]
+annots = strsplit(read.table('Nipponbare_r7.gff3', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=', annots)]
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+annots = gsub("\\..*", "", annots)
+annots = annots[!duplicated(annots)]
+
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
-names(annots) = sub('gene_id ', '', names(annots))
-names(annots) = gsub("\"", "", names(annots))
+names(annots) = sub('ID=', '', names(annots))
+names(annots) = gsub("\\..*", "", names(annots))
 annots = annots[!duplicated(names(annots))]
 annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
 annots = gsub("\"", "", annots)
@@ -1027,7 +1032,7 @@ rownames(A) = annots
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
+	A[,f] = xx[match(annots,rownames(xx)),1]
 }
 colnames(A) = sub('_SNPsplit.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
 A[is.na(A)] = 0
@@ -1046,7 +1051,7 @@ rownames(A) = annots
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
+	A[,f] = xx[match(annots,rownames(xx)),1]
 }
 colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
 A[is.na(A)] = 0
@@ -1065,7 +1070,7 @@ rownames(A) = annots
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
+	A[,f] = xx[match(annots,rownames(xx)),1]
 }
 colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
 A[is.na(A)] = 0
@@ -1078,18 +1083,25 @@ for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 }
 g2 = B
 
-genes = read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,c(1,5)]
-annots2 = strsplit(read.table('Nipponbare_12.gtf', sep = '\t', quote = "")[,9], ';')
+genes = read.table('Nipponbare_r7.gff3', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Nipponbare_r7.gff3', sep = '\t', quote = "")[,9], ';')
+
+
+annots2 = unlist(lapply(annots2, function(xx) { xx[1] }))
+
 names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
 annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
 genes[,3] = annots2
+
 genes = genes[order(genes[,2]),] #order by position
 genes = genes[order(genes[,1]),] #order by chr
+
+genes[,3] = sub('ID=', '', genes[,3])
+genes[,3] = gsub("\\..*", "", genes[,3])
 genes = genes[!duplicated(genes[,3]),]
 
 colnames(genes) = c('Chr', 'Position', 'Gene')
-genes[,3] = sub('gene_id ', '', genes[, 3])
-genes[,3] = gsub('\"', '', genes[,3])
 rownames(genes) = genes[,3]
 
 D = D[rownames(genes),]
@@ -1104,13 +1116,65 @@ colnames(reads) = colnames(D)
 reads_per_UMI = t(reads/colSums(D))
 reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
 colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
-save(D,g1,g2,Rice_genes,reads_UMIs, file = "Rice_7-8_2025.RData")
+save(D,g1,g2,Rice_genes,reads_UMIs, file = "Rice_RedoAnnotations.RData")
+
+D2 = D
+g1_2 = g1
+g2_2 = g2
+Rice_genes2 = Rice_genes
+reads_UMIs2 = reads_UMIs
+
+load('Rice_7-8_2025.RData')
+
+> summary(colSums(D))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      3    3518    5822   21391   11797  327403 
+> summary(colSums(D2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      4     848    1409    5910    3042   93412
+> summary(colSums(g1))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0   137.0   223.0   881.2   462.2 15016.0
+> summary(colSums(g1_2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0    25.0    44.5   199.8   100.2  3114.0
+> summary(colSums(g2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0   166.0   303.5  1111.8   651.8 18099.0
+> summary(colSums(g2_2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0    25.0    45.0   231.9   108.2  4270.0
+> dim(Rice_genes)
+[1] 39378     3
+> dim(Rice_genes2)
+[1] 55803     3
+> head(reads_UMIs)
+          reads  UMIs reads_per_UMI
+R1-78_10s 19430  8487      2.289384
+R1-78_11s 14167 10958      1.292845
+R1-78_12s  7267  4197      1.731475
+R1-78_13s 12073  7827      1.542481
+R1-78_14s  6110  4615      1.323944
+R1-78_15s  5155  3970      1.298489
+> head(reads_UMIs2)
+          reads UMIs reads_per_UMI
+R1-78_10s  4963 2075      2.391807
+R1-78_11s  3288 2475      1.328485
+R1-78_12s  1801 1028      1.751946
+R1-78_13s  2531 1772      1.428330
+R1-78_14s  1367 1055      1.295735
+R1-78_15s  1185  908      1.305066
+> summary(colSums(D)/colSums(D2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.750   3.657   4.112   4.002   4.284   5.167
+
+
+save(D2,g1_2,g2_2,Rice_genes2,reads_UMIs2, file = "Rice_RedoAnnotations.RData")
+
 q()
 
-
-
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/Rice_8_2025/Rice_7-8_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/Rice_RedoAnnotations/Rice_RedoAnnotations.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')

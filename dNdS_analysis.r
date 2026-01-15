@@ -90,12 +90,13 @@ UMI_col = colorRamp2(c(4.4, 5.3), c("white", "forestgreen"))
 
 
 
-#Rice CoGe: https://genomevolution.org/coge/SynMap.pl
+#Rice CoGe: https://genomevolution.org/coge/SynMap.pl 
+#Rice 
 
 #Table: https://genomevolution.org/coge/data/diags/16890/51405/16890_51405.CDS-CDS.last.tdd10.cs0.filtered.dag.all.go_D20_g10_A5.aligncoords.gcoords.ks
 
 RiceNSdata = read.table('Rice_CoGe.tab', skip = 2, sep = '\t', as.is = T)
-RiceNSdata = cbind(RiceNSdata, sub("[|].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
 colnames(RiceNSdata)[13:15] = c('sativaGene','longiGene','Identity')
 
 ## Remove putative orthologs that are not reciprocal best hits ##
@@ -124,52 +125,152 @@ RiceConvert = RiceIDConvert(RiceNSdata[,13],'MSU', toType = 'SYMBOL')
 #Not a neat conversion...probably better to redo the processing using the gff that matches
 
 load("Rice_7-8_2025_with_meta.RData")
+load("Rice_RedoAnnotations.RData")
 library('ComplexHeatmap')
 library(circlize)
 col_fun = colorRamp2(c(0, 0.25, 0.5, 0.75, 1), c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))
 #Heatmap(HapExpScore, col = col_fun, cluster_columns=T, cluster_rows=T, show_row_names = FALSE, show_column_names = FALSE)
 
-pseudocount = 1*10^6/quantile(colSums(D), p = .1)
-A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+pseudocount = 1*10^6/quantile(colSums(D2), p = .1)
+A2 = sweep(D2, 2, colSums(D2), '/')*10^6  # Transcripts per million normalization
 A2b = log(A2+pseudocount,10)  # Log transform
-A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+A2d = A2b[rowSums(D2[,colnames(A2b)] >= 3) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
 
-dNdSgenes = names(AtNS[which(names(AtNS) %in% rownames(A2d))]) # Genes with dn/ds data that are in A2d
+dNdSgenes = names(RiceNS[which(names(RiceNS) %in% rownames(A2d))]) # Genes with dn/ds data that are in A2d
+
+over30k = names(which(colSums(D) >25000))
+over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 2 no cell controls
+
 
 A3 = A2d[dNdSgenes,over30k]
-AtNS2 = AtNS[dNdSgenes]
-plot(rowMeans(A3),AtNS2)
-plot(rowMeans(A3),AtNS2, ylim=c(0,2))
+RiceNS2 = RiceNS[dNdSgenes]
+plot(rowMeans(A3),RiceNS2)
+plot(rowMeans(A3),RiceNS2, ylim=c(0,2))
 
-MonoSamp = names(stages[grep("mono", stages)])
-BiSamp = names(stages[-grep("mono", stages)])
+
+BINR = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Rice_genes[, 1]) * 10^6 + round(Rice_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINR(g1)
+g2_bin = BINR(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-R_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+
+MonoSamp = names(which(FracMono_all[over30k] > 10))
+BiSamp = names(which(FracMono_all[over30k] < 10))
 plot(rowMeans(A3[,MonoSamp]), rowMeans(A3[,BiSamp]))
-plot(rowMeans(D[dNdSgenes,MonoSamp]), rowMeans(D[dNdSgenes,BiSamp]))
+plot(rowMeans(D2[dNdSgenes,MonoSamp]), rowMeans(D2[dNdSgenes,BiSamp]))
 
-#MonoGs = names(which(rowMeans(D[dNdSgenes,MonoSamp]) >= 4*rowMeans(D[dNdSgenes,BiSamp]))) # Genes with 4x mean UMIs from MonoSamp compared to BiSamp
-#BiGs = names(which(rowMeans(D[dNdSgenes,BiSamp]) >= 4*rowMeans(D[dNdSgenes,MonoSamp]))) # Genes with 4x mean UMIs from BiSamp compared to MonoSamp
-MonoGs = names(which(apply(D[dNdSgenes,MonoSamp], 1, max) >= 4*apply(D[dNdSgenes,BiSamp], 1, max))) # Genes with 4x max UMIs from MonoSamp compared to BiSamp
-BiGs = names(which(apply(D[dNdSgenes,BiSamp], 1, max) >= 4*apply(D[dNdSgenes,MonoSamp], 1, max))) # Genes with 4x max UMIs from BiSamp compared to MonoSamp
+NotInBi = names(which(rowSums(D2[dNdSgenes,BiSamp] > 0) == 0))
+MonoGs = names(which(rowSums(D2[NotInBi,MonoSamp] > 0) >= 3))
+
+MonoGs = names(which(rowSums(D2[dNdSgenes,MonoSamp] > 10) >= 3))
+NotInMono = names(which(rowMeans(D2[dNdSgenes,MonoSamp] > 5) == 0))
+BiGs = names(which(rowSums(D2[NotInMono,BiSamp] > 0) >= 3))
+
+RiceStages = Rice_meta[over30k,9]
+names(RiceStages) = over30k
+RiceStages[names(RiceStages[grep("tetrad", RiceStages)])] = "Tetrad"
+RiceStages[names(which(RiceStages[BiSamp] == "UM"))] = "UM_bi"
+RiceStages[names(which(RiceStages[MonoSamp] == "UM"))] = "UM_mono"
+
+meanExp = matrix(0, ncol = length(unique(RiceStages)), nrow = nrow(A2))
+rownames(meanExp) = rownames(A2)
+colnames(meanExp) = c('Tetrad', 'UM_bi', 'UM_mono', 'UM/BM', 'BM', 'BM/Tri', 'Tri')
+for (stage in colnames(meanExp)) {
+	meanExp[,stage] = rowMeans(A2[,RiceStages == stage])
+}
+meanExp = meanExp[dNdSgenes,]
+
+MonoGs = rownames(meanExp)[rowSums(meanExp[,3:7] >= 100) > 0]
+MonoGs = names(which(apply(meanExp[MonoGs,3:7], 1, max)/apply(meanExp[MonoGs,1:2], 1, max) >= 2))
+BiGs = rownames(meanExp)[(rowSums(meanExp[,1:2] >= 100) > 0) & (rowSums(meanExp[,3:7] >= 100) == 0)]
 
 
-plot(rowMeans(D[dNdSgenes,MonoSamp]), rowMeans(D[dNdSgenes,BiSamp]), pch=19, cex=3)
-points(rowMeans(D[c(MonoGs,BiGs),MonoSamp]), rowMeans(D[c(MonoGs,BiGs),BiSamp]), pch=19, cex=3, col="red2")
+IncGs = rownames(meanExp)[rowSums(meanExp[,1:7] >= 100) > 0]
+meanExp2 = meanExp[IncGs,]
+MonoGs = rownames(meanExp2)[rowSums(meanExp2[,3:7] >= 100) > 0]
+BiGs = rownames(meanExp2)[rowSums(meanExp2[,3:7] >= 100) == 0]
 
-plot(rowMeans(A3[,MonoSamp]), rowMeans(A3[,BiSamp]), pch=19, cex=3)
-points(rowMeans(A3[c(MonoGs,BiGs),MonoSamp]), rowMeans(A3[c(MonoGs,BiGs),BiSamp]), pch=19, cex=3, col="red2")
 
-boxplot(list(MonoGs = AtNS[MonoGs], BiGs = AtNS[BiGs])) # These gene groups look to have the same dN/dS
+MonoGs = rownames(meanExp)[rowSums(meanExp[,3:7] >= 0) > 0]
+MonoGs = names(which(apply(meanExp[MonoGs,3:7], 1, max) > meanExp[,2])) #used this for HapNonHap
+BiGs = names(which(apply(meanExp[,3:7], 1, max) < meanExp[,2]))
+BiGs = names(which(apply(meanExp[,1:2], 1, mean) > apply(meanExp[,3:7], 1, mean)))
 
-plot(apply(D[dNdSgenes,MonoSamp], 1, max), apply(D[dNdSgenes,BiSamp], 1, max), pch=19, cex=3)
-points(apply(D[c(MonoGs,BiGs),MonoSamp], 1, max), apply(D[c(MonoGs,BiGs),BiSamp], 1, max), pch=19, cex=3, col="red2")
+#####BiGs is not selected ideally in any of these. When looking at meanExp[BiGs,] many genes look like they are haploid expressed, just later than the first set
 
-HapNonHap = list("Not or lowly expressed when haploid" = AtNS[-which(names(AtNS) %in% rownames(A2d))], "Expressed when haploid" = AtNS2)
+plot(rowMeans(D2[dNdSgenes,MonoSamp]), rowMeans(D2[dNdSgenes,BiSamp]), pch=19, cex=3)
+points(rowMeans(D2[BiGs,MonoSamp]), rowMeans(D2[BiGs,BiSamp]), pch=19, cex=3, col="green2")
+points(rowMeans(D2[MonoGs,MonoSamp]), rowMeans(D2[MonoGs,BiSamp]), pch=19, cex=3, col="purple3")
+
+plot(rowMeans(A2[IncGs,MonoSamp]), rowMeans(A2[IncGs,BiSamp]), pch=19, cex=3)
+points(rowMeans(A2[BiGs,MonoSamp]), rowMeans(A2[BiGs,BiSamp]), pch=19, cex=3, col="green2")
+points(rowMeans(A2[MonoGs,MonoSamp]), rowMeans(A2[MonoGs,BiSamp]), pch=19, cex=3, col="purple3")
+
+boxplot(list(BiGs = RiceNS[BiGs], MonoGs = RiceNS[MonoGs]))
+boxplot(list(BiGs = RiceNS[BiGs], MonoGs = RiceNS[MonoGs]), ylim=c(0,1))
+boxplot(list(BiGs = RiceNS[names(which(RiceNS[BiGs] < 1))], MonoGs = RiceNS[names(which(RiceNS[MonoGs] < 1))])) 
+
+plot(RiceNS[IncGs],apply(meanExp[IncGs,1:7], 1, max), xlim=c(0,1), pch=19, cex=3)
+
+
+plot(apply(D2[IncGs,MonoSamp], 1, max), apply(D2[IncGs,BiSamp], 1, max), pch=19, cex=3)
+points(apply(D2[c(MonoGs,BiGs),MonoSamp], 1, max), apply(D2[c(MonoGs,BiGs),BiSamp], 1, max), pch=19, cex=3, col="red2")
+
+RiceNS3 = RiceNS2[MonoGs]
+HapNonHap = list("Not or lowly expressed when haploid" = RiceNS[-which(names(RiceNS) %in% names(RiceNS3))], "Expressed when haploid" = RiceNS3)
 boxplot(HapNonHap, ylim = c(0,1)) # Some outliers at really high values
-#length(AtNS2) = 2567
-#length(AtNS[-which(names(AtNS) %in% rownames(A2d))]) = 17074
+HapNonHap = list("Not or lowly expressed when haploid" = RiceNS[names(which(RiceNS[-which(names(RiceNS) %in% names(RiceNS3))] < 1))], "Expressed when haploid" = RiceNS3[names(which(RiceNS3 < 1))])
+boxplot(HapNonHap) # Some outliers at really high values
+
+
+#length(RiceNS3) = 785
+#length(RiceNS[-which(names(RiceNS) %in% names(RiceNS3))]) = 7947
 HapNonHap2 = data.frame("NS" = c(AtNS[-which(names(AtNS) %in% rownames(A2d))], AtNS2), Class = c(rep(1, times = length(AtNS[-which(names(AtNS) %in% rownames(A2d))])), rep(2, times = length(AtNS2))))
 pairwise.wilcox.test(HapNonHap2$NS, HapNonHap2$Class, p.adjust = 'holm')  # p-values
 #data:  HapNonHap$NS and HapNonHap$Class
 #  1
 #2 <2e-16 #If this was done right, I think that means a very significant result
 
+
+
+#Tomato CoGe
+
+#https://genomevolution.org/coge/data/diags/52025/68838/52025_68838.CDS-CDS.last.tdd10.cs0.filtered.dag.all.go_D20_g10_A5.aligncoords.gcoords.ks
+
+TomPotNSdata = read.table('Tomato_potato_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+TomPotNSdata = cbind(TomPotNSdata, sub("[|].*", "", sub(".*LOC", "LOC", TomPotNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", TomPotNSdata[,8])), as.numeric(sub('.*[|]','',TomPotNSdata[,4])))
+colnames(TomPotNSdata)[13:15] = c('sativaGene','longiGene','Identity')
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(TomPotNSdata))
+for (sgene in as.character(unique(TomPotNSdata[duplicated(TomPotNSdata[,13]),13]))) {
+	tr = which(TomPotNSdata[,13] == sgene)
+	removes[tr[rank(-TomPotNSdata[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(TomPotNSdata[duplicated(TomPotNSdata[,14]),14]))) {
+	tr = which(TomPotNSdata[,14] == mgene)
+	removes[tr[rank(-TomPotNSdata[tr,15]) != 1]] = TRUE
+}
+TomPotNSdata = TomPotNSdata[!removes,]
+##
+
+TomPotNSdata = TomPotNSdata[TomPotNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+TomPotNSdata = TomPotNSdata[-which(is.na(as.numeric(TomPotNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+TomPotNSdata = TomPotNSdata[-which(as.numeric(TomPotNSdata[,1]) == 0),] # Remove genes with 0 synonymous subs
+TomPotNS = as.numeric(TomPotNSdata[,2]) / as.numeric(TomPotNSdata[,1])
+names(TomPotNS) = TomPotNSdata[,13]

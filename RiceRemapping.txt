@@ -1,0 +1,188 @@
+#Remapping rice using files from https://rice.uga.edu/download_osa1r7.shtml
+ssh jms53460@xfer.gacrc.uga.edu
+mkdir /scratch/jms53460/RiceRemap
+curl https://rice.uga.edu/osa1r7_download/osa1_r7.asm.fa.gz > Rice_r7.fa.gz
+gzip -d Rice_r7.fa.gz
+curl https://rice.uga.edu/osa1r7_download/osa1_r7.all_models.gff3.gz > Rice_r7.gff3.gz
+gzip -d Rice_r7.gff3.gz
+curl https://rice.uga.edu/osa1r7_download/osa1_r7.all_models.gene_exp_matrix.txt.gz > Rice_exp_matrix.txt.gz
+gzip -d Rice_exp_matrix.txt.gz
+
+mkdir Raw_Data_DNA
+cp /work/bnlab/July_2025_Azenta/30-1198875307/00_fastq/NRE1-2_R*.fastq.gz /scratch/jms53460/RiceRemap/Raw_Data_DNA
+cp /work/bnlab/Aug_2025_Azenta/30-1222177457/00_fastq/NRE*.fastq.gz /scratch/jms53460/RiceRemap/Raw_Data_DNA
+
+mkdir Raw_Data
+cp /scratch/jms53460/Rice_8_2025/Raw_Data/* /scratch/jms53460/RiceRemap/Raw_Data
+
+#!/bin/bash
+#SBATCH --job-name=Rice_fastp_hisat2                                  # Job name
+#SBATCH --partition=batch                                             # Partition (queue) name
+#SBATCH --ntasks=1                                                    # Single task job
+#SBATCH --cpus-per-task=6                                             # Number of cores per task
+#SBATCH --mem=200gb                                                   # Total memory for job
+#SBATCH --time=12:00:00                                               # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/RiceRemap/Rice_fh2.out             # Location of standard output file
+#SBATCH --error=/scratch/jms53460/RiceRemap/Rice_fh2.err              # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                  # Where to send mail
+#SBATCH --mail-type=END,FAIL                                          # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/RiceRemap
+
+ml HISAT2/2.2.1-gompi-2023a
+hisat2-build Rice_r7.fa Rice_r7_index
+
+mkdir hisat2_out
+module load fastp/0.23.4-GCC-13.2.0
+module load SAMtools/1.21-GCC-13.3.0
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+
+	fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "hisat2_out/""$file2""_R1_001.fastq.gz" -O "hisat2_out/""$file2""_R2_001.fastq.gz"
+
+	hisat2 -p 6 --dta -x Rice_r7_index -1 "hisat2_out/""$file2""_R1_001.fastq.gz" -2 "hisat2_out/""$file2""_R2_001.fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+done
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Rice_DNA_vcf                                      # Job name
+#SBATCH --partition=batch                                          # Partition (queue) name
+#SBATCH --ntasks=1                                                 # Single task job
+#SBATCH --cpus-per-task=6                                          # Number of cores per task
+#SBATCH --mem=200gb                                                # Total memory for job
+#SBATCH --time=24:00:00                                            # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_DNA2/Rice_vcf.out           # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_DNA2/Rice_vcf.err            # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
+#SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Rice_DNA2
+module load SAMtools/1.21-GCC-13.3.0
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+samtools index -@ 6 hisat2_out/"$file2"_s.bam
+
+module load BCFtools/1.21-GCC-13.3.0
+bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Nipponbare_12.fna hisat2_out/"$file2"_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
+bcftools index "$file2".vcf.gz
+done
+
+
+
+###Run in command line
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+gzip -d "$file2".vcf.gz
+bcftools view -i 'TYPE="snp"' "$file2".vcf > "$file2"_snps.vcf
+bcftools view -i 'GT="het"' "$file2"_snps.vcf > "$file2"_het_snps.vcf
+done
+
+###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
+ml Mamba/23.11.0-0
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+source activate /home/jms53460/vcf2tsvpy
+vcf2tsvpy --input_vcf "$file2"_het_snps.vcf --out_tsv "$file2"_vcf_table.tsv 
+conda deactivate
+done
+
+###Selected columns from the vcf_table
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+awk '{print $3,$1,$2,$6,$4,$5}' "$file2"_vcf_table.tsv OFS="\t" > "$file2"_snps.tsv
+done
+
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+grep -i "chr" "$file2"_snps.tsv > "$file2"_snps2.tsv
+done
+
+
+cd /scratch/jms53460/Rice_DNA2
+wc -l NRE1-1_snps2.tsv
+#453676
+wc -l NRE1-3_snps2.tsv
+#470769
+wc -l NRE1-4_snps2.tsv
+#457230
+wc -l NRE1-5_snps2.tsv
+#457421
+
+
+###Alter the table to match required SNP file format
+ml R/4.4.2-gfbf-2024a
+R
+snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-1_snps2.tsv", sep="")
+SNPs = snps[,(1:4)]
+SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
+colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+SNPs$"SNP value" = 1
+write.table(SNPs, file = 'NRE1-1_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-3_snps2.tsv", sep="")
+SNPs = snps[,(1:4)]
+SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
+colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+SNPs$"SNP value" = 1
+write.table(SNPs, file = 'NRE1-3_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-4_snps2.tsv", sep="")
+SNPs = snps[,(1:4)]
+SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
+colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+SNPs$"SNP value" = 1
+write.table(SNPs, file = 'NRE1-4_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-5_snps2.tsv", sep="")
+SNPs = snps[,(1:4)]
+SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
+colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+SNPs$"SNP value" = 1
+write.table(SNPs, file = 'NRE1-5_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+q()
+
+wc -l NRE1-1_SNPs.tab
+#453676 ###This is less than I have for Arabidopsis (795403), although rice has a larger genome (~400 Mb vs At 120 Mb)
+
+
+
+#!/bin/bash
+#SBATCH --job-name=Rice_nmask                                             # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=1                                                 # Number of cores per task
+#SBATCH --mem=50gb                                                        # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_DNA2/Rice_nmask.out               # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_DNA2/Rice_nmask.err                # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Rice_DNA2
+ml BEDTools/2.31.1-GCC-13.3.0
+for file in "Raw_Data/"*_R1_001.fastq.gz
+do
+	file2="${file:9:-16}"
+bedtools maskfasta -fi Nipponbare_12.fna -fo "$file2"_N-masked_12.fa -bed "$file2"_snps.vcf -fullHeader
+done
+
+###stopped here
+
+
+
+cp NRE1-1_N-masked_12.fa /home/jms53460
+cp NRE1-1_SNPs.tab /home/jms53460
+cp NRE1-3_N-masked_12.fa /home/jms53460
+cp NRE1-3_SNPs.tab /home/jms53460
+cp NRE1-4_N-masked_12.fa /home/jms53460
+cp NRE1-4_SNPs.tab /home/jms53460
+cp NRE1-5_N-masked_12.fa /home/jms53460
+cp NRE1-5_SNPs.tab /home/jms53460
