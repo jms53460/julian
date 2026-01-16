@@ -117,11 +117,11 @@ UMI_col = colorRamp2(c(4.4, 5.3), c("white", "forestgreen"))
 
     RiceNSdata = read.table('Rice_Leersia_perrieri_CoGe.tab', skip = 2, sep = '\t', as.is = T)
     RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
-    colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')
+    colnames(RiceNSdata)[13:15] = c('RiceGene','LeersiaGene','Identity')
 
     RiceNSdata = read.table('Rice_Brachypodium_distachyon_CoGe.tab', skip = 2, sep = '\t', as.is = T)
     RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
-    colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')    
+    colnames(RiceNSdata)[13:15] = c('RiceGene','BrachyGene','Identity')    
 
 ## Remove putative orthologs that are not reciprocal best hits ##
 removes = rep(FALSE, nrow(RiceNSdata))

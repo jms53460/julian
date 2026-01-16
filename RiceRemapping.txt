@@ -5,6 +5,7 @@ curl https://rice.uga.edu/osa1r7_download/osa1_r7.asm.fa.gz > Rice_r7.fa.gz
 gzip -d Rice_r7.fa.gz
 curl https://rice.uga.edu/osa1r7_download/osa1_r7.all_models.gff3.gz > Rice_r7.gff3.gz
 gzip -d Rice_r7.gff3.gz
+cp Rice_r7.gff3 /home/jms53460
 curl https://rice.uga.edu/osa1r7_download/osa1_r7.all_models.gene_exp_matrix.txt.gz > Rice_exp_matrix.txt.gz
 gzip -d Rice_exp_matrix.txt.gz
 
@@ -344,9 +345,9 @@ mkdir UMIcounts_g2
 ml Mamba/23.11.0-0
 source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+featureCounts -T 6 -s 1 -a Rice_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Rice_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Rice_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
 
 conda deactivate
 
