@@ -193,7 +193,6 @@ cp NRE1-5_N-masked_Remap.fa /home/jms53460
 cp NRE1-5_SNPs_Remap.tab /home/jms53460
 
 
-
 cd /scratch/jms53460/RiceRemap
 mkdir NRE1-1
 mkdir NRE1-2
@@ -324,18 +323,18 @@ cp NRE1-1/Rice_r7.gff3 .
 
 
 #!/bin/bash
-#SBATCH --job-name=Rice_feautures_UMIs                                              # Job name
+#SBATCH --job-name=RiceRemap_features_UMIs                                              # Job name
 #SBATCH --partition=batch                                                           # Partition (queue) name
 #SBATCH --ntasks=1                                                                  # Single task job
 #SBATCH --cpus-per-task=6                                                           # Number of cores per task
 #SBATCH --mem=200gb                                                                 # Total memory for job
 #SBATCH --time=24:00:00                                                             # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_RedoAnnotations/Rice_feautures_UMIs.out     # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_RedoAnnotations/Rice_feautures_UMIs.err      # Location of error log file
+#SBATCH --output=/scratch/jms53460/RiceRemap/RiceRemap_features_UMIs.out     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/RiceRemap/RiceRemap_features_UMIs.err      # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
 #SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/RedoAnnotations
+cd /scratch/jms53460/RiceRemap
 
 mkdir featurecounts
 mkdir bams
