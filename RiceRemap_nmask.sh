@@ -15,5 +15,5 @@ ml BEDTools/2.31.1-GCC-13.3.0
 for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
 	file2="${file:13:-16}"
-bedtools maskfasta -fi Rice_r7.fa -fo "$file2"_N-masked_Remap.fa -bed "$file2"_het_snps.vcf -fullHeader
+bedtools maskfasta -fi Rice_r7.fa -fo "$file2"_N-masked_Remap.fa -bed "$file2"_snps.vcf -fullHeader
 done

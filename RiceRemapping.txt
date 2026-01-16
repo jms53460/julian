@@ -72,8 +72,9 @@ bcftools index "$file2".vcf.gz
 done
 
 
-
 ###Run in command line
+cd /scratch/jms53460/RiceRemap
+module load BCFtools/1.21-GCC-13.3.0
 for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
 	file2="${file:13:-16}"
@@ -105,17 +106,16 @@ do
 grep -i "chr" "$file2"_snps.tsv > "$file2"_snps2.tsv
 done
 
-
-cd /scratch/jms53460/RiceRemap
 wc -l NRE1-1_snps2.tsv
-#453676
+#454783 compared to 453676 with previous mapping
+wc -l NRE1-2_snps2.tsv
+#574463 compared to 573093 with previous mapping
 wc -l NRE1-3_snps2.tsv
-#470769
+#472514 compared to 470769 with previous mapping
 wc -l NRE1-4_snps2.tsv
-#457230
+#459080 compared to 457230 with previous mapping
 wc -l NRE1-5_snps2.tsv
-#457421
-
+#459253 compared to 457421 with previous mapping
 
 ###Alter the table to match required SNP file format
 ml R/4.4.2-gfbf-2024a
@@ -157,7 +157,7 @@ write.table(SNPs, file = 'NRE1-5_SNPs_Remap.tab', col.names = TRUE, row.names = 
 q()
 
 wc -l NRE1-1_SNPs_Remap.tab
-#453676 ###This is less than I have for Arabidopsis (795403), although rice has a larger genome (~400 Mb vs At 120 Mb)
+#454783 compared to 453676 with previous mapping ###This is less than I have for Arabidopsis (795403), although rice has a larger genome (~400 Mb vs At 120 Mb)
 
 
 
@@ -178,7 +178,7 @@ ml BEDTools/2.31.1-GCC-13.3.0
 for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
 	file2="${file:13:-16}"
-bedtools maskfasta -fi Rice_r7.fa -fo "$file2"_N-masked_Remap.fa -bed "$file2"_het_snps.vcf -fullHeader
+bedtools maskfasta -fi Rice_r7.fa -fo "$file2"_N-masked_Remap.fa -bed "$file2"_snps.vcf -fullHeader
 done
 
 cp NRE1-1_N-masked_Remap.fa /home/jms53460
