@@ -1,12 +1,25 @@
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 #Arabidopsis thaliana and lyrata CoGe: https://genomevolution.org/r/9fb74
+#Arabidopsis thaliana Col-0 (thale cress) (v10, id24739): masked repeats 50x
+#Arabidopsis lyrata (EnsemblPlantsv1) (vEnsemblPlantsv1, id36190): Masked by source        ###5 MYA
+#Capsella rubella (vCaprub_01, id56621): masked using RepeatMasker      ###10-14 MYA
+#Brassica rapa (v1.5, id28890): NCBI WindowMasker (Hard)     ###17-20 MYA
 
-#Table: https://genomevolution.org/coge/data/diags/24739/36190/24739_36190.CDS-CDS.last.tdd10.cs0.filtered.dag.all.go_D20_g10_A5.aligncoords.gcoords.ks
+#Move forward with one of the three options:
+    #Arabidopsis lyrata comparison
+    AtNSdata = read.table('Arabidopsis_thaliana_lyrata_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*CDS:", "CDS:", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
+    colnames(AtNSdata)[13:15] = c('thalianaGene','lyrataGene','Identity')
 
-AtNSdata = read.table('Arabidopsis_thaliana_lyrata_CoGe.tab', skip = 2, sep = '\t', as.is = T)
-AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*CDS:", "CDS:", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
-colnames(AtNSdata)[13:15] = c('thalianaGene','lyrataGene','Identity')
+    #Capsella rubella comparison
+    AtNSdata = read.table('Arabidopsis_thaliana_Capsella_rubella_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*cds-", "cds-", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
+    colnames(AtNSdata)[13:15] = c('thalianaGene','CapsellaGene','Identity')
 
+    #Brassica rapa comparison
+    AtNSdata = read.table('Arabidopsis_thaliana_Brassica_rapa_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*Bra", "Bra", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
+    colnames(AtNSdata)[13:15] = c('thalianaGene','BrassicaGene','Identity')
 
 ## Remove putative orthologs that are not reciprocal best hits ##
 removes = rep(FALSE, nrow(AtNSdata))
@@ -91,13 +104,24 @@ UMI_col = colorRamp2(c(4.4, 5.3), c("white", "forestgreen"))
 
 
 #Rice CoGe: https://genomevolution.org/coge/SynMap.pl 
-#Rice 
+#Oryza sativa japonica (Rice) (v7, id16890): masked
+#Oryza longistaminata (Oryza longistaminata acc. IRGC110404) (vV2.1, id51405): masked using RepeatMasker        ###2 Mya
+#Leersia perrieri (Gramene v1.4 Barbazuk Lab AS Project) (v1.4, id60020): unmasked      ###20 Mya
+#Brachypodium distachyon (Brachypodium_distachyon_v3.0.dna_rm.toplevel.fa) (vv3, id52736): masked       ###50 Mya
+##Remapping rice using files from https://rice.uga.edu/download_osa1r7.shtml
 
-#Table: https://genomevolution.org/coge/data/diags/16890/51405/16890_51405.CDS-CDS.last.tdd10.cs0.filtered.dag.all.go_D20_g10_A5.aligncoords.gcoords.ks
+#Move forward with one of the three options:
+    RiceNSdata = read.table('Rice_Oryza_longistaminata_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')
 
-RiceNSdata = read.table('Rice_CoGe.tab', skip = 2, sep = '\t', as.is = T)
-RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
-colnames(RiceNSdata)[13:15] = c('sativaGene','longiGene','Identity')
+    RiceNSdata = read.table('Rice_Leersia_perrieri_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')
+
+    RiceNSdata = read.table('Rice_Brachypodium_distachyon_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')    
 
 ## Remove putative orthologs that are not reciprocal best hits ##
 removes = rep(FALSE, nrow(RiceNSdata))
@@ -249,28 +273,39 @@ pairwise.wilcox.test(HapNonHap2$NS, HapNonHap2$Class, p.adjust = 'holm')  # p-va
 
 
 #Tomato CoGe
+#Solanum lycopersicum (tomato) (v4, id57792): NCBI WindowMasker (Hard)
+#Solanum tuberosum group Phureja DM1-3 516 R44 (potato) (v4.03, id52025): unmasked
+#Capsicum sp. KIBR KC317 (cm334 Chromosome) (vv1.5, id25101): NCBI WindowMasker (Hard)
+#Nicotiana tabacum Nitab-v4.5 (v1.0, id57796): NCBI WindowMasker (Hard)
 
-#https://genomevolution.org/coge/data/diags/52025/68838/52025_68838.CDS-CDS.last.tdd10.cs0.filtered.dag.all.go_D20_g10_A5.aligncoords.gcoords.ks
+#Move forward with one of the three options:
+    TomNSdata = read.table('Tomato_Potato_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    TomNSdata = cbind(TomNSdata, sub("[|].*", "", sub(".*LOC", "LOC", TomNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", TomNSdata[,8])), as.numeric(sub('.*[|]','',TomNSdata[,4])))
+    colnames(TomNSdata)[13:15] = c('TomatoGene','PotatoGene','Identity')
 
-TomPotNSdata = read.table('Tomato_potato_CoGe.tab', skip = 2, sep = '\t', as.is = T)
-TomPotNSdata = cbind(TomPotNSdata, sub("[|].*", "", sub(".*LOC", "LOC", TomPotNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", TomPotNSdata[,8])), as.numeric(sub('.*[|]','',TomPotNSdata[,4])))
-colnames(TomPotNSdata)[13:15] = c('sativaGene','longiGene','Identity')
+    TomNSdata = read.table('Tomato_Pepper_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    TomNSdata = cbind(TomNSdata, sub("[|].*", "", sub(".*LOC", "LOC", TomNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", TomNSdata[,8])), as.numeric(sub('.*[|]','',TomNSdata[,4])))
+    colnames(TomNSdata)[13:15] = c('TomatoGene','PepperGene','Identity')
+
+    TomNSdata = read.table('Tomato_Tobacco_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    TomNSdata = cbind(TomNSdata, sub("[|].*", "", sub(".*LOC", "LOC", TomNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", TomNSdata[,8])), as.numeric(sub('.*[|]','',TomNSdata[,4])))
+    colnames(TomNSdata)[13:15] = c('TomatoGene','TobaccoGene','Identity')
 
 ## Remove putative orthologs that are not reciprocal best hits ##
-removes = rep(FALSE, nrow(TomPotNSdata))
-for (sgene in as.character(unique(TomPotNSdata[duplicated(TomPotNSdata[,13]),13]))) {
-	tr = which(TomPotNSdata[,13] == sgene)
-	removes[tr[rank(-TomPotNSdata[tr,15]) != 1]] = TRUE
+removes = rep(FALSE, nrow(TomNSdata))
+for (sgene in as.character(unique(TomNSdata[duplicated(TomNSdata[,13]),13]))) {
+	tr = which(TomNSdata[,13] == sgene)
+	removes[tr[rank(-TomNSdata[tr,15]) != 1]] = TRUE
 }
-for (mgene in as.character(unique(TomPotNSdata[duplicated(TomPotNSdata[,14]),14]))) {
-	tr = which(TomPotNSdata[,14] == mgene)
-	removes[tr[rank(-TomPotNSdata[tr,15]) != 1]] = TRUE
+for (mgene in as.character(unique(TomNSdata[duplicated(TomNSdata[,14]),14]))) {
+	tr = which(TomNSdata[,14] == mgene)
+	removes[tr[rank(-TomNSdata[tr,15]) != 1]] = TRUE
 }
-TomPotNSdata = TomPotNSdata[!removes,]
+TomNSdata = TomNSdata[!removes,]
 ##
 
-TomPotNSdata = TomPotNSdata[TomPotNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
-TomPotNSdata = TomPotNSdata[-which(is.na(as.numeric(TomPotNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
-TomPotNSdata = TomPotNSdata[-which(as.numeric(TomPotNSdata[,1]) == 0),] # Remove genes with 0 synonymous subs
-TomPotNS = as.numeric(TomPotNSdata[,2]) / as.numeric(TomPotNSdata[,1])
-names(TomPotNS) = TomPotNSdata[,13]
+TomNSdata = TomNSdata[TomNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+TomNSdata = TomNSdata[-which(is.na(as.numeric(TomNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+TomNSdata = TomNSdata[-which(as.numeric(TomNSdata[,1]) == 0),] # Remove genes with 0 synonymous subs
+TomNS = as.numeric(TomNSdata[,2]) / as.numeric(TomNSdata[,1])
+names(TomNS) = TomNSdata[,13]

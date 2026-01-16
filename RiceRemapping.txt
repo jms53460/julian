@@ -48,35 +48,35 @@ done
 
 
 #!/bin/bash
-#SBATCH --job-name=Rice_DNA_vcf                                      # Job name
+#SBATCH --job-name=RiceRemap_DNA_vcf                                      # Job name
 #SBATCH --partition=batch                                          # Partition (queue) name
 #SBATCH --ntasks=1                                                 # Single task job
 #SBATCH --cpus-per-task=6                                          # Number of cores per task
 #SBATCH --mem=200gb                                                # Total memory for job
 #SBATCH --time=24:00:00                                            # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_DNA2/Rice_vcf.out           # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_DNA2/Rice_vcf.err            # Location of error log file
+#SBATCH --output=/scratch/jms53460/RiceRemap/Rice_vcf.out           # Location of standard output file
+#SBATCH --error=/scratch/jms53460/RiceRemap/Rice_vcf.err            # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                               # Where to send mail
 #SBATCH --mail-type=END,FAIL                                       # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/Rice_DNA2
+cd /scratch/jms53460/RiceRemap
 module load SAMtools/1.21-GCC-13.3.0
-for file in "Raw_Data/"*_R1_001.fastq.gz
-do
-	file2="${file:9:-16}"
-samtools index -@ 6 hisat2_out/"$file2"_s.bam
-
 module load BCFtools/1.21-GCC-13.3.0
-bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Nipponbare_12.fna hisat2_out/"$file2"_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
+for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
+do
+	file2="${file:13:-16}"
+samtools index -@ 6 hisat2_out_DNA/"$file2"_s.bam
+
+bcftools mpileup -Ou --threads 6 -d 1000000 --min-MQ 60 -f Rice_r7.fa hisat2_out_DNA/"$file2"_s.bam | bcftools call -Ou -m -v --threads 6 | bcftools filter -Oz -e 'QUAL<40 || DP<10' > "$file2".vcf.gz
 bcftools index "$file2".vcf.gz
 done
 
 
 
 ###Run in command line
-for file in "Raw_Data/"*_R1_001.fastq.gz
+for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
-	file2="${file:9:-16}"
+	file2="${file:13:-16}"
 gzip -d "$file2".vcf.gz
 bcftools view -i 'TYPE="snp"' "$file2".vcf > "$file2"_snps.vcf
 bcftools view -i 'GT="het"' "$file2"_snps.vcf > "$file2"_het_snps.vcf
@@ -84,29 +84,29 @@ done
 
 ###Now I will convert the vcf to a tsv file and edit it to be a SNP file ready for SNPsplit
 ml Mamba/23.11.0-0
-for file in "Raw_Data/"*_R1_001.fastq.gz
+for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
-	file2="${file:9:-16}"
+	file2="${file:13:-16}"
 source activate /home/jms53460/vcf2tsvpy
 vcf2tsvpy --input_vcf "$file2"_het_snps.vcf --out_tsv "$file2"_vcf_table.tsv 
 conda deactivate
 done
 
 ###Selected columns from the vcf_table
-for file in "Raw_Data/"*_R1_001.fastq.gz
+for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
-	file2="${file:9:-16}"
+	file2="${file:13:-16}"
 awk '{print $3,$1,$2,$6,$4,$5}' "$file2"_vcf_table.tsv OFS="\t" > "$file2"_snps.tsv
 done
 
-for file in "Raw_Data/"*_R1_001.fastq.gz
+for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
-	file2="${file:9:-16}"
+	file2="${file:13:-16}"
 grep -i "chr" "$file2"_snps.tsv > "$file2"_snps2.tsv
 done
 
 
-cd /scratch/jms53460/Rice_DNA2
+cd /scratch/jms53460/RiceRemap
 wc -l NRE1-1_snps2.tsv
 #453676
 wc -l NRE1-3_snps2.tsv
@@ -120,69 +120,437 @@ wc -l NRE1-5_snps2.tsv
 ###Alter the table to match required SNP file format
 ml R/4.4.2-gfbf-2024a
 R
-snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-1_snps2.tsv", sep="")
+snps <- read.csv("/scratch/jms53460/RiceRemap/NRE1-1_snps2.tsv", sep="")
 SNPs = snps[,(1:4)]
 SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
 colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
 SNPs$"SNP value" = 1
-write.table(SNPs, file = 'NRE1-1_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+write.table(SNPs, file = 'NRE1-1_SNPs_Remap.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 
-snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-3_snps2.tsv", sep="")
+snps <- read.csv("/scratch/jms53460/RiceRemap/NRE1-2_snps2.tsv", sep="")
 SNPs = snps[,(1:4)]
 SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
 colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
 SNPs$"SNP value" = 1
-write.table(SNPs, file = 'NRE1-3_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+write.table(SNPs, file = 'NRE1-2_SNPs_Remap.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 
-snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-4_snps2.tsv", sep="")
+snps <- read.csv("/scratch/jms53460/RiceRemap/NRE1-3_snps2.tsv", sep="")
 SNPs = snps[,(1:4)]
 SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
 colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
 SNPs$"SNP value" = 1
-write.table(SNPs, file = 'NRE1-4_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+write.table(SNPs, file = 'NRE1-3_SNPs_Remap.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 
-snps <- read.csv("/scratch/jms53460/Rice_DNA2/NRE1-5_snps2.tsv", sep="")
+snps <- read.csv("/scratch/jms53460/RiceRemap/NRE1-4_snps2.tsv", sep="")
 SNPs = snps[,(1:4)]
 SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
 colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
 SNPs$"SNP value" = 1
-write.table(SNPs, file = 'NRE1-5_SNPs.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+write.table(SNPs, file = 'NRE1-4_SNPs_Remap.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
+
+snps <- read.csv("/scratch/jms53460/RiceRemap/NRE1-5_snps2.tsv", sep="")
+SNPs = snps[,(1:4)]
+SNPs[,5] = paste(snps[,5], "/", snps[,6], sep = "")
+colnames(SNPs) = c("ID", "Chr", "Position", "SNP value", "Ref/SNP")
+SNPs$"SNP value" = 1
+write.table(SNPs, file = 'NRE1-5_SNPs_Remap.tab', col.names = TRUE, row.names = FALSE, sep = '\t', quote = FALSE)
 q()
 
-wc -l NRE1-1_SNPs.tab
+wc -l NRE1-1_SNPs_Remap.tab
 #453676 ###This is less than I have for Arabidopsis (795403), although rice has a larger genome (~400 Mb vs At 120 Mb)
 
 
 
 #!/bin/bash
-#SBATCH --job-name=Rice_nmask                                             # Job name
+#SBATCH --job-name=RiceRemap_nmask                                             # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=1                                                 # Number of cores per task
 #SBATCH --mem=50gb                                                        # Total memory for job
 #SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
-#SBATCH --output=/scratch/jms53460/Rice_DNA2/Rice_nmask.out               # Location of standard output file
-#SBATCH --error=/scratch/jms53460/Rice_DNA2/Rice_nmask.err                # Location of error log file
+#SBATCH --output=/scratch/jms53460/RiceRemap/Rice_nmask.out               # Location of standard output file
+#SBATCH --error=/scratch/jms53460/RiceRemap/Rice_nmask.err                # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
-cd /scratch/jms53460/Rice_DNA2
+cd /scratch/jms53460/RiceRemap
 ml BEDTools/2.31.1-GCC-13.3.0
-for file in "Raw_Data/"*_R1_001.fastq.gz
+for file in "Raw_Data_DNA/"*_R1_001.fastq.gz
 do
-	file2="${file:9:-16}"
-bedtools maskfasta -fi Nipponbare_12.fna -fo "$file2"_N-masked_12.fa -bed "$file2"_snps.vcf -fullHeader
+	file2="${file:13:-16}"
+bedtools maskfasta -fi Rice_r7.fa -fo "$file2"_N-masked_Remap.fa -bed "$file2"_het_snps.vcf -fullHeader
 done
 
-###stopped here
+cp NRE1-1_N-masked_Remap.fa /home/jms53460
+cp NRE1-1_SNPs_Remap.tab /home/jms53460
+cp NRE1-2_N-masked_Remap.fa /home/jms53460
+cp NRE1-2_SNPs_Remap.tab /home/jms53460
+cp NRE1-3_N-masked_Remap.fa /home/jms53460
+cp NRE1-3_SNPs_Remap.tab /home/jms53460
+cp NRE1-4_N-masked_Remap.fa /home/jms53460
+cp NRE1-4_SNPs_Remap.tab /home/jms53460
+cp NRE1-5_N-masked_Remap.fa /home/jms53460
+cp NRE1-5_SNPs_Remap.tab /home/jms53460
 
 
 
-cp NRE1-1_N-masked_12.fa /home/jms53460
-cp NRE1-1_SNPs.tab /home/jms53460
-cp NRE1-3_N-masked_12.fa /home/jms53460
-cp NRE1-3_SNPs.tab /home/jms53460
-cp NRE1-4_N-masked_12.fa /home/jms53460
-cp NRE1-4_SNPs.tab /home/jms53460
-cp NRE1-5_N-masked_12.fa /home/jms53460
-cp NRE1-5_SNPs.tab /home/jms53460
+cd /scratch/jms53460/RiceRemap
+mkdir NRE1-1
+mkdir NRE1-2
+mkdir NRE1-3
+mkdir NRE1-4
+mkdir NRE1-5
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-1
+cp /home/jms53460/Rice_r7.gff3 NRE1-1
+cp /home/jms53460/NRE1-1_N-masked_Remap.fa NRE1-1
+cp /home/jms53460/NRE1-1_SNPs_Remap.tab NRE1-1
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-2
+cp /home/jms53460/Rice_r7.gff3 NRE1-2
+cp /home/jms53460/NRE1-2_N-masked_Remap.fa NRE1-2
+cp /home/jms53460/NRE1-2_SNPs_Remap.tab NRE1-2
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-3
+cp /home/jms53460/Rice_r7.gff3 NRE1-3
+cp /home/jms53460/NRE1-3_N-masked_Remap.fa NRE1-3
+cp /home/jms53460/NRE1-3_SNPs_Remap.tab NRE1-3
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-4
+cp /home/jms53460/Rice_r7.gff3 NRE1-4
+cp /home/jms53460/NRE1-4_N-masked_Remap.fa NRE1-4
+cp /home/jms53460/NRE1-4_SNPs_Remap.tab NRE1-4
+
+cp /home/jms53460/CELSeq_barcodes.txt NRE1-5
+cp /home/jms53460/Rice_r7.gff3 NRE1-5
+cp /home/jms53460/NRE1-5_N-masked_Remap.fa NRE1-5
+cp /home/jms53460/NRE1-5_SNPs_Remap.tab NRE1-5
+
+mkdir NRE1-1/Demultiplexed
+mkdir NRE1-2/Demultiplexed
+mkdir NRE1-3/Demultiplexed
+mkdir NRE1-4/Demultiplexed
+mkdir NRE1-5/Demultiplexed
+
+mkdir SRA_upload
+cp /scratch/jms53460/Rice_8_2025/SRA_upload/* /scratch/jms53460/RiceRemap/SRA_upload/
+
+cp /scratch/jms53460/Rice_8_2025/NRE1-1/Demultiplexed/* /scratch/jms53460/RiceRemap/NRE1-1/Demultiplexed/
+cp /scratch/jms53460/Rice_8_2025/NRE1-2/Demultiplexed/* /scratch/jms53460/RiceRemap/NRE1-2/Demultiplexed/
+cp /scratch/jms53460/Rice_8_2025/NRE1-3/Demultiplexed/* /scratch/jms53460/RiceRemap/NRE1-3/Demultiplexed/
+cp /scratch/jms53460/Rice_8_2025/NRE1-4/Demultiplexed/* /scratch/jms53460/RiceRemap/NRE1-4/Demultiplexed/
+cp /scratch/jms53460/Rice_8_2025/NRE1-5/Demultiplexed/* /scratch/jms53460/RiceRemap/NRE1-5/Demultiplexed/
+
+
+#!/bin/bash
+#SBATCH --job-name=RiceRemap_process1                                          # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=200gb                                                        # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/RiceRemap/NRE1-1/Hs2.out             # Location of standard output file
+#SBATCH --error=/scratch/jms53460/RiceRemap/NRE1-1/Hs2.err              # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/RiceRemap/NRE1-1
+
+module load fastp/0.23.4-GCC-13.2.0
+mkdir hisat2_out
+for file in Demultiplexed/*s.fastq.gz; do
+	file2="${file:14:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+fi
+done
+
+ml HISAT2/2.2.1-gompi-2023a
+hisat2-build NRE1-1_N-masked_Remap.fa NRE1-1_N-masked_Remap_index
+ml SAMtools/1.21-GCC-13.3.0
+for file in hisat2_out/*s.fastq.gz
+do
+	file2="${file:11:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	hisat2 -p 6 --dta -x NRE1-1_N-masked_Remap_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
+	
+fi
+done
+
+mkdir SNPsplit
+module load SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+for file in "hisat2_out/"*_s.bam
+do
+    file2="${file:11:-6}"
+
+    SNPsplit --conflicting -o SNPsplit --snp_file NRE1-1_SNPs_Remap.tab "$file"
+    samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
+    
+done
+
+for file in "SNPsplit/"*_s.genome1.bam
+do
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g1.bam
+done
+
+for file in "SNPsplit/"*_s.genome2.bam
+do
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g2.bam
+done
+
+
+###In sh file, use find and replace to swap NRE1-1 with NRE1-2, 3, 4, and 5 and save as separate files to run
+
+
+###I'm running from featurecounts onward with all the data
+
+cd /scratch/jms53460/RiceRemap
+mkdir SNPsplit
+cp NRE1-1/SNPsplit/*_SNPsplit* SNPsplit/
+cp NRE1-2/SNPsplit/*_SNPsplit* SNPsplit/
+cp NRE1-3/SNPsplit/*_SNPsplit* SNPsplit/
+cp NRE1-4/SNPsplit/*_SNPsplit* SNPsplit/
+cp NRE1-5/SNPsplit/*_SNPsplit* SNPsplit/
+cp NRE1-1/Rice_r7.gff3 .
+
+
+#!/bin/bash
+#SBATCH --job-name=Rice_feautures_UMIs                                              # Job name
+#SBATCH --partition=batch                                                           # Partition (queue) name
+#SBATCH --ntasks=1                                                                  # Single task job
+#SBATCH --cpus-per-task=6                                                           # Number of cores per task
+#SBATCH --mem=200gb                                                                 # Total memory for job
+#SBATCH --time=24:00:00                                                             # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Rice_RedoAnnotations/Rice_feautures_UMIs.out     # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Rice_RedoAnnotations/Rice_feautures_UMIs.err      # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                                # Where to send mail
+#SBATCH --mail-type=END,FAIL                                                        # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/RedoAnnotations
+
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Nipponbare_r7.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+ml SAMtools/1.21-GCC-13.3.0
+module load UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
+done
+
+
+interact --mem=5G
+cd /scratch/jms53460/Rice_RedoAnnotations
+
+
+ml R/4.4.2-gfbf-2024a
+R
+annots = strsplit(read.table('Nipponbare_r7.gff3', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=', annots)]
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+annots = gsub("\\..*", "", annots)
+annots = annots[!duplicated(annots)]
+
+names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
+names(annots) = sub('ID=', '', names(annots))
+names(annots) = gsub("\\..*", "", names(annots))
+annots = annots[!duplicated(names(annots))]
+annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+annots = gsub("\"", "", annots)
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D2 = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1_2 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('_S.*L004', '',  sub('_S.*L007', '', sub('_S.*L008', '', files))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2_2 = B
+
+genes = read.table('Nipponbare_r7.gff3', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Nipponbare_r7.gff3', sep = '\t', quote = "")[,9], ';')
+
+
+annots2 = unlist(lapply(annots2, function(xx) { xx[1] }))
+
+names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
+annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
+
+genes[,3] = annots2
+
+genes = genes[order(genes[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+
+genes[,3] = sub('ID=', '', genes[,3])
+genes[,3] = gsub("\\..*", "", genes[,3])
+genes = genes[!duplicated(genes[,3]),]
+
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
+
+Rice_genes2 = genes
+Rice_genes2[,1] = sub('Chr', '', Rice_genes[,1])
+
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
+colnames(reads) = colnames(D)
+reads_per_UMI = t(reads/colSums(D))
+reads_UMIs2 = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
+save(D2,g1_2,g2_2,Rice_genes2,reads_UMIs2, file = "RiceRemap_7-8_2025.RData")
+
+load('Rice_7-8_2025.RData')
+
+> summary(colSums(D))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      3    3518    5822   21391   11797  327403 
+> summary(colSums(D2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      4     848    1409    5910    3042   93412
+> summary(colSums(g1))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0   137.0   223.0   881.2   462.2 15016.0
+> summary(colSums(g1_2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0    25.0    44.5   199.8   100.2  3114.0
+> summary(colSums(g2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0   166.0   303.5  1111.8   651.8 18099.0
+> summary(colSums(g2_2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    0.0    25.0    45.0   231.9   108.2  4270.0
+> dim(Rice_genes)
+[1] 39378     3
+> dim(Rice_genes2)
+[1] 55803     3
+> head(reads_UMIs)
+          reads  UMIs reads_per_UMI
+R1-78_10s 19430  8487      2.289384
+R1-78_11s 14167 10958      1.292845
+R1-78_12s  7267  4197      1.731475
+R1-78_13s 12073  7827      1.542481
+R1-78_14s  6110  4615      1.323944
+R1-78_15s  5155  3970      1.298489
+> head(reads_UMIs2)
+          reads UMIs reads_per_UMI
+R1-78_10s  4963 2075      2.391807
+R1-78_11s  3288 2475      1.328485
+R1-78_12s  1801 1028      1.751946
+R1-78_13s  2531 1772      1.428330
+R1-78_14s  1367 1055      1.295735
+R1-78_15s  1185  908      1.305066
+> summary(colSums(D)/colSums(D2))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.750   3.657   4.112   4.002   4.284   5.167
+
+q()
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/Rice_RedoAnnotations/RiceRemap_7-8_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('RiceRemap_7-8_2025.RData')
