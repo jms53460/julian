@@ -17,8 +17,9 @@ tail -12881297 Sl_v4.fa > Sl_v4_trim.fa
 sed 's/SL4.0ch0*/chr/' Sl_v4_trim.fa > Sl_v4_12.fa
 cp Sl_v4_12.fa /home/jms53460
 
-sed 's/SL4.0ch00*/chr0/' Sl_v4.gff > Sl_v4_0.gff
-sed 's/SL4.0ch0*/chr/' Sl_v4_0.gff > Sl_v4_12.gff
+sed 's/SL4.0ch00/chr0/' Sl_v4.gff > Sl_v4_0.gff
+sed 's/SL4.0ch0/chr/' Sl_v4_0.gff > Sl_v4_10.gff
+sed 's/SL4.0ch1/chr1/' Sl_v4_10.gff > Sl_v4_12.gff
 cp Sl_v4_12.gff /home/jms53460
 
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/TomatoRemap/
@@ -274,23 +275,36 @@ done
 
 
 #!/bin/bash
-#SBATCH --job-name=TomatoRemap_UMItools                                   # Job name
+#SBATCH --job-name=TomatoRemap_features_UMIs                              # Job name
 #SBATCH --partition=batch                                                 # Partition (queue) name
 #SBATCH --ntasks=1                                                        # Single task job
 #SBATCH --cpus-per-task=6                                                 # Number of cores per task
 #SBATCH --mem=600gb                                                       # Total memory for job
-#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
 #SBATCH --output=/scratch/jms53460/TomatoRemap/UMItools.out               # Location of standard output file
 #SBATCH --error=/scratch/jms53460/TomatoRemap/UMItools.err                # Location of error log file
 #SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
 #SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
 cd /scratch/jms53460/TomatoRemap/
-module load UMI-tools/1.1.4-foss-2023a
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a Sl_v4_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Sl_v4_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Sl_v4_12.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+ml SAMtools/1.21-GCC-13.3.0
+ml UMI-tools/1.1.4-foss-2023a
 for file in "featurecounts/"*SNPsplit.bam*
 do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
 
         umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
     fi
@@ -301,6 +315,9 @@ do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
 
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
         umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
     fi
 done
@@ -310,15 +327,193 @@ do
     file2="${file:14:-22}"
     if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
 
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
         umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
     fi
 done
 
 
 
-ml R/4.3.1-foss-2022a
+#Move the files with Arabidopsis meiocyte data (81s to 96s)
+mkdir 12_18_2024_At_Meiocytes
+mkdir 12_18_2024_At_Meiocytes/Demultiplexed
+mv Demultiplexed/Meiocytes_8* 12_18_2024_At_Meiocytes/Demultiplexed
+mv Demultiplexed/Meiocytes_9* 12_18_2024_At_Meiocytes/Demultiplexed
+mv 12_18_2024_At_Meiocytes/Demultiplexed/Meiocytes_80s* Demultiplexed
+
+#Move the empty files
+mkdir Empty
+mv 12_18_2024_At_Meiocytes/Demultiplexed/Meiocytes_8s* Empty
+mv 12_18_2024_At_Meiocytes/Demultiplexed/Meiocytes_9s* Empty
+mv UMIcounts*/Meiocytes_1* Empty
+mv UMIcounts*/Meiocytes_2* Empty
+mv UMIcounts*/Meiocytes_3* Empty
+mv UMIcounts*/Meiocytes_4* Empty
+mv Empty/Meiocytes_49s*SNPsplit.tsv UMIcounts
+mv Empty/Meiocytes_49s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/Meiocytes_49s*SNPsplit_g2.tsv UMIcounts_g2
+mv UMIcounts*/Meiocytes_5s* Empty
+mv UMIcounts*/Meiocytes_6s* Empty
+mv UMIcounts*/Meiocytes_7s* Empty
+mv UMIcounts*/Meiocytes_8s* Empty
+mv UMIcounts*/Meiocytes_9s* Empty
+mv UMIcounts*/S74-79_49s* Empty
+mv UMIcounts*/S74-79_5* Empty
+mv UMIcounts*/S74-79_6* Empty
+mv UMIcounts*/S74-79_7* Empty
+mv UMIcounts*/S74-79_8* Empty
+mv UMIcounts*/S74-79_9* Empty
+mv Empty/S74-79_5s*SNPsplit.tsv UMIcounts
+mv Empty/S74-79_5s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S74-79_5s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S74-79_6s*SNPsplit.tsv UMIcounts
+mv Empty/S74-79_6s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S74-79_6s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S74-79_7s*SNPsplit.tsv UMIcounts
+mv Empty/S74-79_7s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S74-79_7s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S74-79_8s*SNPsplit.tsv UMIcounts
+mv Empty/S74-79_8s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S74-79_8s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S74-79_9s*SNPsplit.tsv UMIcounts
+mv Empty/S74-79_9s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S74-79_9s*SNPsplit_g2.tsv UMIcounts_g2
+mv UMIcounts*/Meiocytes_8* Empty
+mv UMIcounts*/Meiocytes_9* Empty
+mv Empty/Meiocytes_80s*SNPsplit.tsv UMIcounts
+mv Empty/Meiocytes_80s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/Meiocytes_80s*SNPsplit_g2.tsv UMIcounts_g2
+mv UMIcounts*/S1-8*33s* Empty
+mv UMIcounts*/S1-8*34s* Empty
+mv UMIcounts*/S1-8*35s* Empty
+mv UMIcounts*/S1-8*36s* Empty
+mv UMIcounts*/S1-8*37s* Empty
+mv UMIcounts*/S1-8*38s* Empty
+mv UMIcounts*/S1-8*39s* Empty
+mv UMIcounts*/S1-8_A267-277_S3_L002_4* Empty
+mv UMIcounts*/S1-8_A267-277_S3_L002_5* Empty
+mv UMIcounts*/S1-8_A267-277_S3_L002_6* Empty
+mv UMIcounts*/S1-8_A267-277_S3_L002_7* Empty
+mv UMIcounts*/S1-8_A267-277_S3_L002_8* Empty
+mv UMIcounts*/S1-8_A267-277_S3_L002_9* Empty
+mv Empty/S1-8_A267-277_S3_L002_4s*SNPsplit.tsv UMIcounts
+mv Empty/S1-8_A267-277_S3_L002_4s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S1-8_A267-277_S3_L002_4s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S1-8_A267-277_S3_L002_5s*SNPsplit.tsv UMIcounts
+mv Empty/S1-8_A267-277_S3_L002_5s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S1-8_A267-277_S3_L002_5s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S1-8_A267-277_S3_L002_6s*SNPsplit.tsv UMIcounts
+mv Empty/S1-8_A267-277_S3_L002_6s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S1-8_A267-277_S3_L002_6s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S1-8_A267-277_S3_L002_7s*SNPsplit.tsv UMIcounts
+mv Empty/S1-8_A267-277_S3_L002_7s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S1-8_A267-277_S3_L002_7s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S1-8_A267-277_S3_L002_8s*SNPsplit.tsv UMIcounts
+mv Empty/S1-8_A267-277_S3_L002_8s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S1-8_A267-277_S3_L002_8s*SNPsplit_g2.tsv UMIcounts_g2
+mv Empty/S1-8_A267-277_S3_L002_9s*SNPsplit.tsv UMIcounts
+mv Empty/S1-8_A267-277_S3_L002_9s*SNPsplit_g1.tsv UMIcounts_g1
+mv Empty/S1-8_A267-277_S3_L002_9s*SNPsplit_g2.tsv UMIcounts_g2
+
+ml R/4.4.2-gfbf-2024a
 R
-annots = strsplit(read.table('Sl_14.gff', sep = '\t', quote = "")[,9], ';')
+annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=gene', annots)]
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+#annots = gsub("\\..*", "", annots)
+annots = annots[!duplicated(annots)]
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D2 = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1_2 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2_2 = B
+
+genes = read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
+annots2 = unlist(lapply(annots2, function(xx) { xx[1] }))
+genes[,3] = annots2
+genes[,3] = sub('ID=', '', genes[,3])
+genes[,3] = gsub("\\..*", "", genes[,3])
+genes = genes[!duplicated(genes[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+genes = genes[grep("LOC", rownames(genes)),]
+
+D2 = D2[rownames(genes),]
+g1_2 = g1_2[rownames(genes),]
+g2_2 = g2_2[rownames(genes),]
+
+Rice_genes2 = genes
+Rice_genes2[,1] = sub('Chr', '', Rice_genes2[,1])
+
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
+colnames(reads) = colnames(D2)
+reads_per_UMI = t(reads/colSums(D2))
+reads_UMIs2 = data.frame(reads = t(reads), UMIs = colSums(D2), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs2) = c("reads", "UMIs", "reads_per_UMI")
+
+Rice_SRA_TPM = read.table('Rice_exp_matrix.txt', sep = '\t', header=T, row.names=1)
+rownames(Rice_SRA_TPM) = sub("\\..*", "", rownames(Rice_SRA_TPM))
+
+save(D2,g1_2,g2_2,Rice_genes2,reads_UMIs2, file = "RiceRemap_7-8_2025.RData")
+
+
+annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
 annots = annots[grep('ID=gene-', annots)]
 names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
 names(annots) = sub('ID=', '', names(annots))
@@ -333,7 +528,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(names(annots),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit.tsv', '', sub('S40_L008_', '', sub('S41_L008_', '', sub('S43_L008_', '', files))))
+colnames(A) = sub('_SNPsplit.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
 A[is.na(A)] = 0
 #A = A[rowSums(A) > 0,]
 
