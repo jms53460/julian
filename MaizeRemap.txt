@@ -1,0 +1,362 @@
+#Remapping maize data I collected since I noticed a problem with reads/UMI for the plates M13-24, M25-36, M37-48: 
+
+mkdir /scratch/jms53460/MaizeRemap
+cd /scratch/jms53460/MaizeRemap
+mkdir Raw_Data
+
+cp /work/bnlab/Aug_27_2025_Seq/24323-09-09062025_153845/M* /scratch/jms53460/MaizeRemap/Raw_Data
+cp /work/bnlab/September2025Sequencing/Nelms_M* /scratch/jms53460/MaizeRemap/Raw_Data
+cp /work/bnlab/October_2025_Sequencing/m* /scratch/jms53460/MaizeRemap/Raw_Data
+
+cp /home/jms53460/Zm_B73_A188_N-masked_genome.fa /scratch/jms53460/MaizeRemap
+cp /home/jms53460/Zm_B73_A188_SNPs.tab /scratch/jms53460/MaizeRemap
+cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/MaizeRemap
+cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 /scratch/jms53460/MaizeRemap
+
+#!/bin/bash
+#SBATCH --job-name=MaizeRemap_process                                     # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=300gb                                                       # Total memory for job
+#SBATCH --time=48:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/MaizeRemap/Maize.out                   # Location of standard output file
+#SBATCH --error=/scratch/jms53460/MaizeRemap/Maize.err                    # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/MaizeRemap/
+mkdir Demultiplexed
+ml Mamba/23.11.0-0
+source activate /home/jms53460/Fastq-Multx
+
+module load fastp/0.23.4-GCC-13.2.0
+for file in Raw_Data/*_R1_*.gz; do
+    filename=$(basename "$file")
+    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+
+    if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
+	    #Move UMI to header
+        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+        
+        #Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
+	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/umi_""$file2""_R2.fastq.gz" "Demultiplexed/umi_""$file2""_R1.fastq.gz" "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2.fastq.gz" "Demultiplexed/""$file2""_%.fastq.gz" "Demultiplexed/""$file2""_%_umi.fastq.gz"
+
+    fi
+done
+conda deactivate
+
+mkdir SRA_upload
+for file in Demultiplexed/*s.fastq.gz; do
+	file2="${file:14:-9}"
+
+    #Trim UMI containing read to only contain the UMI
+    fastp -w 6 -B 10 -i "Demultiplexed/""$file2"".fastq.gz" -I "Demultiplexed/""$file2""_umi.fastq.gz" -o "SRA_upload/""$file2"".fastq.gz" -O "SRA_upload/""$file2""_umi.fastq.gz" -A -Q -L -G
+done
+
+mkdir hisat2_out
+for file in Demultiplexed/*s.fastq.gz; do
+	file2="${file:14:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	fastp -w 6 -i "$file" -o "hisat2_out/""$file2"".fastq.gz" -y -x -3 -a AAAAAAAAAAAA
+
+fi
+done
+
+ml HISAT2/2.2.1-gompi-2023a
+hisat2-build Zm_B73_A188_N-masked_genome.fa Zm_B73_A188_N-masked_genome_index
+
+ml SAMtools/1.21-GCC-13.3.0
+for file in hisat2_out/*s.fastq.gz
+do
+	file2="${file:11:-9}"
+
+if [ ! -f "hisat2_out/""$file2"".bam" ]; then
+
+	hisat2 -p 6 --dta -x Zm_B73_A188_N-masked_genome_index -U "hisat2_out/""$file2"".fastq.gz" | samtools view -bS -> "hisat2_out/""$file2""_unsorted.bam"
+	samtools sort -@ 6 "hisat2_out/""$file2""_unsorted.bam" -o "hisat2_out/""$file2""_s.bam"
+    samtools index -@ 6 "hisat2_out/""$file2""_s.bam"
+	
+fi
+done
+
+mkdir SNPsplit
+ml SNPsplit/0.6.0-GCC-11.3.0-Perl-5.34.1
+for file in "hisat2_out/"*_s.bam
+do
+    file2="${file:11:-6}"
+
+    SNPsplit --conflicting -o SNPsplit --snp_file SlRemap_SNPs.tab "$file"
+    samtools sort -@ 6 SNPsplit/"$file2"_s.allele_flagged.bam -o SNPsplit/"$file2"_SNPsplit.bam
+    
+done
+
+for file in "SNPsplit/"*_s.genome1.bam
+do
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g1.bam
+done
+
+for file in "SNPsplit/"*_s.genome2.bam
+do
+    file2="${file:9:-14}"
+    samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g2.bam
+done
+
+
+
+
+
+#!/bin/bash
+#SBATCH --job-name=MaizeRemap_features_UMIs                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=300gb                                                       # Total memory for job
+#SBATCH --time=24:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/MaizeRemap/featUMItools.out            # Location of standard output file
+#SBATCH --error=/scratch/jms53460/MaizeRemap/featUMItools.err             # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/MaizeRemap/
+
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+module load UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
+done
+
+
+
+
+
+
+interact --mem=5G
+ml R/4.4.2-gfbf-2024a
+cd /scratch/jms53460/MaizeRemap/
+R
+
+
+genes = read.table('Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3', sep = '\t', quote = "")[,c(1,3,5,9)]
+annots = strsplit(genes[,4], ';')
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+genes[,4] = annots
+genes = genes[grep('gene', genes[,2]),]
+rownames(genes) = genes[,4]
+genes = genes[,c(1,3,4)]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+
+
+
+annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
+annots = annots[grep('ID=gene', annots)]
+annots = unlist(lapply(annots, function(xx) { xx[1] }))
+annots = sub('ID=', '', annots)
+#annots = gsub("\\..*", "", annots)
+annots = annots[!duplicated(annots)]
+
+files = dir('UMIcounts')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+D2 = B
+
+files = dir('UMIcounts_g1')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g1_2 = B
+
+files = dir('UMIcounts_g2')
+A = matrix(NA, nrow = length(annots), ncol = length(files))
+rownames(A) = annots
+colnames(A) = files
+for (f in files) {
+	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
+	A[,f] = xx[match(annots,rownames(xx)),1]
+}
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+A[is.na(A)] = 0
+
+B = A[order(rownames(A)),]
+B2 = B
+B = B[!duplicated(rownames(B)),]
+for (g in unique(rownames(B)[duplicated(rownames(B))])) {
+	B[g,] = colSums(B2[rownames(B2) %in% g,])
+}
+g2_2 = B
+
+
+genes = genes[order(genes[,2]),] #order by position
+genes = genes[order(genes[,1]),] #order by chr
+
+
+
+
+genes = read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,c(1,5)]
+annots2 = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
+annots2 = unlist(lapply(annots2, function(xx) { xx[1] }))
+genes[,3] = annots2
+genes[,3] = sub('ID=', '', genes[,3])
+genes = genes[!duplicated(genes[,3]),]
+colnames(genes) = c('Chr', 'Position', 'Gene')
+rownames(genes) = genes[,3]
+genes = genes[grep("gene", rownames(genes)),]
+genes = genes[-grep('chr0', genes$Chr),]
+
+
+
+D2 = D2[rownames(genes),]
+g1_2 = g1_2[rownames(genes),]
+g2_2 = g2_2[rownames(genes),]
+
+
+
+
+genes[,3] = gsub("\\..*", "", gsub("gene:", "", genes[,3]))
+rownames(genes) = genes[,3]
+rownames(D2) = gsub("\\..*", "", gsub("gene:", "", rownames(D2)))
+rownames(g1_2) = gsub("\\..*", "", gsub("gene:", "", rownames(g1_2)))
+rownames(g2_2) = gsub("\\..*", "", gsub("gene:", "", rownames(g2_2)))
+
+
+
+
+
+genes[,1] = sub('chr', '', genes[,1])
+Zm_genes2 = genes
+
+
+
+
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
+#colnames(reads) = sub('\\.', '-', sub('SNPsplit.', '', sub('A267.277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', sub('_SNPsplit.bam', '', colnames(reads)))))))))
+reads = reads[colnames(D2)]
+reads_per_UMI = t(reads/colSums(D2))
+reads_UMIs2 = data.frame(reads = t(reads), UMIs = colSums(D2), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs2) = c("reads", "UMIs", "reads_per_UMI")
+save(D2,g1_2,g2_2,Sl_genes2,reads_UMIs2, file = "MaizeRemap_8-10_2025.RData")
+q()
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/MaizeRemap/MaizeRemap_8-10_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load('MaizeRemap_8-10_2025.RData')
+
+summary(colSums(D2[,colnames(D)]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#      2    1446    3118   13516    5668  371546 
+summary(colSums(D))               
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#     17    1374    2815   13213    5121  374772
+
+library(readxl)
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages_1_23_2026.xlsx")
+
+Sl_meta <- Sl_Stages[rep(row.names(Sl_Stages), each = 8), ]
+Sl_meta = as.data.frame(Sl_meta)
+
+Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('Meiocytes_', times = 32), 49:80, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S140-145_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S152-163_', times = 96), 1:96, rep('s', times=96), sep=''))
+rownames(Sl_meta) = Sl_meta$Sample
+
+Sl_meta$No_cell2 = unlist(lapply(Sl_Stages$No_cell_well, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+NCpairs0 = t(sapply(strsplit(Sl_Stages$No_cell_well, ','), function(xx) { as.numeric(xx)[1:2] }))
+NCpairs = sweep(NCpairs0, 1, (1:nrow(NCpairs0) - 1)*8, '+')
+NCpairs = data.frame(NC1 = rownames(Sl_meta)[NCpairs[,1]], NC2 = rownames(Sl_meta)[NCpairs[,2]])
+
+NCpairs0 = cbind(NCpairs0, abs(NCpairs0[,2] - NCpairs0[,1]))
+
+#each row is a pair, the value in matrix is row number
+plot(colSums(D2)[NCpairs[,1]],colSums(D2)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+
+
+Sl_meta = Sl_meta[-which(Sl_meta$Sample == "S152-163_54s"),]
+
+D2 = D2[,Sl_meta$Sample]
+g1_2 = g1_2[,Sl_meta$Sample]
+g2_2 = g2_2[,Sl_meta$Sample]
+
+save(D2,g1_2,g2_2,Sl_genes2,reads_UMIs2,Sl_Stages,Sl_meta, file = "TomatoRemap_11_2024-7_2025_with_meta.RData")

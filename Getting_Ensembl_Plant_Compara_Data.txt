@@ -1,0 +1,425 @@
+#Getting Ensembl Plant Compara Orthologs and dn/ds
+#In git bash command line, make an installation directory
+mkdir src
+cd src
+
+#Clone of BioPerl from GitHub and change to the correct version:
+git clone -b release-1-6-924 --depth 1 https://github.com/bioperl/bioperl-live.git
+
+#Rename the bioperl-live directory. In the Unix command line, type:
+mv bioperl-live bioperl-1.6.924
+
+git clone https://github.com/Ensembl/ensembl-git-tools.git
+export PATH=/c/Users/julia/src/ensembl-git-tools/bin:$PATH
+
+export PERL5LIB=~/src/ensembl/modules:~/src/ensembl-compara/modules
+#Install the APIs that you need. You can install all the APIs using the git ensembl command:
+git ensembl --clone api
+
+
+#Install the APIs that you need.
+git clone https://github.com/Ensembl/ensembl.git
+git clone https://github.com/Ensembl/ensembl-variation.git
+git clone https://github.com/Ensembl/ensembl-funcgen.git
+git clone https://github.com/Ensembl/ensembl-compara.git
+git clone https://github.com/Ensembl/ensembl-io.git
+git clone https://github.com/Ensembl/ensembl-metadata.git
+#APIs installed this way will automatically be on the release/115 branch.
+#Set up your environment as described in the basic installation instructions.
+
+
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/bioperl-1.6.924
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl/modules
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-variation/modules
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-funcgen/modules
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-compara/modules
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-io/modules
+export PERL5LIB=${PERL5LIB}:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-metadata/modules
+
+
+export PERL5LIB=~/src/ensembl/modules:~/src/ensembl-compara/modules
+
+
+export PERL5LIB=path/to/ensembl/modules:path/to/ensembl-compara/modules
+
+export PERL5LIB=${PERL5LIB}:$C:/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-metadata/modules
+
+export PERL5LIB="/c/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl/modules:/c/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-compara/modules:/c/Users/julia/OneDrive/Documents/GitHub/julian/src/bioperl-1.6.924:/c/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-metadata/modules:$PATH"
+
+DBD::mysql
+
+export PATH="/c/Strawberry/perl/bin:/c/Strawberry/perl/site/lib:/c/Strawberry/perl/vendor/lib:$PATH"
+
+
+#####Make file get_maize_rice_dnds.pl:
+#!/usr/bin/env perl
+use lib '/c/Users/julia/OneDrive/Documents/GitHub/julian/src/bioperl-1.6.924';
+use lib '/c/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl/modules';
+use lib '/c/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-compara/modules';
+use lib '/c/Users/julia/OneDrive/Documents/GitHub/julian/src/ensembl-metadata/modules';
+use strict;
+use warnings;
+
+use Bio::EnsEMBL::Registry;
+
+# Load Ensembl Plants registry
+Bio::EnsEMBL::Registry->load_registry_from_db(
+    -host => 'plants.ensembl.org',
+    -user => 'anonymous'
+);
+
+# Get Compara adaptor
+my $compara_dba = Bio::EnsEMBL::Registry->get_DBAdaptor('Multi', 'compara');
+
+my $genome_db_adaptor = $compara_dba->get_GenomeDBAdaptor();
+my $homology_adaptor  = $compara_dba->get_HomologyAdaptor();
+
+# Get species
+my $maize = $genome_db_adaptor->fetch_by_registry_name("zea_mays");
+my $rice  = $genome_db_adaptor->fetch_by_registry_name("oryza_sativa");
+
+# Fetch ALL orthologs (not just 1:1)
+my $homologies = $homology_adaptor->fetch_all_by_GenomeDB_pair(
+    $maize,
+    $rice
+);
+
+print join("\t", qw(maize_gene rice_gene dn ds dnds type)), "\n";
+
+foreach my $homology (@$homologies) {
+
+    my @members = @{$homology->get_all_Members()};
+
+    # Ensure correct species assignment
+    my ($gene1, $gene2);
+    if ($members[0]->genome_db->name eq 'zea_mays') {
+        ($gene1, $gene2) = @members;
+    } else {
+        ($gene2, $gene1) = @members;
+    }
+
+    my $maize_id = $gene1->stable_id;
+    my $rice_id  = $gene2->stable_id;
+
+    my $dn   = $homology->dn;
+    my $ds   = $homology->ds;
+    my $dnds = $homology->dnds_ratio;
+    my $type = $homology->description;
+
+    print join("\t",
+        $maize_id,
+        $rice_id,
+        defined $dn ? $dn : "NA",
+        defined $ds ? $ds : "NA",
+        defined $dnds ? $dnds : "NA",
+        $type
+    ), "\n";
+}
+
+
+perl get_maize_rice_dnds.pl > maize_rice_dnds.tsv
+
+
+
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("biomaRt")
+
+install.packages(c("httr", "jsonlite"))
+library(httr)
+library(jsonlite)
+library(biomaRt)
+
+mart <- useMart("plants_mart", host="plants.ensembl.org")
+maize <- useDataset("zmays_eg_gene", mart)
+
+genes <- getBM(
+  attributes = "ensembl_gene_id",
+  mart = maize
+)[,1]
+
+get_orthologs <- function(gene_id) {
+  
+  url <- paste0(
+    "https://rest.ensembl.org/homology/id/zea_mays",
+    gene_id,
+    "?target_species=oryza_sativa;type=orthologues"
+  )
+  
+  res <- GET(url, accept("application/json"))
+  
+  if (status_code(res) != 200) return(NULL)
+  
+  json <- fromJSON(content(res, "text", encoding = "UTF-8"))
+  
+  homs <- json$data[[1]]$homologies
+  if (is.null(homs)) return(NULL)
+  
+  do.call(rbind, lapply(homs, function(h) {
+    data.frame(
+      maize_gene = gene_id,
+      rice_gene  = h$target$id,
+      dn   = h$dn,
+      ds   = h$ds,
+      dnds = h$dnds_ratio,
+      type = h$type,
+      stringsAsFactors = FALSE
+    )
+  }))
+}
+
+results <- lapply(genes[1:5], get_orthologs)  # test subset first
+results <- do.call(rbind, results)
+
+
+
+gene <- genes[1]
+
+url <- paste0(
+  "https://rest.ensembl.org/homology/id/zea_mays/",
+  gene,
+  "?target_species=oryza_sativa;type=orthologues"
+)
+
+cat(content(GET(url), "text"))
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+#update.packages(ask = FALSE)
+# Install Bioconductor
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.21", force = TRUE)
+
+
+library(BiocManager)
+# Install package dependencies
+BiocManager::install(c(
+        "Biostrings",
+        "GenomicRanges",
+        "GenomicFeatures",
+        "Rsamtools",
+        "rtracklayer",
+        "pwalign"
+),force = TRUE)
+
+# install CRAN dependencies
+install.packages(c("doParallel", "foreach", "ape", "Rdpack", "benchmarkme", "devtools"))
+
+# install BLAST dependency metablastr from GitHub
+devtools::install_github("drostlab/metablastr")
+
+# install DIAMOND dependency rdiamond from GitHub
+devtools::install_github("drostlab/rdiamond")
+
+# install orthologr from GitHub
+devtools::install_github("drostlab/orthologr")
+
+
+# When working with Windows, first users need to install the
+# R package: rtools -> install.packages("rtools")
+
+# Afterwards users can install devtools -> install.packages("devtools")
+# and then they can run:
+
+devtools::install_github("drostlab/orthologr", build_vignettes = TRUE, dependencies = TRUE)
+
+# and then call it from the library
+library("orthologr", lib.loc = "C:/Program Files/R/R-3.1.1/library")
+
+#Had to download Diamond2 and move the exe file to C:\Program Files\R\R-4.5.2\bin\x64
+
+#install.packages("biomartr")
+library(biomartr)
+
+library(metablastr)
+library(rdiamond)
+library(orthologr)
+library(Biostrings)
+library(GenomicRanges)
+library(GenomicFeatures)
+library(Rsamtools)
+library(rtracklayer)
+library(pwalign)
+
+
+# download all coding sequences for maize
+Maize_file <- biomartr::getCDS(db = "ensembl", organism = "Zea mays", path = getwd())
+# download all coding sequences for rice
+Rice_file <- biomartr::getCDS(db = "ensembl", organism = "Oryza sativa", path = getwd())
+# compute dN/dS values for Maize vs. Rice
+
+a1 = proc.time()
+Zm_vs_Os_dNdS <- 
+  dNdS(query_file      = Rice_file,
+       subject_file    = Maize_file,
+       delete_corrupt_cds = FALSE,
+       ortho_detection = "RBH", 
+       aa_aln_type     = "pairwise",
+       aa_aln_tool     = "NW", 
+       codon_aln_tool  = "pal2nal", 
+       dnds_est.method = "Comeron", 
+       comp_cores      = 1 )
+a2 = proc.time()
+a2-a1
+#    user   system  elapsed     
+#12125.20  1094.32 16059.10     4.46 hours runtime
+
+save(Zm_vs_Os_dNdS, file="Zm_vs_Os_dNdS_refseq.RData")
+
+
+Maize_file = "C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.cds.fa.gz"
+Rice_file = "C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/osa1_r7.gene_models.cds.fa.gz"
+
+a1 = proc.time()
+Zm_vs_Os_dNdS <- 
+  dNdS(query_file      = Rice_file,
+       subject_file    = Maize_file,
+       delete_corrupt_cds = FALSE,
+       ortho_detection = "RBH", 
+       aa_aln_type     = "pairwise",
+       aa_aln_tool     = "NW", 
+       codon_aln_tool  = "pal2nal", 
+       dnds_est.method = "Comeron", 
+       comp_cores      = 1 )
+a2 = proc.time()
+a2-a1
+#    user   system  elapsed
+#10286.67  1761.08 14627.24       4.06 hours runtime 
+
+save(Zm_vs_Os_dNdS, file="Zm_vs_Os_dNdS.RData")
+RiceNSdata = as.data.frame(Zm_vs_Os_dNdS[,1:6])
+RiceNSdata = RiceNSdata[RiceNSdata[,6] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+RiceNSdata = RiceNSdata[-which(is.na(as.numeric(RiceNSdata[,4]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+#RiceNSdata = RiceNSdata[-which(as.numeric(RiceNSdata[,4]) == 0),] # Remove genes with 0 synonymous subs #don't use for Lp or Bd
+RiceNS = as.numeric(RiceNSdata[,5])
+names(RiceNS) = RiceNSdata[,1]
+RiceNS = RiceNS[grep("LOC", names(RiceNS))]
+names(RiceNS) = sub("[.].*", "", names(RiceNS))
+RiceNS[order(which(duplicated(names(RiceNS))))] #322 are called duplicated, but most don't appear truly duplicated
+RiceNS[grep("LOC_Os01g17170", names(RiceNS))] #Ex: gives one result even though it was grabbed as duplicated...
+
+
+load("Rice_7-8_2025_with_meta.RData")
+load("RiceRemap_7-8_2025.RData")
+library('ComplexHeatmap')
+library(circlize)
+col_fun = colorRamp2(c(0, 0.25, 0.5, 0.75, 1), c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))
+#Heatmap(HapExpScore, col = col_fun, cluster_columns=T, cluster_rows=T, show_row_names = FALSE, show_column_names = FALSE)
+
+pseudocount = 1*10^6/quantile(colSums(D2), p = .1)
+A2 = sweep(D2, 2, colSums(D2), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D2[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+over30k = names(which(colSums(D2) >25000))
+over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 2 no cell controls
+
+
+#A3 = A2d[dNdSgenes,over30k]
+#RiceNS2 = RiceNS[dNdSgenes]
+#plot(rowMeans(A3),RiceNS2)
+#plot(rowMeans(A3),RiceNS2, ylim=c(0,2))
+
+
+BINR = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Rice_genes2[, 1]) * 10^6 + round(Rice_genes2[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_2)))
+    colnames(out2) = colnames(g1_2)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINR(g1_2)
+g2_bin = BINR(g2_2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-R_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+
+RiceStages = Rice_meta[over30k,9]
+names(RiceStages) = over30k
+RiceBiSamp = names(which(FracMono_all[over30k] <= 40))
+RiceMonoSamp = names(which(FracMono_all[over30k] > 40))
+#RiceStages[c("R119-136_79s", "R119-136_80s")] = "tetrad_sep0"
+RiceStages[names(RiceStages[grep("BM/Tri", RiceStages)])] = "BM/TP"
+RiceStages[names(RiceStages[grep("Tri", RiceStages)])] = "TP"
+RiceStages[names(which(RiceStages == "tetrad_sep"))] = "Tetrad"
+RiceStages[names(which(RiceStages == "tetrads"))] = "Tetrad"
+RiceStages[names(which(RiceStages[RiceBiSamp] == "UM"))] = "UM Bi"
+RiceStages[names(which(RiceStages[RiceMonoSamp] == "UM"))] = "UM Mono"
+
+meanExp = matrix(0, ncol = length(unique(RiceStages)), nrow = nrow(A2))
+rownames(meanExp) = rownames(A2)
+colnames(meanExp) = c('Tetrad', 'UM Bi', 'UM Mono', 'UM/BM', 'BM', 'BM/TP', 'TP')
+for (stage in colnames(meanExp)) {
+	meanExp[,stage] = rowMeans(A2[,RiceStages == stage])
+}
+
+#summary(apply(meanExp, 1, mean))
+#     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+#    0.000     0.000     0.083    17.921     3.786 30871.167
+
+
+library('dplyr')
+RiceNS0 = RiceNS[which(names(RiceNS) %in% rownames(meanExp))]
+meanExp0 = meanExp[names(RiceNS0),]
+boxplot(list("ND" = RiceNS0[names(which(meanExp0[,1] < 1))], "1-10" = RiceNS0[which(between(meanExp0[,1], 1,10))], "11-29" = RiceNS0[which(between(meanExp0[,1], 10,30))], "30-99" = RiceNS0[which(between(meanExp0[,1], 30,100))], ">=100" = RiceNS0[names(which(meanExp0[,1] >= 100))]), ylim=c(0,1), main="Tetrad")
+boxplot(list("ND" = RiceNS0[names(which(meanExp0[,3] < 1))], "1-10" = RiceNS0[which(between(meanExp0[,3], 1,10))], "11-29" = RiceNS0[which(between(meanExp0[,3], 10,30))], "30-99" = RiceNS0[which(between(meanExp0[,3], 30,100))], ">=100" = RiceNS0[names(which(meanExp0[,3] >= 100))]), ylim=c(0,1), main="UM monoallelic")
+boxplot(list("ND" = RiceNS0[names(which(meanExp0[,5] < 1))], "1-10" = RiceNS0[which(between(meanExp0[,5], 1,10))], "11-29" = RiceNS0[which(between(meanExp0[,5], 10,30))], "30-99" = RiceNS0[which(between(meanExp0[,5], 30,100))], ">=100" = RiceNS0[names(which(meanExp0[,5] >= 100))]), ylim=c(0,1), main="BM")
+boxplot(list("ND" = RiceNS0[names(which(meanExp0[,7] < 1))], "1-10" = RiceNS0[which(between(meanExp0[,7], 1,10))], "11-29" = RiceNS0[which(between(meanExp0[,7], 10,30))], "30-99" = RiceNS0[which(between(meanExp0[,7], 30,100))], ">=100" = RiceNS0[names(which(meanExp0[,7] >= 100))]), ylim=c(0,1), main="Tri")
+
+
+dNdSgenes = names(RiceNS[which(names(RiceNS) %in% rownames(A2d))]) # Genes with dn/ds data that are in A2d
+meanExp2 = meanExp[dNdSgenes,]
+IncGs = rownames(meanExp2)[rowSums(meanExp2[,1:7] >= 100) > 0]
+meanExp2 = meanExp2[IncGs,]
+MonoGs = rownames(meanExp2)[rowSums(meanExp2[,3:7] >= 100) > 0]
+BiGs = rownames(meanExp2)[rowSums(meanExp2[,3:7] >= 100) == 0]
+dNdSComp = data.frame("dNdS" = c(RiceNS, RiceNS[IncGs], RiceNS[BiGs], RiceNS[MonoGs]), 
+    Class = c(rep("AllGs", times = length(RiceNS)), rep("IncGs", times = length(IncGs)), 
+    rep("BiGs", times = length(BiGs)), rep("MonoGs", times = length(MonoGs))))
+boxplot(dNdS ~ Class, data=dNdSComp, ylim=c(0,1), main="Rice and Maize") 
+table(dNdSComp$Class)
+#pairwise.wilcox.test(dNdSComp$dNdS, dNdSComp$Class, p.adjust = 'holm')  # p-values
+
+
+
+
+
+
+
+
+Tomato_file <- biomartr::getCDS(db = "ensembl", organism = "Solanum lycopersicum", path = getwd())
+# download all coding sequences for rice
+Eggplant_file <- biomartr::getCDS(db = "ensembl", organism = "Solanum melongena", path = getwd())
+# compute dN/dS values for Tomato vs. Eggplant
+Tom_vs_Egg_dNdS <- 
+  dNdS(query_file      = Eggplant_file,
+       subject_file    = Tomato_file,
+       delete_corrupt_cds = FALSE,
+       ortho_detection = "RBH", 
+       aa_aln_type     = "pairwise",
+       aa_aln_tool     = "NW", 
+       codon_aln_tool  = "pal2nal", 
+       dnds_est.method = "Comeron", 
+       comp_cores      = 1 )
+
+
+
+dNdS(query_file      = system.file('seqs/ortho_thal_cds.fasta', package = 'orthologr'),
+     subject_file    = system.file('seqs/ortho_lyra_cds.fasta', package = 'orthologr'),
+     delete_corrupt_cds = TRUE, # coding sequences that cannot be divided by 3 (triplets) will be removed
+     ortho_detection = "RBH", # perform DIAMOND best reciprocal hit orthology inference
+     aa_aln_type     = "pairwise", # perform pairwise global alignments of AA seqs 
+     aa_aln_tool     = "NW", # using Needleman-Wunsch
+     codon_aln_tool  = "pal2nal", # perform codon alignments using the tool Pal2Nal
+     dnds_est.method = "Comeron", # use Comeron's method for dN/dS inference
+     comp_cores      = 1) # number of compute cores
+

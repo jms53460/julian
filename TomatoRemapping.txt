@@ -337,6 +337,7 @@ done
 
 
 #Move the files with Arabidopsis meiocyte data (81s to 96s)
+cd /scratch/jms53460/TomatoRemap/
 mkdir 12_18_2024_At_Meiocytes
 mkdir 12_18_2024_At_Meiocytes/Demultiplexed
 mv Demultiplexed/Meiocytes_8* 12_18_2024_At_Meiocytes/Demultiplexed
@@ -416,8 +417,11 @@ mv Empty/S1-8_A267-277_S3_L002_8s*SNPsplit_g2.tsv UMIcounts_g2
 mv Empty/S1-8_A267-277_S3_L002_9s*SNPsplit.tsv UMIcounts
 mv Empty/S1-8_A267-277_S3_L002_9s*SNPsplit_g1.tsv UMIcounts_g1
 mv Empty/S1-8_A267-277_S3_L002_9s*SNPsplit_g2.tsv UMIcounts_g2
+mv UMIcounts*/S152-163*54s* Empty
 
+interact --mem=5G
 ml R/4.4.2-gfbf-2024a
+cd /scratch/jms53460/TomatoRemap/
 R
 annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
 annots = annots[grep('ID=gene', annots)]
@@ -488,144 +492,385 @@ annots2 = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
 annots2 = unlist(lapply(annots2, function(xx) { xx[1] }))
 genes[,3] = annots2
 genes[,3] = sub('ID=', '', genes[,3])
-genes[,3] = gsub("\\..*", "", genes[,3])
 genes = genes[!duplicated(genes[,3]),]
 colnames(genes) = c('Chr', 'Position', 'Gene')
 rownames(genes) = genes[,3]
-genes = genes[grep("LOC", rownames(genes)),]
+genes = genes[grep("gene", rownames(genes)),]
+genes = genes[-grep('chr0', genes$Chr),]
 
 D2 = D2[rownames(genes),]
 g1_2 = g1_2[rownames(genes),]
 g2_2 = g2_2[rownames(genes),]
 
-Rice_genes2 = genes
-Rice_genes2[,1] = sub('Chr', '', Rice_genes2[,1])
+genes[,3] = gsub("\\..*", "", gsub("gene:", "", genes[,3]))
+rownames(genes) = genes[,3]
+rownames(D2) = gsub("\\..*", "", gsub("gene:", "", rownames(D2)))
+rownames(g1_2) = gsub("\\..*", "", gsub("gene:", "", rownames(g1_2)))
+rownames(g2_2) = gsub("\\..*", "", gsub("gene:", "", rownames(g2_2)))
+
+genes[,1] = sub('chr', '', genes[,1])
+Sl_genes2 = genes
 
 reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
-colnames(reads) = colnames(D2)
+colnames(reads) = sub('\\.', '-', sub('SNPsplit.', '', sub('A267.277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', sub('_SNPsplit.bam', '', colnames(reads)))))))))
+reads = reads[colnames(D2)]
 reads_per_UMI = t(reads/colSums(D2))
 reads_UMIs2 = data.frame(reads = t(reads), UMIs = colSums(D2), reads_per_UMI = reads_per_UMI)
 colnames(reads_UMIs2) = c("reads", "UMIs", "reads_per_UMI")
-
-Rice_SRA_TPM = read.table('Rice_exp_matrix.txt', sep = '\t', header=T, row.names=1)
-rownames(Rice_SRA_TPM) = sub("\\..*", "", rownames(Rice_SRA_TPM))
-
-save(D2,g1_2,g2_2,Rice_genes2,reads_UMIs2, file = "RiceRemap_7-8_2025.RData")
-
-
-annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
-annots = annots[grep('ID=gene-', annots)]
-names(annots) = unlist(lapply(annots, function(xx) { xx[1] }))
-names(annots) = sub('ID=', '', names(annots))
-annots = annots[!duplicated(names(annots))]
-annots = sub(';', '', sub(' ', '', unlist(lapply(annots, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
-
-files = dir('UMIcounts')
-A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
-colnames(A) = files
-for (f in files) {
-	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
-}
-colnames(A) = sub('_SNPsplit.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
-A[is.na(A)] = 0
-#A = A[rowSums(A) > 0,]
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-D = B
-
-files = dir('UMIcounts_g1')
-A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
-colnames(A) = files
-for (f in files) {
-	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
-}
-colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('S40_L008_', '', sub('S41_L008_', '', sub('S43_L008_', '', files))))
-A[is.na(A)] = 0
-#A = A[rowSums(A) > 0,]
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-g1 = B
-
-files = dir('UMIcounts_g2')
-A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
-colnames(A) = files
-for (f in files) {
-	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(names(annots),rownames(xx)),1]
-}
-colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('S40_L008_', '', sub('S41_L008_', '', sub('S43_L008_', '', files))))
-A[is.na(A)] = 0
-#A = A[rowSums(A) > 0,]
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-g2 = B
-
-genes = read.table('Sl_14.gff', sep = '\t', quote = "")[,c(1,5)]
-annots2 = strsplit(read.table('Sl_14.gff', sep = '\t', quote = "")[,9], ';')
-names(annots2) = unlist(lapply(annots2, function(xx) { xx[1] }))
-annots2 = sub(';', '', sub(' ', '', unlist(lapply(annots2, function(xx) { sub('.+ ', '', if (length(xx) == 3) { xx[3] } else { xx[1] }) }))))
-genes[,3] = annots2
-genes2 = genes[grepl('ID=gene-', genes[,3]),]
-genes = genes2[order(genes2[,2]),] #order by position
-genes = genes[order(genes[,1]),] #order by chr
-genes = genes[!duplicated(genes[,3]),]
-colnames(genes) = c('Chr', 'Position', 'Gene')
-rownames(genes) = genes[,3]
-
-D = D[rownames(genes),]
-g1 = g1[rownames(genes),]
-g2 = g2[rownames(genes),]
-genes[,1] = sub('chr', '', genes[, 1])
-
-D_Sl_7_2025 = D[,c(193:240, 242:288)]
-g1_Sl_7_2025 = g1[,c(193:240, 242:288)]
-g2_Sl_7_2025 = g2[,c(193:240, 242:288)]
-Sl_genes = genes
-save(D_Sl_7_2025,g1_Sl_7_2025,g2_Sl_7_2025,Sl_genes, file = "7_2025_Sl.RData")
-
-UMIs = D[,c(61:65, 67:76, 78:87, 89:95, 97:182, 184, 192)]
-save(UMIs, Sl_genes, file = "Fame_7_2025.RData")
-
-q()
-
-
-ml R
-R
-reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,c(193:240, 242:288)]
-load('7_2025_Sl.RData')
-colnames(reads) = colnames(D_Sl_7_2025)
-reads_per_UMI = t(reads/colSums(D_Sl_7_2025))
-reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D_Sl_7_2025), reads_per_UMI = reads_per_UMI)
-colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
-save(D_Sl_7_2025,g1_Sl_7_2025,g2_Sl_7_2025,Sl_genes, reads_UMIs, file = "7_2025_Sl.RData")
+save(D2,g1_2,g2_2,Sl_genes2,reads_UMIs2, file = "TomatoRemap_11_2024-7_2025.RData")
 q()
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/Sol_7_2025/7_2025_Sl.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
-scp sapelo2:/scratch/jms53460/Sol_7_2025/Fame_7_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+scp sapelo2:/scratch/jms53460/TomatoRemap/TomatoRemap_11_2024-7_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
-load('7_2025_Sl.RData')
+load('TomatoRemap_11_2024-7_2025.RData')
+
+summary(colSums(D2[,colnames(D)]))
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#      2    1446    3118   13516    5668  371546 
+summary(colSums(D))               
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#     17    1374    2815   13213    5121  374772
+
+library(readxl)
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages_1_23_2026.xlsx")
+
+Sl_meta <- Sl_Stages[rep(row.names(Sl_Stages), each = 8), ]
+Sl_meta = as.data.frame(Sl_meta)
+
+Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('Meiocytes_', times = 32), 49:80, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S140-145_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S152-163_', times = 96), 1:96, rep('s', times=96), sep=''))
+rownames(Sl_meta) = Sl_meta$Sample
+
+Sl_meta$No_cell2 = unlist(lapply(Sl_Stages$No_cell_well, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+NCpairs0 = t(sapply(strsplit(Sl_Stages$No_cell_well, ','), function(xx) { as.numeric(xx)[1:2] }))
+NCpairs = sweep(NCpairs0, 1, (1:nrow(NCpairs0) - 1)*8, '+')
+NCpairs = data.frame(NC1 = rownames(Sl_meta)[NCpairs[,1]], NC2 = rownames(Sl_meta)[NCpairs[,2]])
+
+NCpairs0 = cbind(NCpairs0, abs(NCpairs0[,2] - NCpairs0[,1]))
+
+#each row is a pair, the value in matrix is row number
+plot(colSums(D2)[NCpairs[,1]],colSums(D2)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+
+
+Sl_meta = Sl_meta[-which(Sl_meta$Sample == "S152-163_54s"),]
+
+D2 = D2[,Sl_meta$Sample]
+g1_2 = g1_2[,Sl_meta$Sample]
+g2_2 = g2_2[,Sl_meta$Sample]
+
+save(D2,g1_2,g2_2,Sl_genes2,reads_UMIs2,Sl_Stages,Sl_meta, file = "TomatoRemap_11_2024-7_2025_with_meta.RData")
+
+
+cd /scratch/jms53460/TomatoRemap
+#get tomato tissue data from: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE33507
+curl https://ftp.ncbi.nlm.nih.gov/geo/series/GSE33nnn/GSE33507/suppl/GSE33507%5FRPKM%2Dvalues.txt.gz > Sl_RPKM_table.txt.gz
+gzip -d Sl_RPKM_table.txt.gz
+
+ml R/4.4.2-gfbf-2024a
+R
+Sl_tissues_RPKM = read.table("Sl_RPKM_table.txt", sep = '\t', header=T, row.names=1)
+colnames(Sl_tissues_RPKM) = sub("Money.maker.", "Sl.", colnames(Sl_tissues_RPKM))
+colnames(Sl_tissues_RPKM) = sub("PIMPINELLIFOLIUM.", "Sp.", colnames(Sl_tissues_RPKM))
+
+#Convert RPKM to TPM: TPM = (RPKM / Sum of all RPKMs in the sample) * 1,000,000
+Sl_tissues_TPM = Sl_tissues_RPKM
+for (x in 1:length(colnames(Sl_tissues_RPKM))){
+    Sl_tissues_TPM[,x] = (Sl_tissues_RPKM[,x]/sum(Sl_tissues_RPKM[,x]))*1000000
+}
+load('TomatoRemap_11_2024-7_2025.RData')
+Sl_tissues_TPM = Sl_tissues_TPM[which(rownames(Sl_tissues_TPM) %in% rownames(D2)),]
+save(Sl_tissues_TPM, Sl_tissues_RPKM, file = "Sl_tissues.RData")
+q()
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/TomatoRemap/Sl_tissues.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+
+
+
+load("TomatoRemap_11_2024-7_2025_with_meta.RData")
+
+pseudocount = 1*10^6/quantile(colSums(D2), p = .1)
+A2 = sweep(D2, 2, colSums(D2), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D2[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+over30k = names(which(colSums(D2) >10000))
+over30k = over30k[which(Sl_meta[over30k,14] == "N")] #getting rid of no cell controls
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+
+BINSl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes2[, 1]) * 10^6 + round(Sl_genes2[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_2)))
+    colnames(out2) = colnames(g1_2)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINSl(g1_2)
+g2_bin = BINSl(g2_2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+Sl_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # was .4 instead of .3, .3 is >80%. Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-Sl_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
+
+
+source('Pseudotime Velocity Functions.R')
+
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+stages = factor(stages, level = c("Meiosis", "tetrad", "tetrad_sep", "UM", "UM/BM", "BM", "BM_shed"))
+
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+stages = stages[-which(stages == "tetrad")]
+stages[names(which(stages == "tetrad_sep"))] = "Tetrad"
+stages[names(which(stages == "BM_shed"))] = "BM"
+stages = factor(stages, level = c("Meiosis", "Tetrad", "UM", "UM/BM", "BM"))
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,names(stages)], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+hmat2 = A2d[,names(stages)][rank(-fano[rownames(A2d)]) <= 500,ords]
+
+library(seriation)
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+
+
+svg('Tomato_Expression_2_8_26.svg', width=7, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], 
+    "% Monoallelic" = FracMono_all[names(stages)][ords], 
+    col = list(Stage = c("Meiosis" = "gray", "tetrad" = "#EB1E2C", "tetrad_sep" = "#EB1E2C",
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#5FBB68"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+svg('Tomato_FracMonoByStage_10k.svg', width=3, height=2)
+ggplot(FracMonoByStage, aes(x = Stage, y = FracMono, fill = Stage)) + geom_violin(size=0.5, adjust = 1) + labs(title = "Tomato", 
+x = "Stage", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("Meiosis" = "gray", 
+    "Tetrad" = "#EB1E2C", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68")) 
+dev.off()
+
+
+hist(FracMonoByStage[which(FracMonoByStage$Stage == "UM"),1], xlim=c(0,100), breaks=10)
+
+
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+
+CellHist = function(stg) {
+	gghistogram(FracMonoByStage[FracMonoByStage$Stage == stg,], 'FracMono', fill = 'dark gray', bins = 21) + scale_y_continuous(expand = c(0,0)) + xlim(c(-5,105)) + theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.position = 'none', plot.margin = margin(20,0,0,0))
+}
+
+
+svg('Tomato_FracMonoByStage_5kHist.svg', width=2.5, height=6)
+ggarrange(CellHist('Meiosis'), CellHist('Tetrad'), CellHist('UM'), CellHist('UM/BM'), CellHist('BM'), nrow = 5, align = 'v')
+dev.off()
+
+svg('Tomato_FracMonoByStage_10kHist.svg', width=2.5, height=6)
+ggarrange(CellHist('Meiosis'), CellHist('Tetrad'), CellHist('UM'), CellHist('UM/BM'), CellHist('BM'), nrow = 5, align = 'v')
+dev.off()
+
+svg('Tomato_FracMonoByStage_20kHist.svg', width=2.5, height=4.5)
+ggarrange(CellHist('Meiosis'), CellHist('UM'), CellHist('UM/BM'), CellHist('BM'), nrow = 4, align = 'v')
+dev.off()
+
+svg('Tomato_FracMonoByStage_25kHist.svg', width=2.5, height=4.5)
+ggarrange(CellHist('Meiosis'), CellHist('UM'), CellHist('UM/BM'), CellHist('BM'), nrow = 4, align = 'v')
+dev.off()
+
+
+
+
+No_cell = Sl_meta$Sample[which(Sl_meta[,14] == "Y")]
+No_cell_over5k = names(which(colSums(D2[,No_cell]) > 5000))
+Heatmap(AlleleFrac_bin[,No_cell], cluster_columns=F, cluster_rows=F, show_column_names=F, show_row_names=F)
+Heatmap(AlleleFrac_bin[,No_cell_over5k], cluster_columns=F, cluster_rows=F, show_column_names=F, show_row_names=F)
+plot(colSums(!is.na(AlleleFrac_bin[,No_cell_over5k])), FracMono_all[No_cell_over5k], pch=19, cex=3)
+
+
+
+
+#Checking some genes annotations
+Sl_hmat2 = draw(Heatmap(minmax(hmat2), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], 
+    "% Monoallelic" = FracMono_all[names(stages)][ords], 
+    col = list(Stage = c("Meiosis" = "gray", "tetrad" = "#EB1E2C", "tetrad_sep" = "#EB1E2C",
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#64CDCC"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE))
+    
+Sl_hmat2_genes = rownames(hmat2[row_order(Sl_hmat2),])
+
+
+Heatmap(minmax(hmat2[Sl_hmat2_genes[250:350],]), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], 
+    "% Monoallelic" = FracMono_all[names(stages)][ords], 
+    col = list(Stage = c("Meiosis" = "gray", "tetrad" = "#EB1E2C", "tetrad_sep" = "#EB1E2C",
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#64CDCC"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = TRUE, show_column_names = FALSE)
+
+Sl_hmat2_genes[421:423] #started w/ 400:430
+#"Solyc03g063070" "Solyc02g004000" "Solyc06g011664" #unknown protein, Regulator of rDNA transcription protein 15, unknown protein
+
+Sl_hmat2_genes[279:320] #genes that seem mostly expressed by biallelic UM andless in some tetrads include many lipid transfer proteins, cysteine proteases, oxygenases, oxidases, glycosyltransferases, stress response proteins
+
+
+check_annot = matrix(data=NA, nrow=length(279:320), ncol=1)
+for (n in 279:320){
+    check_annot[(n-278)] = paste("grep", Sl_hmat2_genes[n], "Sl_v4_12.gff")
+}
+print(as.data.frame(check_annot), row.names=F) #These genes are almost all ribosomal RNAs. The first is a signal recognition particle 7S RNA, one is uncharacterized LOC138338492
+#This was done with 25,000 UMI cutoff
+
+
+
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+stages = stages[-which(stages == "tetrad")]
+stages[names(which(stages == "tetrad_sep"))] = "Tetrad"
+
+ratio = g1_2/(g1_2+g2_2)
+ratio[(g1_2+g2_2) < 10] = NA  # Remove measurements with under 10 genoinformative transcripts
+geneUse = which(abs(rowMeans(g1_2/(g1_2+g2_2), na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+ratio[-geneUse,] = NA
+geneFrac = ratio*100
+
+
+#colSums(!is.na(ratio[,names(stages[which(stages == 'BM_shed')])]))
+
+ratioHist = function(cell){
+gghistogram(data.frame(geneFrac = geneFrac[,cell]), x = 'geneFrac', fill = 'black', bins = 15) + theme(strip.background = element_blank(), strip.text.x = element_blank(), legend.position = 'none') + scale_y_continuous(expand = c(0,0)) + xlab('% Transcripts matching lycopersicum') + ylab('Genes') + scale_x_continuous(breaks = seq(0,100,10), labels=c('0', rep('',4), '50', rep('',4), '100')) 
+}
+
+svg('Tomato_ratioHist_tetrad.svg', width=3.5, height=2)
+ratioHist('S152-163_69s') #Separated Tetrad
+dev.off()
+
+
+svg('Tomato_ratioHist_BM_shed.svg', width=3.5, height=2)
+ratioHist('S80-91_61s') #BM_shed
+dev.off()
+
+
+
+
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+TomBiSamp = names(which(FracMono_all[over30k] < 40))
+TomMonoSamp = names(which(FracMono_all[over30k] > 40))
+stages[names(which(stages[TomBiSamp] == "UM"))] = "UM Bi"
+stages[names(which(stages[TomMonoSamp] == "UM"))] = "UM Mono"
+
+table(stages)
+#    BM    BM_shed    Meiosis     tetrad tetrad_sep      UM Bi    UM Mono
+#    47         31         19         17          2          5          4 
+# UM/BM
+#    10
+table(Sl_meta[,8])
+#    BM    BM_shed    Meiosis     tetrad tetrad_sep         UM      UM/BM 
+#   256         95         32         48          8        432         48 
+#  UM_4
+#     8
+table(Sl_meta[which(Sl_meta[,14] == "N"),8])
+#    BM    BM_shed    Meiosis     tetrad tetrad_sep         UM      UM/BM 
+#   220         83         32         41          6        371         42 
+#  UM_4
+#     6
+
+table(Sl_meta[names(which(stages == "UM Bi")),7])               
+#  4 4.5   5 5.5
+#  2   1   1   1
+table(Sl_meta[names(which(stages == "UM Mono")),7])
+#  4 6.4 6.5
+#  2   1   1
+table(Sl_meta[names(which(stages == "tetrad")),7]) 
+#2.5 2.6 2.9   3
+#  4   4   4   5
+table(Sl_meta[names(which(stages == "tetrad_sep")),7])            
+#2.8
+#  2
+
+table(Sl_meta[which(Sl_meta[,8] == "tetrad"),7])     
+#2.5 2.6 2.9   3
+# 24   8   8   8
+
+#Ideally want to have at least 20 each of separated tetrads (18 more), UM Bi (15 more), and UM Mono (16 more). 
+#tetrad_sep success rate = 0.25 (0.3333333 if only counting real samples)
+#overall UM success rate = 0.02083333 (0.02425876 if only counting real samples)
+
+#Estimated collection needs:
+#tetrad_sep = 72 (2.6-3 mm anthers ideal, 2.5 mm can collect but sucess rate was lower--only 0.1666667 for tetrad)
+#UM = 528-1488 (3-6.5 mm anthers ideal, 528 if I want ~20 UMs total, 1488 if I want ~20 UM Bi and UM Mono each)
+
+#For ~20 UMs total, I need 528 - 17*8 = 392 more UMs (including no cell controls) since I have 17 strips collected already
+#In this case plan to collect 5 plates 3-6.5 mm UMs, 1 plate 2.5-3 mm separated tetrads (6 plates total, each plate gets 2 strips late stage)
+
+#For ~20 UM Bi and UM Mono each, I need 1488 - 17*8 = 1352 more UMs (including no cell controls) since I have 17 strips collected already
+#In this case plan to collect 14 plates 3-6.5 mm UMs, 1 plate 2.5-3 mm separated tetrads (15 plates total)
+
+#For ~15 UMs total, I need 288 - 17*8 = 152 more UMs (including no cell controls) since I have 17 strips collected already
+#In this case plan to collect 2 plates 3-6.5 mm UMs, 1 plate 2.5-3 mm separated tetrads (3 plates total, each plate gets 2 strips late stage)

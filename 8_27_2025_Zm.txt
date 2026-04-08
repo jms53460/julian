@@ -365,7 +365,7 @@ g2=B
 genes = genes[order(genes[,2]),] #order by position
 genes = genes[order(genes[,1]),] #order by chr
 
-reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[,6:485]
+reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[1,6:485]
 colnames(reads) = sub('SNPsplit.', '', sub('_SNPsplit.bam', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A))))))))))
 
 D = D[rownames(genes),order(colnames(D))]
@@ -397,6 +397,10 @@ Meta <- Stages[rep(row.names(Stages), each = 8), ]
 Meta = as.data.frame(Meta)
 rownames(Meta) = paste(rep(Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Stages)), 's', sep ='')
 
+#M25-36_82s,86s, 90(68 FracMono, 94 is 96 FracMono), 70(77 FracMono), 69,72(83 and 87FracMono, 71 is 97FracMono)
+#M37
+
+
 library(tidyverse)
 
 Meta$No_cell2 = unlist(lapply(Stages$No_cell, function(xx) {       
@@ -410,7 +414,7 @@ Meta$No_cell2 = unlist(lapply(Stages$No_cell, function(xx) {
 D = D[,rownames(Meta)]
 g1 = g1[,rownames(Meta)]
 g2 = g2[,rownames(Meta)]
-
+reads = reads[,rownames(Meta)]
 
 NCpairs0 = t(sapply(strsplit(Stages$No_cell, ','), function(xx) { as.numeric(xx)[1:2] }))
 NCpairs = sweep(NCpairs0, 1, (1:nrow(NCpairs0) - 1)*8, '+')
@@ -464,6 +468,7 @@ AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative 
 binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
 AlleleFrac_bin[-binUse,] = NA
 FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
 
 #over30k = names(which(colSums(D) >52000))
 #over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 2 no cell controls
@@ -553,33 +558,25 @@ plot(FracMono_all[over30k[grep('BBB', over30k)]],FracMono_all[sub('BBB', 'ETOH',
 
 #length(which(Rice_meta[over30k,9] == "tetrads")) #8 tetrads, 4 tetrad_sep, 11 UM, 10 UM/BM, 40 BM, 15 BM/Tri, 103 Tri >30k
 
-
+#library(devtools)
+#install_github("jokergoo/ComplexHeatmap")
 
 library('ComplexHeatmap')
-#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
+
 Heatmap(AlleleFrac_bin, name = 'AlleleFrac',
     top_annotation = HeatmapAnnotation(UMIcounts = log(colSums(D),10), 
     "FracMono" = FracMono_all, ">30,000 UMIs" = colSums(D) > 30000,
     col = list(">30,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
     cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F, use_raster=F)
-#dev.off()
 
+Heatmap(AlleleFrac_bin[,over30k][,ords], name = 'AlleleFrac',
+    top_annotation = HeatmapAnnotation("FracMono" = FracMono_all[over30k][ords], Stage = stages[ords],
+    col = list(Stage = c("UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
+    "Tri_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F, use_raster=F)
 
-#Stage_order = order(factor(Rice_meta$Stage, levels = c('tetrads','tetrad_sep','UM','UM/BM','BM','BM/Tri','Tri','Tri_shed')))
-#names(Stage_order) = rownames(Rice_meta[Stage_order,])
-#Stage_order2 = Stage_order[which(names(Stage_order) %in% over30k)]
-
-#FracMonoVsStage = data.frame(FracMono = FracMono_all[Stage_order2], Stage = Rice_meta$Stage[Stage_order2], Bud = Rice_meta$Sample[Stage_order2], No_cell = Rice_meta$No_cell2[Stage_order2], UMIs = colSums(D[,Stage_order2]))
-
-#svg('Rice_7-8_2025_AlleleFrac_Heatmap.svg', width=6.5, height=5)
-#Heatmap(AlleleFrac_bin[,Stage_order2], name = 'AlleleFrac',
-#    top_annotation = HeatmapAnnotation(Stage = as.matrix(Rice_meta[Stage_order2,9]), UMIcounts = log(colSums(D[,Stage_order2]),10), 
-#    "FracMono" = FracMono_all[Stage_order2], ">30,000 UMIs" = colSums(D[,Stage_order2]) > 30000,
-#    col = list(Stage = c("tetrads" = "#ffffff","tetrad_sep" = "#ffffff", "UM" = "#eeeeee", "UM/BM" = "#cccccc", "BM" = "#777777", "BM/Tri" = "#444444", "Tri" = "#111111", "Tri_shed" = "#111111"), ">10,000 UMIs" = c("TRUE" = "red3", "FALSE" = "blue3"))),
-#    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
-#    cluster_rows=F, cluster_columns=F, show_row_names = F, show_column_names = F)
-#dev.off()
 
 
 pseudocount = 1*10^6/quantile(colSums(D), p = .1)
@@ -590,9 +587,11 @@ A2b = log(A2+pseudocount,10)  # Log transform
 A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
 fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
 
-over30k = names(which(colSums(D) >25000))
-ETOH_Remove = names(which(colSums(D[,over30k[grep("ETOH", over30k)]]) < 51000))
+No_cell = rownames(Meta[(which(Meta[,13] == "Y")),])
+over30k = names(which(colSums(D) >10000))
+ETOH_Remove = names(which(colSums(D[,over30k[grep("ETOH", over30k)]]) < 50000))
 over30k = over30k[-which(over30k %in% ETOH_Remove)]
+over30k = over30k[-which(over30k %in% No_cell)]
 
 #over30k = over30k[1:136]
 hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
@@ -605,7 +604,8 @@ FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
 UMI_col = colorRamp2(c(4.4, 6.0), c("white", "forestgreen"))
 
 
-
+#install.packages('princurve')
+#install.packages('RSpectra')
 source('Pseudotime Velocity Functions.R')
 
 
@@ -660,7 +660,12 @@ o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
 
 
 #library('ComplexHeatmap')
-
+#M13-24_30s      M13-24_11s #BM samples w/ low FracMono, they have 20 and 12 bins w/ data respectively
+                            #other samples from the same anthers passing QC have 300 or more bins
+#M25-36_82s      M25-36_86s #TP samples w/ low FracMono, they have 20 and 15 bins w/ data respectively
+                            #the other two samples from the same anther passing QC have 372 and 396 bins
+#M37-48_ETOH_74s      M37-48_BBB_74s #BM sample that looks like shed pollen. 
+        #One other sample from the same anther passed QC (both BBB and ETOH versions) it looks like a BM expression wise (it is the leftmost pair of BMs in the heatmap below)
 
 #svg('Maize_12_1_Express_heatmap.svg', width=7, height=4)
 Heatmap(minmax(hmat2), name = 'expression
@@ -672,29 +677,40 @@ level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 #dev.off()
 
-svg('Maize_12_1_AlleleFrac_cor.svg', width=7, height=40)
-Heatmap(cor(AlleleFrac_bin[,over30k], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
-dev.off()
+#svg('Maize_12_1_AlleleFrac_cor.svg', width=7, height=40)
+Heatmap(cor(AlleleFrac_bin[,over30k][,ords], use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'AlleleFrac_cor', right_annotation = rowAnnotation(Stage = stages[ords], #"No cell" = Meta[over30k,13][ords],
+    "% Monoallelic" = FracMono_all[over30k][ords], 
+    col = list(Stage = c("UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
+    "Tri_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+#dev.off()
 
-svg('Maize_12_1_AlleleFrac_cor.svg', width=7, height=40)
+#svg('Maize_12_1_Exp_cor.svg', width=7, height=40)
+Heatmap(cor(minmax(hmat2)[,over30k][,ords], use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords], #"No cell" = Meta[over30k,13][ords],
+    "% Monoallelic" = FracMono_all[over30k][ords], 
+    col = list(Stage = c("UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
+    "Tri_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+#dev.off()
+
+#svg('Maize_12_1_Exp_cor.svg', width=7, height=40)
+Heatmap(cor(minmax(hmat2)[,over30k], use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages, "No cell" = Meta[over30k,13],
+    "% Monoallelic" = FracMono_all[over30k], "UMIs" = log(colSums(D[,over30k]),10),
+    col = list(Stage = c("UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
+    "Tri_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=F, cluster_columns=F, show_column_names=F)
+#dev.off()
+
+#svg('Maize_12_1_AlleleFrac_cor.svg', width=7, height=40)
 Heatmap(cor(AlleleFrac_bin[,over30k], use = 'pairwise.complete.obs', method = 'pearson'), name = 'AlleleFrac_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
-dev.off()
+#dev.off()
 
 
 ggarrange(plotCell("M25-36_32s"), plotCell("M25-36_80s"), ncol=2)
 
-
-
-#svg('Rice_7_2025_Expression_heatmap.svg', width=6, height=4.5)
-Heatmap(minmax(hmat), name = 'expression
-level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
-    top_annotation = HeatmapAnnotation(FracMono = FracMono_all[over30k], UMIcounts = log(colSums(D[,over30k]),10),
-    No_cell = Meta[over30k,13], Stage = Meta[over30k,10],
-    col = list(Stage = c("UM" = "#F9A729", "BM" = "#5FBB68", "BM/Tri" = "#64CDCC", "Tri" = "#A4A4D5", 
-    "Tri_shed" = "#BBC9E5"), FracMono = FracMono_col, UMIcounts = UMI_col, 
-    No_cell = c('Y' = 'black', 'N' = 'white'))), 
-    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=T, cluster_columns=T, show_row_names = FALSE, show_column_names = TRUE)
-#dev.off()
 
 
 
@@ -829,3 +845,32 @@ level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
 dev.off()
 
 
+
+
+
+
+Recalculating reads as I'm not confident it is correct
+
+ml R/4.4.2-gfbf-2024a
+R
+reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
+colnames(reads) = sub('SNPsplit.', '', sub('_SNPsplit.bam', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A))))))))))
+
+save(reads, file = "Maize_8-10_2025_reads.RData")
+
+q()
+
+
+
+###Copying this to my local computer
+scp sapelo2:/scratch/jms53460/Maize_8-10_2025/Maize_8-10_2025_reads.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
+
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load("Maize_8-10_2025_reads.RData")
+
+reads = reads[colnames(D)]
+
+reads_per_UMI = t(reads/colSums(D))
+reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")

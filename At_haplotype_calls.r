@@ -252,30 +252,126 @@ a2-a1
 save(D, g1, g2, genes, HapMatch_all, HapFrac_all, Hap_all, HapFrac_genes_all, No_cell, plotChr, plotScaleBar, plotCell2, BIN2, g1_bin, 
     g2_bin, AlleleFrac, HapCallV4, AlleleFrac_genes, HapCallCell, file = "At_data_10_2025.RData")
 
+####Rerunning Haplotype calls to include all samples with >5,000 UMIs
+load("At_data_10_2025.RData")
+over5k = names(which(colSums(D) >5000))
 
+HapCallV4 = function(cell, chr, recs=1.5, mx = (2.5), ss=1, niter = 10000, burnin = 2000) {
+	keeps0 = names(which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .3)) #exclude genes with >80% transcripts matching the same allele
+    keeps = names(which(((g1[,cell] + g2[,cell]) > 0) & (genes$Chr == chr)))
+    
+    g1b = g1[keeps[keeps %in% keeps0],over5k]
+    g2b = g2[keeps[keeps %in% keeps0],over5k]
+    g1bFracMean = rowMeans(g1b/(g1b+g2b), na.rm=T)
+    g2bFracMean = rowMeans(g2b/(g1b+g2b), na.rm=T)
 
-HapMatch_all = matrix(data = NA, nrow = nrow(D), ncol = ncol(AlleleFrac2))
+	gA = g1b[,cell]
+	gB = g2b[,cell]
+	ScoreAB = pbinom(gB,gA+gB,g2bFracMean,log.p=T) - pbinom(gA,gA+gB,g1bFracMean,log.p=T)
+	k = -log(recs/length(ScoreAB))
+	ScoreAB[abs(ScoreAB) > k/mx] = sign(ScoreAB[abs(ScoreAB) > k/mx])*k/mx
+
+	Hap = rep(-sign(sum(ScoreAB)), length(ScoreAB))
+	Scores = c(-sum(ScoreAB*Hap) - sum(abs(diff(Hap)/2))*k, rep(NA,niter))
+
+	alpha = 2*ScoreAB*Hap
+	beta0 = -c(k, rep(2*k,length(Hap)-2), k)
+
+	l = length(Hap)
+	XOs = abs(diff(Hap))
+	deltaK = (XOs-1)*k*2
+	beta = beta0 + (c(0, XOs) + c(XOs,0))*k
+    	HapOut = Hap*0
+    
+	for (i in 1:niter) {
+        ar = alpha + beta - log(runif(l))*ss
+		swaps = ar >= 0
+		if (any(swaps)) {
+			for (j in 2:l) {
+				swaps[j] = ar[j] >= swaps[j-1]*deltaK[j-1]
+			}
+			alpha[swaps] = -alpha[swaps]
+			Hap[swaps] = -Hap[swaps]
+			XOs = abs(diff(Hap))
+			deltaK = (XOs-1)*k*2
+			beta = beta0 + (c(0, XOs) + c(XOs,0))*k
+			Scores[i] = -sum(ScoreAB*Hap) - sum(XOs)*k/2
+			if (i > burnin) { HapOut = HapOut + Hap }
+		}
+		
+	}
+	HapOut = HapOut/sum(!is.na(Scores[-c(1:burnin)]))
+	Position = genes[names(ScoreAB),2]
+    Genes = names(ScoreAB)
+    return(list(HapOut=HapOut, Scores=Scores, Pos=Position, Genes=Genes))
+}
+
+set.seed(1)
+AlleleFrac_genes = (g1/(g1+g2))
+
+HapCallCell = function(cell){
+    HapChr1 = HapCallV4(cell,chr=1,recs=1.5, mx=(2.5), ss=1, niter=10000, burnin=4000)
+    HapChr2 = HapCallV4(cell,chr=2,recs=1.5, mx=(2.5), ss=1, niter=10000, burnin=4000)
+    HapChr3 = HapCallV4(cell,chr=3,recs=1.5, mx=(2.5), ss=1, niter=10000, burnin=4000)
+    HapChr4 = HapCallV4(cell,chr=4,recs=1.5, mx=(2.5), ss=1, niter=10000, burnin=4000)
+    HapChr5 = HapCallV4(cell,chr=5,recs=1.5, mx=(2.5), ss=1, niter=10000, burnin=4000)
+    HapCell = data.frame(Hap = c(HapChr1$HapOut, HapChr2$HapOut, HapChr3$HapOut, HapChr4$HapOut, HapChr5$HapOut), 
+                         Pos = c(HapChr1$Pos, HapChr2$Pos, HapChr3$Pos, HapChr4$Pos, HapChr5$Pos),
+                         Genes = c(HapChr1$Genes, HapChr2$Genes, HapChr3$Genes, HapChr4$Genes, HapChr5$Genes))
+    rownames(HapCell) = HapCell$Genes
+    HapCallGenes = rownames(D[which(rownames(D) %in% rownames(HapCell)),])
+    Hap = HapCell$Hap
+    names(Hap) = HapCell$Genes
+    HapCell$Hap = round(HapCell$Hap)
+    HapCell$Hap[which(round(HapCell$Hap) == 0)] = NA
+    HapCell$Hap[which(round(HapCell$Hap) == -1)] = 0
+    AlleleFrac_genes_cell = round(AlleleFrac_genes[HapCallGenes,cell])
+    HapMatch = AlleleFrac_genes_cell == HapCell$Hap #for each gene, does AlleleFrac match expected haplotype?
+    HapFrac_genes = AlleleFrac_genes[HapCallGenes,cell]
+    HapFrac_genes[which(HapCell$Hap == 0)] = abs(HapFrac_genes[which(HapCell$Hap == 0)] - 1)
+    HapFrac = length(which(AlleleFrac_genes_cell == HapCell$Hap))/length(HapCallGenes)
+    return(list(Hap = Hap, HapMatch = HapMatch, HapFrac_genes = HapFrac_genes, HapFrac = HapFrac))
+}
+
+HapMatch_all = matrix(data = NA, nrow = nrow(D), ncol = length(over5k)) 
 rownames(HapMatch_all) = rownames(D)
-colnames(HapMatch_all) = colnames(AlleleFrac2)
-
-HapFrac_all = vector(length = ncol(AlleleFrac2))
-names(HapFrac_all) = colnames(AlleleFrac2)
+colnames(HapMatch_all) = over5k 
 
 Hap_all = HapMatch_all
 HapFrac_genes_all = HapMatch_all
 
+HapFrac_all = vector(length = length(over5k)) 
+names(HapFrac_all) = over5k
+cells = over5k
+
+
 a1 = proc.time()
-for (cell in cells[c(1,10,20,30,100,400)]){
+for (cell in cells){
     HapMatch_cell = HapCallCell(cell)
     HapMatch_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$HapMatch
     HapFrac_all[cell] = HapMatch_cell$HapFrac
     Hap_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$Hap
+    HapFrac_genes_all[match(names(HapMatch_cell$HapMatch), rownames(HapMatch_all)),cell] = HapMatch_cell$HapFrac_genes
 }
 a2 = proc.time()
 a2-a1
+#    user   system  elapsed 
+#18145.84   485.26 19066.91     ###This took ~318 minutes or 5 hrs 18 mins
+
+library(readxl)
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages2.xlsx")
+
+At_meta <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_meta2.xlsx")
+At_meta = as.data.frame(At_meta)
+rownames(At_meta) = At_meta$Sample
+At_meta[grep("tetrad", At_meta[,9]),9] = "tetrads"
+At_meta[which(At_meta[,8] == "35"),8] = "0.35"
+
+save(D, g1, g2, genes, At_Stages, At_meta, HapMatch_all, HapFrac_all, Hap_all, HapFrac_genes_all, No_cell, plotChr, plotScaleBar, 
+    plotCell2, HapCallV4, AlleleFrac_genes, HapCallCell, file = "At_data_2_2026.RData")
 
 
-###
+#########
 load("At_data_9_2025.RData")
 
 library('ComplexHeatmap')

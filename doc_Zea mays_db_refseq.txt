@@ -1,0 +1,16 @@
+File Name: C:/Users/julia/OneDrive/Documents/GitHub/julian/Zea_mays_cds_from_genomic_refseq.fna.gz
+Organism Name: Zea mays
+Database: NCBI refseq
+URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/902/167/145/GCF_902167145.1_Zm-B73-REFERENCE-NAM-5.0//GCF_902167145.1_Zm-B73-REFERENCE-NAM-5.0_cds_from_genomic.fna.gz
+Download_Date: Tue Mar 24 16:36:20 2026
+refseq_category: reference genome
+assembly_accession: GCF_902167145.1
+bioproject: PRJNA655717
+biosample: PRJNA655717
+taxid: 4577
+infraspecific_name: cultivar=B73
+version_status: latest
+release_type: Major
+genome_rep: Full
+seq_rel_date: 2020-03-21
+submitter: MaizeGDB

@@ -1,0 +1,16 @@
+File Name: C:/Users/julia/OneDrive/Documents/GitHub/julian/Oryza_sativa_cds_from_genomic_refseq.fna.gz
+Organism Name: Oryza sativa
+Database: NCBI refseq
+URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/034/140/825/GCF_034140825.1_ASM3414082v1//GCF_034140825.1_ASM3414082v1_cds_from_genomic.fna.gz
+Download_Date: Tue Mar 24 16:36:21 2026
+refseq_category: reference genome
+assembly_accession: GCF_034140825.1
+bioproject: PRJNA1123306
+biosample: PRJNA1123306
+taxid: 39947
+infraspecific_name: na
+version_status: latest
+release_type: Major
+genome_rep: Full
+seq_rel_date: 2023-12-06
+submitter: Agricultural Genomics Institute at Shenzhen, Chinese Academy of Agricultural Sciences

@@ -691,8 +691,13 @@ AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative 
 binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
 AlleleFrac_bin[-binUse,] = NA
 FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
 
-over30k = names(which(colSums(D) >25000))
+
+over30k = names(which(colSums(D) >10000))
+over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 26 no cell controls
+
+
 length(which(At_meta[over30k,9] == "tetrads")) #2 tetrads, 25 UM, 8 UM/BM, 44 BM, 2 BM/Tri, 67 Tri passed QC >30k
 length(which(At_meta[over30k,9] == "tetrads")) #2 tetrads, 33 UM, 11 UM/BM, 54 BM, 2 BM/Tri, 71 Tri passed QC >25k
 length(which(At_meta[which(At_meta[,9] == "Tri"),12] == "N")) #7 tetrads, 354 UM, 93 UM/BM, 301 BM, 45 BM/Tri, 300 Tri samples total
@@ -884,3 +889,30 @@ ID=gene-AT4G24380;Name=AT4G24380;gene_synonym=T22A6.210,T22A6_210;product=dihydr
 
 
 
+stages = as.character(At_meta[over30k,9])
+names(stages) = over30k
+stages = stages[-which(stages == "tetrads")]
+#stages = stages[-which(stages == "UM/BM")]
+stages = stages[-which(stages == "BM/Tri")]
+stages[which(stages == "Tri")] = "TP"
+stages = factor(stages, levels = c('UM','UM/BM','BM','TP'))
+
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+
+svg('Arabidopsis_FracMonoByStage.svg', width=2.5, height=2)
+ggplot(FracMonoByStage, aes(x = Stage, y = FracMono, fill = Stage)) + geom_violin() + labs(title = "Arabidopsis", 
+x = "Stage", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("UM" = "#F9A729", 
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "TP" = "#A4A4D5"))
+dev.off()
+
+
+CellHist = function(stg) {
+	gghistogram(FracMonoByStage[FracMonoByStage$Stage == stg,], 'FracMono', fill = 'dark gray', bins = 21) + scale_y_continuous(expand = c(0,0)) + xlim(c(-5,105)) + theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.position = 'none', plot.margin = margin(20,0,0,0))
+}
+
+svg('Arabidopsis_FracMonoByStage_Hist.svg', width=2.5, height=4.5)
+ggarrange(CellHist('UM'), CellHist('UM/BM'), CellHist('BM'), CellHist('TP'), nrow = 4, align = 'v')
+dev.off()
