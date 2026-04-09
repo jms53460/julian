@@ -137,6 +137,7 @@ featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -
 
 conda deactivate
 
+ml SAMtools/1.21-GCC-13.3.0
 module load UMI-tools/1.1.4-foss-2023a
 for file in "featurecounts/"*SNPsplit.bam*
 do
@@ -195,22 +196,13 @@ rownames(genes) = genes[,4]
 genes = genes[,c(1,3,4)]
 colnames(genes) = c('Chr', 'Position', 'Gene')
 
-
-
-annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
-annots = annots[grep('ID=gene', annots)]
-annots = unlist(lapply(annots, function(xx) { xx[1] }))
-annots = sub('ID=', '', annots)
-#annots = gsub("\\..*", "", annots)
-annots = annots[!duplicated(annots)]
-
 files = dir('UMIcounts')
-A = matrix(NA, nrow = length(annots), ncol = length(files))
-rownames(A) = annots
+A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
+rownames(A) = rownames(genes)
 colnames(A) = files
 for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(annots,rownames(xx)),1]
+	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
 }
 colnames(A) = sub('_SNPsplit.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
 A[is.na(A)] = 0

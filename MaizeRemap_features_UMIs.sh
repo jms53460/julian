@@ -12,20 +12,21 @@
 
 cd /scratch/jms53460/MaizeRemap/
 
-mkdir featurecounts
+#mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
 mkdir UMIcounts_g1
 mkdir UMIcounts_g2
-ml Mamba/23.11.0-0
-source activate /home/jms53460/subread-env
+#ml Mamba/23.11.0-0
+#source activate /home/jms53460/subread-env
 
-featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
-featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
-featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+#featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+#featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+#featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
 
-conda deactivate
+#conda deactivate
 
+ml SAMtools/1.21-GCC-13.3.0
 module load UMI-tools/1.1.4-foss-2023a
 for file in "featurecounts/"*SNPsplit.bam*
 do
