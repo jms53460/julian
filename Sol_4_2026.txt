@@ -172,10 +172,55 @@ do
 done
 
 
+#UMItools failed to run although everything else ran fine, so I'm rerunning just UMItools here:
+#!/bin/bash
+#SBATCH --job-name=Sol_4_2026_UMIs                               # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=100gb                                                       # Total memory for job
+#SBATCH --time=6:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/Sol_4_2026/UMIs.out           # Location of standard output file
+#SBATCH --error=/scratch/jms53460/Sol_4_2026/UMIs.err            # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
+
+cd /scratch/jms53460/Sol_4_2026/
+
+ml UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
+done
+
+
+
 
 interact --mem=5G
 ml R/4.4.2-gfbf-2024a
-cd /scratch/jms53460/TomatoRemap/
+cd /scratch/jms53460/Sol_4_2026/
 R
 annots = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
 annots = annots[grep('ID=gene', annots)]
@@ -192,7 +237,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(annots,rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
+colnames(A) = sub('_SNPsplit.tsv', '', sub('S99_L003_', '', sub('S100_L003_', '', sub('S101_L003_', '', files))))
 A[is.na(A)] = 0
 
 B = A[order(rownames(A)),]
@@ -201,7 +246,7 @@ B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
-D2 = B
+D = B
 
 files = dir('UMIcounts_g1')
 A = matrix(NA, nrow = length(annots), ncol = length(files))
@@ -211,7 +256,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(annots,rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
+colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('S99_L003_', '', sub('S100_L003_', '', sub('S101_L003_', '', files))))
 A[is.na(A)] = 0
 
 B = A[order(rownames(A)),]
@@ -220,7 +265,7 @@ B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
-g1_2 = B
+g1 = B
 
 files = dir('UMIcounts_g2')
 A = matrix(NA, nrow = length(annots), ncol = length(files))
@@ -230,7 +275,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(annots,rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('A267-277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', files))))))
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('S99_L003_', '', sub('S100_L003_', '', sub('S101_L003_', '', files))))
 A[is.na(A)] = 0
 
 B = A[order(rownames(A)),]
@@ -239,7 +284,7 @@ B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
-g2_2 = B
+g2 = B
 
 genes = read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,c(1,5)]
 annots2 = strsplit(read.table('Sl_v4_12.gff', sep = '\t', quote = "")[,9], ';')
@@ -252,26 +297,28 @@ rownames(genes) = genes[,3]
 genes = genes[grep("gene", rownames(genes)),]
 genes = genes[-grep('chr0', genes$Chr),]
 
-D2 = D2[rownames(genes),]
-g1_2 = g1_2[rownames(genes),]
-g2_2 = g2_2[rownames(genes),]
+D = D[rownames(genes),]
+g1 = g1[rownames(genes),]
+g2 = g2[rownames(genes),]
 
 genes[,3] = gsub("\\..*", "", gsub("gene:", "", genes[,3]))
 rownames(genes) = genes[,3]
-rownames(D2) = gsub("\\..*", "", gsub("gene:", "", rownames(D2)))
-rownames(g1_2) = gsub("\\..*", "", gsub("gene:", "", rownames(g1_2)))
-rownames(g2_2) = gsub("\\..*", "", gsub("gene:", "", rownames(g2_2)))
+rownames(D) = gsub("\\..*", "", gsub("gene:", "", rownames(D)))
+rownames(g1) = gsub("\\..*", "", gsub("gene:", "", rownames(g1)))
+rownames(g2) = gsub("\\..*", "", gsub("gene:", "", rownames(g2)))
 
 genes[,1] = sub('chr', '', genes[,1])
-Sl_genes2 = genes
+Sl_genes = genes
 
 reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
-colnames(reads) = sub('\\.', '-', sub('SNPsplit.', '', sub('A267.277_S3_L002_', '', sub('S189_L007_', '', sub('S195_L004_', '', sub('S43_L008_', '', sub('S190_L007_', '', sub('_SNPsplit.bam', '', colnames(reads)))))))))
-reads = reads[colnames(D2)]
-reads_per_UMI = t(reads/colSums(D2))
-reads_UMIs2 = data.frame(reads = t(reads), UMIs = colSums(D2), reads_per_UMI = reads_per_UMI)
-colnames(reads_UMIs2) = c("reads", "UMIs", "reads_per_UMI")
-save(D2,g1_2,g2_2,Sl_genes2,reads_UMIs2, file = "Sol_4_2026.RData")
+colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('S99_L003_', '', sub('S100_L003_', '', sub('S101_L003_', '', files))))
+
+colnames(reads) = sub('_SNPsplit.bam', '', sub('\\.', '-', sub('SNPsplit.', '', sub('S99_L003_', '', sub('S100_L003_', '', sub('S101_L003_', '', colnames(reads)))))))
+reads = reads[colnames(D)]
+reads_per_UMI = t(reads/colSums(D))
+reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
+save(D,g1,g2,Sl_genes,reads_UMIs, file = "Sol_4_2026.RData")
 q()
 
 
@@ -282,3 +329,47 @@ scp sapelo2:/scratch/jms53460/Sol_4_2026/Sol_4_2026.RData 'C:/Users/julia/OneDri
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 load('Sol_4_2026.RData')
+
+
+
+library(readxl)
+Sl_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Sl_Stages_4_21_2026.xlsx")
+
+Sl_meta <- Sl_Stages[rep(row.names(Sl_Stages), each = 8), ]
+Sl_meta = as.data.frame(Sl_meta)
+
+Sl_meta$Sample = c(paste(rep('S1-8_', times = 32), 1:32, rep('s', times=32), sep=''), paste(rep('Meiocytes_', times = 32), 49:80, rep('s', times=32), sep=''), paste(rep('S14-25_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S26-37_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S62-73_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S74-79_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S80-91_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S92-103_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S104-115_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S116-127_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S140-145_', times = 48), 1:48, rep('s', times=48), sep=''), paste(rep('S152-163_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S164-175_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S176-187_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('S188-199_', times = 96), 1:96, rep('s', times=96), sep=''))
+rownames(Sl_meta) = Sl_meta$Sample
+
+Sl_meta$No_cell2 = unlist(lapply(Sl_Stages$No_cell_well, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+NCpairs0 = t(sapply(strsplit(Sl_Stages$No_cell_well, ','), function(xx) { as.numeric(xx)[1:2] }))
+NCpairs = sweep(NCpairs0, 1, (1:nrow(NCpairs0) - 1)*8, '+')
+NCpairs = data.frame(NC1 = rownames(Sl_meta)[NCpairs[,1]], NC2 = rownames(Sl_meta)[NCpairs[,2]])
+
+NCpairs0 = cbind(NCpairs0, abs(NCpairs0[,2] - NCpairs0[,1]))
+
+
+
+Sl_meta = Sl_meta[-which(Sl_meta$Sample == "S152-163_54s"),]
+
+load('TomatoRemap_11_2024-7_2025.RData')
+
+D = cbind(D2,D)
+g1 = cbind(g1_2,g1)
+g2 = cbind(g2_2,g2)
+
+D = D[,Sl_meta$Sample]
+g1 = g1[,Sl_meta$Sample]
+g2 = g2[,Sl_meta$Sample]
+
+save(D,g1,g2,Sl_genes,reads_UMIs,Sl_Stages,Sl_meta, file = "Tomato_11_2024-4_2026_with_meta.RData")
+
+#each row is a pair, the value in matrix is row number
+plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
+
+NCCs = Sl_meta[which(Sl_meta$No_cell2 == 'Y'),3]
+
