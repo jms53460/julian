@@ -367,6 +367,7 @@ genes = genes[order(genes[,1]),] #order by chr
 
 reads = read.table('featurecounts/read_counts.tab', sep = '\t', quote = "", header=T, row.names=1)[1,6:485]
 colnames(reads) = sub('SNPsplit.', '', sub('_SNPsplit.bam', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m3', 'M3', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A))))))))))
+#I found out months later that the line above changed colnames(reads) incorrectly due to mistakenly having colnames(A) as the object sub applied to. This led to reads not matching up with D correctly for all samples after the first 96
 
 D = D[rownames(genes),order(colnames(D))]
 reads = reads[rownames(D),colnames(D)]

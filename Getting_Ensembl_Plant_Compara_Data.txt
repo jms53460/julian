@@ -132,7 +132,7 @@ library(httr)
 library(jsonlite)
 library(biomaRt)
 
-mart <- useMart("plants_mart", host="plants.ensembl.org")
+mart <- useMart("plants_mart", host="https://plants.ensembl.org")
 maize <- useDataset("zmays_eg_gene", mart)
 
 genes <- getBM(
@@ -422,4 +422,37 @@ dNdS(query_file      = system.file('seqs/ortho_thal_cds.fasta', package = 'ortho
      codon_aln_tool  = "pal2nal", # perform codon alignments using the tool Pal2Nal
      dnds_est.method = "Comeron", # use Comeron's method for dN/dS inference
      comp_cores      = 1) # number of compute cores
+
+
+
+###using Biomart to select which data I want, downloading the tsv file, and loading it in R
+
+Zm_Os_HomTab <- read.delim("Zm_Os_mart_export.txt")
+colnames(Zm_Os_HomTab) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Homology_type", "Percent_ID", "Confidence")
+HighConf = which(Zm_Os_HomTab$Confidence == 1)
+Zm_Os_ConfHom = Zm_Os_HomTab[HighConf,]
+
+dim(Zm_genes2)
+[1] 39756     3
+length(unique(Zm_Os_ConfHom$Zm_geneID))
+[1] 21398
+length(unique(Zm_Os_ConfHom$Os_geneID))
+[1] 16925
+
+
+HomTab4 <- read.delim("Zm_Os_At_Sl_mart_export.txt")
+colnames(HomTab4) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Os_homology_type", "Os_percent_ID", "Os_confidence", 
+"At_geneID", "At_gene_name", "At_homology_type", "At_percent_ID", "At_confidence",
+"Sl_geneID", "Sl_gene_name", "Sl_homology_type", "Sl_percent_ID", "Sl_confidence")
+HighConf = which(HomTab4$Os_confidence == 1 & HomTab4$At_confidence == 1 & HomTab4$Sl_confidence == 1)
+ConfHom4 = HomTab4[HighConf,]
+
+length(unique(ConfHom4$Zm_geneID))
+[1] 4216
+length(unique(ConfHom4$Os_geneID))
+[1] 3383
+length(unique(ConfHom4$At_geneID))
+[1] 3735
+length(unique(ConfHom4$Sl_geneID))
+[1] 3552
 

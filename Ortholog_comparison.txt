@@ -1,0 +1,48 @@
+###Ortholog comparison
+###using Biomart to select which data I want, downloading the tsv file, and loading it in R
+
+Zm_Os_HomTab <- read.delim("Zm_Os_mart_export.txt")
+colnames(Zm_Os_HomTab) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Homology_type", "Percent_ID", "Confidence")
+HighConf = which(Zm_Os_HomTab$Confidence == 1)
+Zm_Os_ConfHom = Zm_Os_HomTab[HighConf,]
+
+dim(Zm_genes2)
+[1] 39756     3
+length(unique(Zm_Os_ConfHom$Zm_geneID))
+[1] 21398
+length(unique(Zm_Os_ConfHom$Os_geneID))
+[1] 16925
+
+
+HomTab4 <- read.delim("Zm_Os_At_Sl_mart_export.txt")
+colnames(HomTab4) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Os_homology_type", "Os_percent_ID", "Os_confidence", 
+"At_geneID", "At_gene_name", "At_homology_type", "At_percent_ID", "At_confidence",
+"Sl_geneID", "Sl_gene_name", "Sl_homology_type", "Sl_percent_ID", "Sl_confidence")
+HighConf = which(HomTab4$Os_confidence == 1 & HomTab4$At_confidence == 1 & HomTab4$Sl_confidence == 1)
+ConfHom4 = HomTab4[HighConf,]
+
+length(unique(ConfHom4$Zm_geneID))
+[1] 4216
+length(unique(ConfHom4$Os_geneID))
+[1] 3383
+length(unique(ConfHom4$At_geneID))
+[1] 3735
+length(unique(ConfHom4$Sl_geneID))
+[1] 3552
+
+
+
+PanGeneTab = read.delim("pan-zea.v4.pan-genes_table.tsv")
+V5toV4tab = PanGeneTab[,6:7]
+V5toV4tab = V5toV4tab[which(rowSums(V5toV4tab == "NONE") == 0),]
+V5toV4tab$Zm00001d = sub("_.*", "", V5toV4tab$Zm00001d)
+V5toV4tab$Zm00001eb = sub("_.*", "", V5toV4tab$Zm00001eb)
+
+length(unique(V5toV4tab$Zm00001d))                       
+[1] 26928
+length(unique(V5toV4tab$Zm00001eb))
+[1] 26928
+dim(V5toV4tab)
+[1] 26928     2
+length(which(unique(ConfHom4$Zm_geneID) %in% V5toV4tab$Zm00001eb))
+[1] 3630
