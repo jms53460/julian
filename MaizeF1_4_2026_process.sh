@@ -50,9 +50,6 @@ if [ ! -f "hisat2_out/""$file2"".bam" ]; then
 fi
 done
 
-ml HISAT2/2.2.1-gompi-2023a
-hisat2-build Zm_B73_A188_N-masked_genome.fa Zm_B73_A188_N-masked_genome_index
-
 ml SAMtools/1.21-GCC-13.3.0
 for file in hisat2_out/*s.fastq.gz
 do

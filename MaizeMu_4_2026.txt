@@ -11,8 +11,7 @@ mkdir /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M49-60* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M61-72* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 
-cp /home/jms53460/Zm_B73_A188_N-masked_genome_index* /scratch/jms53460/MaizeF1_4_2026
-cp /home/jms53460/Zm_B73_A188_N-masked_genome.fa /scratch/jms53460/MaizeF1_4_2026
+cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0.fa /scratch/jms53460/MaizeMu_4_2026
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/MaizeMu_4_2026
 cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 /scratch/jms53460/MaizeMu_4_2026
 
