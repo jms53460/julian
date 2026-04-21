@@ -12,25 +12,25 @@
 
 cd /scratch/jms53460/At_4_2026/
 
-mkdir Demultiplexed
-ml Mamba/23.11.0-0
-source activate /home/jms53460/Fastq-Multx
+#mkdir Demultiplexed
+#ml Mamba/23.11.0-0
+#source activate /home/jms53460/Fastq-Multx
 
 module load fastp/0.23.4-GCC-13.2.0
-for file in Raw_Data/*_R1_*.gz; do
-    filename=$(basename "$file")
-    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
+#for file in Raw_Data/*_R1_*.gz; do
+#    filename=$(basename "$file")
+#    file2=$(echo "$filename" | sed 's/_R1.*//' | sed 's/_R2_001.fastq.gz//')
 
-    if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
+#    if [ ! -f "Demultiplexed/""$file2""_1s.fastq.gz" ]; then
 	    #Move UMI to header
-        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
+#        fastp -w 6 -i "$file" -I "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/umi_""$file2""_R1.fastq.gz" -O "Demultiplexed/umi_""$file2""_R2.fastq.gz" -A -Q -L -G --umi --umi_loc read2 --umi_len 10 --umi_prefix UMI
         
         #Split read 2 file by CELseq barcodes. Require perfect match to barcode in expected location
-	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/umi_""$file2""_R2.fastq.gz" "Demultiplexed/umi_""$file2""_R1.fastq.gz" "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2.fastq.gz" "Demultiplexed/""$file2""_%.fastq.gz" "Demultiplexed/""$file2""_%_umi.fastq.gz"
+#	    fastq-multx -b -B "CELSeq_barcodes.txt" -m 0 "Demultiplexed/umi_""$file2""_R2.fastq.gz" "Demultiplexed/umi_""$file2""_R1.fastq.gz" "Raw_Data/""$file2""_R2_001.fastq.gz" -o "Demultiplexed/""$file2""_%_R2.fastq.gz" "Demultiplexed/""$file2""_%.fastq.gz" "Demultiplexed/""$file2""_%_umi.fastq.gz"
 
-    fi
-done
-conda deactivate
+#    fi
+#done
+#conda deactivate
 
 mkdir SRA_upload
 for file in Demultiplexed/*s.fastq.gz; do
@@ -87,4 +87,82 @@ for file in "SNPsplit/"*_s.genome2.bam
 do
     file2="${file:9:-14}"
     samtools sort -@ 6 "$file" -o SNPsplit/"$file2"_SNPsplit_g2.bam
+done
+
+mkdir featurecounts
+mkdir bams
+mkdir UMIcounts
+mkdir UMIcounts_g1
+mkdir UMIcounts_g2
+ml Mamba/23.11.0-0
+source activate /home/jms53460/subread-env
+
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g1.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g1.bam
+featureCounts -T 6 -s 1 -a TAIR10.1_Col_5.gff -t 'gene' -g 'ID' -o featurecounts/read_counts_g2.tab --readExtension5 500 -R BAM SNPsplit/*_SNPsplit_g2.bam
+
+conda deactivate
+
+
+ml SAMtools/1.21-GCC-13.3.0
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        samtools sort -@ 6 "$file" -o "bams/$file2"
+        samtools index "bams/$file2"
+
+    fi
+done
+
+
+ml UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*SNPsplit.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g1.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g1/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g1/${file2}.tsv"
+    fi
+done
+
+for file in "featurecounts/"*g2.bam*
+do
+    file2="${file:14:-22}"
+    if [ ! -f "UMIcounts_g2/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts_g2/${file2}.tsv"
+    fi
 done
