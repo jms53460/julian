@@ -15,8 +15,6 @@ cd /scratch/jms53460/MaizeMu_4_2026/
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
-mkdir UMIcounts_g1
-mkdir UMIcounts_g2
 ml Mamba/23.11.0-0
 source activate /home/jms53460/subread-env
 

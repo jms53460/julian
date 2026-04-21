@@ -10,9 +10,10 @@ mkdir /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M73-84* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M85-96* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
-cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M85-96* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M97-108* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M109-120* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
+cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M121-132* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
+
 
 cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0.fa /scratch/jms53460/MaizeMu_4_2026
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/MaizeMu_4_2026
@@ -106,8 +107,6 @@ cd /scratch/jms53460/MaizeMu_4_2026/
 mkdir featurecounts
 mkdir bams
 mkdir UMIcounts
-mkdir UMIcounts_g1
-mkdir UMIcounts_g2
 ml Mamba/23.11.0-0
 source activate /home/jms53460/subread-env
 
