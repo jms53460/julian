@@ -23,7 +23,6 @@ featureCounts -T 6 -s 1 -a Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 -t 'gene' -
 conda deactivate
 
 ml SAMtools/1.21-GCC-13.3.0
-module load UMI-tools/1.1.4-foss-2023a
 for file in "featurecounts/"*_s.bam*
 do
     file2="${file:14:-16}"
@@ -31,6 +30,15 @@ do
 
         samtools sort -@ 6 "$file" -o "bams/$file2"
         samtools index "bams/$file2"
+
+    fi
+done
+
+module load UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*_s.bam*
+do
+    file2="${file:14:-16}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
 
         umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
     fi
