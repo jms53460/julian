@@ -11,7 +11,7 @@ cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/S188-199* /scratch/jms53460/S
 cp /home/jms53460/Sl_v4_N-masked_genome.fa /scratch/jms53460/Sol_4_2026
 cp /home/jms53460/Sl_v4_N-masked_genome_index* /scratch/jms53460/Sol_4_2026
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/Sol_4_2026
-cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3 /scratch/jms53460/Sol_4_2026
+cp /home/jms53460/Sl_v4_12.gff /scratch/jms53460/Sol_4_2026
 cp /home/jms53460/SlRemap_SNPs.tab /scratch/jms53460/Sol_4_2026
 
 #!/bin/bash
