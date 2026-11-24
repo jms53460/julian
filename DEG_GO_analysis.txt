@@ -1,0 +1,462 @@
+#DEG GO analysis
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load("ExpComp.RData")
+
+ZmExpMean2 = ZmExpMean[,c(1:2,4,6)] #check colnames(ZmExpMean) to pick columns
+colnames(ZmExpMean2) = sub("Pollen", "TP", colnames(ZmExpMean2))
+OsExpMean2 = OsExpMean[,c(1:3,5,7)]
+SlExpMean2 = SlExpMean[,c(1:3,5)]
+AtExpMean2 = AtExpMean[,c(1:2,4,6)]
+
+ExpComp2 = as.data.frame(cbind(ZmExpMean2, OsExpMean2, SlExpMean2, AtExpMean2))
+
+ExpMeanLogs = data.frame(ZmMeans = rowMeans(log10(ZmExpMean2+100)), OsMeans = rowMeans(log10(OsExpMean2+100)),
+  SlMeans = rowMeans(log10(SlExpMean2+100)), AtMeans = rowMeans(log10(AtExpMean2+100)))
+ExpLogMeans = data.frame(ZmMeans = log10(rowMeans(ZmExpMean2)+100), OsMeans = log10(rowMeans(OsExpMean2)+100),
+  SlMeans = log10(rowMeans(SlExpMean2)+100), AtMeans = log10(rowMeans(AtExpMean2)+100))
+
+#Checked with head(log10(ZmExpMean2[,4]+100) - ExpMeanLogs$ZmMeans) to make sure subtracting like this works
+ExpML_diff = as.data.frame(cbind(log10(ZmExpMean2+100) - ExpMeanLogs$ZmMeans, log10(OsExpMean2+100) - ExpMeanLogs$OsMeans,
+  log10(SlExpMean2+100) - ExpMeanLogs$SlMeans, log10(AtExpMean2+100) - ExpMeanLogs$AtMeans))
+ExpML_log2FC = ExpML_diff / log10(2)
+
+par(mfrow=c(1,1))
+boxplot(ExpML_log2FC, pch=19, ylab="Log2 Fold Change")
+
+par(mfrow=c(2,2))
+boxplot(ExpML_log2FC[,grep("Zm", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC[,grep("Os", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC[,grep("Sl", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC[,grep("At", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+
+par(mfrow=c(2,2))
+boxplot(ExpML_log2FC[,grep("Tetrad", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC[,grep("UM", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC[,grep("BM", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC[,grep("TP", colnames(ExpML_log2FC))], pch=19, ylab="Log2 Fold Change")
+
+ExpML_2FCup = ExpML_diff >= log10(2)
+ExpML_2FCdown = ExpML_diff <= -log10(2)
+FCup2 = names(which(rowSums(ExpML_2FCup == "TRUE") > 0))
+FCdown2 = names(which(rowSums(ExpML_2FCdown == "TRUE") > 0))
+
+
+FCup2 = apply(ExpML_2FCup, 2, function(x){names(which(x == "TRUE"))})
+FCdown2 = apply(ExpML_2FCdown, 2, function(x){names(which(x == "TRUE"))})
+
+nUp = sapply(colnames(ExpML_2FCup), function(x){length(FCup2[[x]])})
+nDown = sapply(colnames(ExpML_2FCdown), function(x){length(FCdown2[[x]])})
+
+par(mfrow=c(2,2))
+barplot(nUp[grep("Zm", names(nUp))], main="2-fold up compared to mean expression", ylab="# of 1-1 orthologs")
+barplot(nUp[grep("Os", names(nUp))], main="2-fold up compared to mean expression", ylab="# of 1-1 orthologs")
+barplot(nUp[grep("Sl", names(nUp))], main="2-fold up compared to mean expression", ylab="# of 1-1 orthologs")
+barplot(nUp[grep("At", names(nUp))], main="2-fold up compared to mean expression", ylab="# of 1-1 orthologs")
+
+par(mfrow=c(2,2))
+barplot(nDown[grep("Zm", names(nDown))], main="2-fold down compared to mean expression", ylab="# of 1-1 orthologs")
+barplot(nDown[grep("Os", names(nDown))], main="2-fold down compared to mean expression", ylab="# of 1-1 orthologs")
+barplot(nDown[grep("Sl", names(nDown))], main="2-fold down compared to mean expression", ylab="# of 1-1 orthologs")
+barplot(nDown[grep("At", names(nDown))], main="2-fold down compared to mean expression", ylab="# of 1-1 orthologs")
+
+
+
+###Retrying with full datasets in each species individually
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load('Rice.RData')
+load("Tomato.RData")
+load("Arabidopsis.RData")
+load("Maize_merge.RData")
+
+ZmExpMean = sapply(levels(Zm_merge_stages), function(stage){
+  rowMeans(Zm_merge_TPM[,names(Zm_merge_stages[which(Zm_merge_stages == stage)])])
+  })
+  colnames(ZmExpMean) = paste0("Zm_", colnames(ZmExpMean))
+
+OsExpMean = sapply(levels(Os_stages), function(stage){
+  rowMeans(Os_TPM[,names(Os_stages[which(Os_stages == stage)])])
+  })
+  colnames(OsExpMean) = paste0("Os_", colnames(OsExpMean))
+
+SlExpMean = sapply(levels(Sl_stages), function(stage){
+  rowMeans(Sl_TPM[,names(Sl_stages[which(Sl_stages == stage)])])
+  })
+  colnames(SlExpMean) = paste0("Sl_", colnames(SlExpMean))
+
+AtExpMean = sapply(levels(At_stages), function(stage){
+  rowMeans(At_TPM[,names(At_stages[which(At_stages == stage)])])
+  })
+  colnames(AtExpMean) = paste0("At_", colnames(AtExpMean))
+
+ZmExpMean2 = ZmExpMean[,c(1:2,4,6)] #check colnames(ZmExpMean) to pick columns
+colnames(ZmExpMean2) = sub("Pollen", "TP", colnames(ZmExpMean2))
+OsExpMean2 = OsExpMean[,c(1:3,5,7)]
+SlExpMean2 = SlExpMean[,c(1:3,5)]
+AtExpMean2 = AtExpMean[,c(1:2,4,6)]
+
+ExpComp2 = list(ZmExpMean2, OsExpMean2, SlExpMean2, AtExpMean2)
+
+ExpMeanLogs = list(ZmMeans = rowMeans(log10(ZmExpMean2+100)), OsMeans = rowMeans(log10(OsExpMean2+100)),
+  SlMeans = rowMeans(log10(SlExpMean2+100)), AtMeans = rowMeans(log10(AtExpMean2+100)))
+ExpLogMeans = list(ZmMeans = log10(rowMeans(ZmExpMean2)+100), OsMeans = log10(rowMeans(OsExpMean2)+100),
+  SlMeans = log10(rowMeans(SlExpMean2)+100), AtMeans = log10(rowMeans(AtExpMean2)+100))
+
+#Checked with head(log10(ZmExpMean2[,4]+100) - ExpMeanLogs$ZmMeans) to make sure subtracting like this works
+ExpML_diff = list(Zm = log10(ZmExpMean2+100) - ExpMeanLogs$ZmMeans, Os = log10(OsExpMean2+100) - ExpMeanLogs$OsMeans,
+  Sl = log10(SlExpMean2+100) - ExpMeanLogs$SlMeans, At = log10(AtExpMean2+100) - ExpMeanLogs$AtMeans)
+ExpML_log2FC = list(Zm = (log10(ZmExpMean2+100) - ExpMeanLogs$ZmMeans)/log10(2), Os = (log10(OsExpMean2+100) - ExpMeanLogs$OsMeans)/log10(2),
+  Sl = (log10(SlExpMean2+100) - ExpMeanLogs$SlMeans)/log10(2), At = (log10(AtExpMean2+100) - ExpMeanLogs$AtMeans)/log10(2))
+
+par(mfrow=c(2,2))
+boxplot(ExpML_log2FC$Zm, pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC$Os, pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC$Sl, pch=19, ylab="Log2 Fold Change")
+boxplot(ExpML_log2FC$At, pch=19, ylab="Log2 Fold Change")
+
+
+ExpML_2FCup = lapply(ExpML_diff, function(x){x >= log10(2)})
+ExpML_2FCdown = lapply(ExpML_diff, function(x){x <= -log10(2)})
+
+FCup2 <- lapply(ExpML_2FCup, function(mat) {  apply(mat, 2, function(x) { names(which(x)) })  })
+FCdown2 <- lapply(ExpML_2FCdown, function(mat) {  apply(mat, 2, function(x) { names(which(x)) })  })
+
+nUp <- lapply(ExpML_2FCup, function(mat) {  colSums(mat == TRUE)  })
+nDown <- lapply(ExpML_2FCdown, function(mat) {  colSums(mat == TRUE)  })
+
+par(mfrow=c(2,2))
+barplot(nUp$Zm, main="2-fold up compared to mean expression", ylab="# of genes")
+barplot(nUp$Os, main="2-fold up compared to mean expression", ylab="# of genes")
+barplot(nUp$Sl, main="2-fold up compared to mean expression", ylab="# of genes")
+barplot(nUp$At, main="2-fold up compared to mean expression", ylab="# of genes")
+
+par(mfrow=c(2,2))
+barplot(nDown$Zm, main="2-fold down compared to mean expression", ylab="# of genes")
+barplot(nDown$Os, main="2-fold down compared to mean expression", ylab="# of genes")
+barplot(nDown$Sl, main="2-fold down compared to mean expression", ylab="# of genes")
+barplot(nDown$At, main="2-fold down compared to mean expression", ylab="# of genes")
+#save(ZmExpMean2, OsExpMean2, SlExpMean2, AtExpMean2, ExpComp2, ExpMeanLogs, ExpLogMeans, ExpML_diff, 
+#  ExpML_log2FC, ExpML_2FCup, ExpML_2FCdown, FCup2, FCdown2, nUp, nDown, file="DEG_comp2mean.RData")
+
+
+
+
+Zm_GO_tab <- read.delim("Zm_GO_mart_export.txt")
+Zm_GO = Zm_GO_tab[,c(1,2,3,6)]
+Zm_GO = Zm_GO[-which(Zm_GO[,3] == ""),]
+colnames(Zm_GO) = c("Zm_geneID", "GO_ID", "GO_term", "GO_domain")
+
+
+Os_GO_tab <- read.delim("Os_GO_mart_export.txt")
+Os_GO = Os_GO_tab[,c(1,3,2,5)]
+Os_GO = Os_GO[-which(Os_GO[,3] == ""),]
+colnames(Os_GO) = c("Os_geneID", "GO_ID", "GO_term", "GO_domain")
+Os_GO = Os_GO[grep("Os", Os_GO$Os_geneID),]
+
+riceIDtable = read.csv("riceIDtable.csv")
+riceIDtable = riceIDtable[,7:8]
+riceIDtable = riceIDtable[riceIDtable$rapdb %in% unique(Os_GO$Os_geneID),]
+riceIDtable = riceIDtable[which(!duplicated(riceIDtable[,2])),] #eliminate duplicates. check using which(duplicated(riceIDtable[,1])) and which(duplicated(riceIDtable[,2]))
+rownames(riceIDtable) = riceIDtable[,1]
+Os_GO = Os_GO[which(Os_GO$Os_geneID %in% riceIDtable[,1]),]
+RiceConvert = function(x){ Os_GO$Os_geneID[x] = riceIDtable[Os_GO$Os_geneID[x],2] }
+Os_GO$Os_geneID = sapply(1:length(Os_GO$Os_geneID), RiceConvert)
+Os_GO = Os_GO[which(Os_GO$Os_geneID %in% rownames(Os_TPM)),]
+
+
+Sl_GO_tab <- read.delim("Sl_GO_mart_export.txt")
+Sl_GO = Sl_GO_tab[,c(1,3,4,7)]
+Sl_GO = Sl_GO[-which(Sl_GO[,3] == ""),]
+colnames(Sl_GO) = c("Sl_geneID", "GO_ID", "GO_term", "GO_domain")
+Sl_GO$Sl_geneID = sub("gene-", "", sub("[.].*", "", Sl_GO$Sl_geneID))
+
+
+At_GO_tab <- read.delim("At_GO_mart_export.txt")
+At_GO = At_GO_tab[,c(1,3,4,7)]
+At_GO = At_GO[-which(At_GO[,3] == ""),]
+colnames(At_GO) = c("At_geneID", "GO_ID", "GO_term", "GO_domain")
+At_GO$At_geneID = sub("AT", "ID=gene-AT", At_GO$At_geneID)
+
+save(Zm_GO, Os_GO, Sl_GO, At_GO, file="GO.RData")
+
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load("GO.RData")
+load("DEG_comp2mean.RData")
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+
+#BiocManager::install(c("topGO", "GO.db"))
+
+library(topGO)
+library(GO.db)
+
+GO_annotations <- list(
+  Zm = Zm_GO,
+  Os = Os_GO,
+  Sl = Sl_GO,
+  At = At_GO
+)
+
+run_topGO <- function(gene_sets, GO_data, universe) {
+
+  # Keep biological process annotations only
+  GO_BP <- GO_data[
+    GO_data$GO_domain == "biological_process", ]
+
+  # Create gene-to-GO mapping
+  gene2GO <- by(
+    GO_BP$GO_ID,
+    GO_BP[[1]],
+    function(x) unique(as.character(x))
+  )
+
+  gene2GO <- as.list(gene2GO)
+
+  # Remove genes not in the universe
+  gene2GO <- gene2GO[names(gene2GO) %in% universe]
+
+  # Run enrichment for each gene category
+  results <- lapply(names(gene_sets), function(category) {
+
+    selected_genes <- gene_sets[[category]]
+
+    # Create named vector indicating genes of interest
+    geneList <- factor(
+      as.integer(universe %in% selected_genes)
+    )
+
+    names(geneList) <- universe
+
+    # Create topGO object
+    GOdata <- new(
+      "topGOdata",
+      ontology = "BP",
+      allGenes = geneList,
+      annot = annFUN.gene2GO,
+      gene2GO = gene2GO,
+      nodeSize = 5
+    )
+
+    # Fisher's exact test
+    result <- runTest(
+      GOdata,
+      algorithm = "weight01",
+      statistic = "fisher"
+    )
+
+    # Extract results
+    GO_results <- GenTable(
+      GOdata,
+      weight01Fisher = result,
+      topNodes = length(score(result))
+    )
+
+    # Calculate adjusted p-values
+    pvals <- score(result)
+
+    GO_results$pvalue <- pvals[GO_results$GO.ID]
+
+    GO_results$FDR <- p.adjust(
+      GO_results$pvalue,
+      method = "BH"
+    )
+
+    GO_results$Category <- category
+
+    GO_results
+  })
+
+  names(results) <- names(gene_sets)
+
+  return(results)
+}
+
+GO_results <- list()
+
+for (sp in names(ExpML_2FCup)) {
+
+  # Extract gene universe from original matrix
+  universe <- rownames(ExpML_2FCup[[sp]])
+
+  # Extract GO annotations for species
+  GO_data <- GO_annotations[[sp]]
+
+  # Extract gene sets for species
+  gene_sets <- FCup2[[sp]]
+
+  # Run topGO
+  GO_results[[sp]] <- run_topGO(
+    gene_sets = gene_sets,
+    GO_data = GO_data,
+    universe = universe
+  )
+}
+
+#save(GO_results, file="GO_results.RData")
+
+#source("c:\\Users\\julia\\AppData\\Roaming\\Code\\User\\globalStorage\\reditorsupport.r\\tmp\\attach\\vscode-r-ec97ca230366abc1.R")
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+load("GO.RData")
+load("DEG_comp2mean.RData")
+load("GO_results.RData")
+
+
+
+GO_significant <- lapply(GO_results, function(species) {
+
+  lapply(species, function(category) {
+
+    category[category$FDR < 0.05, ]
+
+  })
+
+})
+
+GO_combined <- do.call(
+  rbind,
+  unlist(GO_results, recursive = FALSE)
+)
+
+GO_combined <- GO_combined[
+  order(GO_combined$FDR), ]
+
+GO_combined_sig <- GO_combined[
+GO_combined$FDR < 0.05, ]
+
+
+
+
+
+library(dplyr)
+library(ggplot2)
+library(forcats)
+
+GO_combined <- bind_rows(
+  lapply(names(GO_results), function(sp) {
+
+    bind_rows(
+      lapply(names(GO_results[[sp]]), function(stage) {
+
+        GO_results[[sp]][[stage]] %>%
+          mutate(
+            Species = sp,
+            Stage = stage
+          )
+
+      })
+    )
+
+  })
+)
+
+
+top_GO <- GO_combined %>%
+  filter(FDR < 0.05) %>%
+  group_by(Species, Stage) %>%
+  arrange(FDR, .by_group = TRUE) %>%
+  slice_head(n = 10) %>%
+  ungroup()
+
+ggplot(top_GO,
+       aes(x = Species,
+           y = reorder(Term, -log10(FDR)),
+           size = as.numeric(Significant),
+           color = -log10(FDR))) +
+
+  geom_point(alpha = 0.85) +
+
+  facet_wrap(~Stage, scales = "free_y") +
+
+  scale_color_gradient(
+    low = "skyblue",
+    high = "red",
+    name = "-log10(FDR)"
+  ) +
+
+  scale_size_continuous(
+    name = "Number of genes"
+  ) +
+
+  labs(
+    x = "Species",
+    y = "Biological Process",
+    title = "GO enrichment across species and stages"
+  ) +
+
+  theme_bw() +
+
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text.y = element_text(size = 8),
+    strip.text = element_text(face = "bold"),
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    )
+  )
+
+
+
+
+library(tidyr)
+
+# Select GO terms that are significantly enriched
+GO_heatmap <- GO_combined %>%
+  filter(FDR < 0.05) %>%
+  group_by(Term) %>%
+  mutate(min_FDR = min(FDR, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(min_FDR) %>%
+  distinct(Term, .keep_all = TRUE) %>%
+  slice_head(n = 30)
+
+# Prepare data for plotting
+GO_heatmap_data <- GO_combined %>%
+  filter(Term %in% GO_heatmap$Term) %>%
+  mutate(
+    logFDR = -log10(pmax(FDR, 1e-300)),
+    Comparison = paste(Species, Stage, sep = "_")
+  )
+
+
+GO_heatmap_data[which(GO_heatmap_data$logFDR > 10),"logFDR"] = 10
+
+# Plot
+ggplot(GO_heatmap_data,
+       aes(x = Comparison,
+           y = Term,
+           fill = logFDR)) +
+
+  geom_tile(color = "white") +
+
+  scale_fill_gradient(
+    low = "white",
+    high = "red",
+    name = "-log10(FDR)"
+  ) +
+
+  labs(
+    x = "Species and stage",
+    y = "Biological Process",
+    title = "Comparison of enriched GO terms"
+  ) +
+
+  theme_bw() +
+
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text.y = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5)
+  )
+

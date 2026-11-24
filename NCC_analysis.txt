@@ -1,0 +1,783 @@
+#Choosing UMI thresholds using NCCs
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(circlize)
+library(seriation)
+library('ComplexHeatmap')
+
+load('MaizeF1_4_2026.RData')
+load('MaizeRemap_8-10_2025.RData')
+
+D = cbind(D2,D)
+g1 = cbind(g1_2,g1)
+g2 = cbind(g2_2,g2)
+
+Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Maize_Stages.xlsx")
+Meta <- Stages[rep(row.names(Stages), each = 8), ]
+Meta = as.data.frame(Meta)
+Meta$Sample = paste(rep(Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Stages)), 's', sep ='')
+rownames(Meta) = Meta$Sample
+
+Meta$No_cell2 = unlist(lapply(Stages$No_cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+Zm2_UMIs_all = D[,rownames(Meta)]
+Zm2_g1_all = g1[,rownames(Meta)]
+Zm2_g2_all = g2[,rownames(Meta)]
+
+Meta$Prep = c(rep("BBB", times = 384), rep("ETOH_2xGly", times = 96), rep("ETOH_1xGly", times = 192))
+
+
+BINZ = function (xx, bin = 10^7) 
+{
+    bin = as.numeric(Zm_genes[, 1]) * 10^7 + round(Zm_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(Zm2_g1_all)))
+    colnames(out2) = colnames(Zm2_g1_all)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+g1_bin = BINZ(Zm2_g1_all)
+g2_bin = BINZ(Zm2_g2_all)
+Zm2_AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+Zm2_AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(Zm2_AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+Zm2_AlleleFrac_bin[-binUse,] = NA
+Zm2_FracMono_all = 100*colMeans(abs(Zm2_AlleleFrac_bin - .5) >= .3, na.rm=T)
+#Zm2_FracMono_all[names(which(colSums(!is.na(Zm2_AlleleFrac_bin))<20))] = NA
+
+summary(colSums(!is.na(Zm2_AlleleFrac_bin[,names(which(Meta$No_cell2 == "N" & colSums(Zm2_UMIs_all) > 10000))])))
+#M25-36_86s, M13-24_11s
+Zm2_NCC = rownames(Meta[(Meta$No_cell2 == "Y"),])
+Zm2_NCC_BBB = rownames(Meta[(Meta$No_cell2 == "Y" & Meta$Prep == "BBB"),])
+Zm2_real_BBB = rownames(Meta[(Meta$No_cell2 == "N" & Meta$Prep == "BBB"),])
+
+Zm2_NCC_ETOH2 = rownames(Meta[(Meta$No_cell2 == "Y" & Meta$Prep == "ETOH_2xGly"),])
+Zm2_real_ETOH2 = rownames(Meta[(Meta$No_cell2 == "N" & Meta$Prep == "ETOH_2xGly"),])
+
+Zm2_NCC_ETOH1 = rownames(Meta[(Meta$No_cell2 == "Y" & Meta$Prep == "ETOH_1xGly"),])
+Zm2_real_ETOH1 = rownames(Meta[(Meta$No_cell2 == "N" & Meta$Prep == "ETOH_1xGly"),])
+
+quantile(colSums(Zm2_UMIs_all[,Zm2_NCC_BBB]), p=c(0.9,0.95, 0.98))           
+   90%    95%    98% 
+2971.0 4479.5 5939.9 
+quantile(colSums(Zm2_UMIs_all[,Zm2_NCC_ETOH2]), p=c(0.9,0.95, 0.98))
+     90%      95%      98% 
+30465.20 39936.25 46533.10 
+quantile(colSums(Zm2_UMIs_all[,Zm2_NCC_ETOH1]), p=c(0.9,0.95, 0.98))
+    90%     95%     98% 
+2022.80 4158.15 6162.24
+
+RatioFunc = function(F, UMIs, real, NCC){
+    F(colSums(UMIs[,real])) / F(colSums(UMIs[,NCC]))
+}
+
+RatioFunc(median, Zm2_UMIs_all, Zm2_real_BBB, Zm2_NCC_BBB)
+RatioFunc(median, Zm2_UMIs_all, Zm2_real_ETOH2, Zm2_NCC_ETOH2)
+RatioFunc(median, Zm2_UMIs_all, Zm2_real_ETOH1, Zm2_NCC_ETOH1)
+
+plot(colSums(Zm2_UMIs_all), cex=3, pch=19)
+points(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), cex=3, pch=19, col="red")
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+
+plot(colSums(Zm2_UMIs_all), cex=3, pch=19, ylim=c(0,55000))
+points(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), cex=3, pch=19, col="red")
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+lines(c(0,384),c(4500,4500),lwd=3, col="purple") #95% quantile BBB NCC
+lines(c(0,384),c(3000,3000),lwd=3, col="purple") #90% quantile BBB NCC
+lines(c(385,480),c(40000,40000),lwd=3, col="purple") #95% quantile ETOH 2xGly NCC
+lines(c(385,480),c(30000,30000),lwd=3, col="purple") #90% quantile ETOH 2xGly NCC
+lines(c(481,672),c(4200,4200),lwd=3, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(481,672),c(2000,2000),lwd=3, col="purple") #90% quantile ETOH 1xGly NCC
+
+points(which(colnames(Zm2_UMIs_all) %in% names(which(Zm2_FracMono_all > 40))), colSums(Zm2_UMIs_all[,names(which(Zm2_FracMono_all > 40))]), cex=3, pch=19, col="purple")
+points(which(colnames(Zm2_UMIs_all) %in% names(which(is.na(Zm2_FracMono_all)))), colSums(Zm2_UMIs_all[,names(which(is.na(Zm2_FracMono_all)))]), cex=3, pch=19, col="#777")
+lines(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), col="red")
+
+
+UMI_comp = data.frame(UMIs = c(colSums(Zm2_UMIs_all)/1000, colSums(Os_UMIs_all)/1000, colSums(Sl_UMIs_all)/1000, 
+    colSums(At_UMIs_all)/1000), Prep_NCC = c(paste(Meta$Prep, Meta$No_cell2, sep = "_"), 
+    paste(rep("BBB", times=length(Rice_meta$No_cell2)), Rice_meta$No_cell2, sep = "_"), 
+    paste(Sl_meta$Prep, Sl_meta$No_cell2, sep = "_"), paste(At_meta$Prep, At_meta$No_cell2, sep = "_")), 
+    Stage = c(Meta$Stage_redo, Rice_meta$Stage_redo, Sl_meta$Stage, At_meta$Stage), 
+    Species = c(rep("Maize", times = length(Meta$No_cell2)), rep("Rice", times = length(Rice_meta$No_cell2)), 
+    rep("Tomato", times = length(Sl_meta$No_cell2)), rep("Arabidopsis", times = length(At_meta$No_cell2))))
+UMI_comp$Stage[UMI_comp$Stage == "UM/PMI"] = "UM/BM"
+UMI_comp$Stage = sub("UM/PMI", "UM/BM", sub(".* ", "", sub("Tri", "TP", sub("2", "", sub("4", "", sub("_4", "", sub("tetrad.*", "Tetrad", UMI_comp$Stage)))))))
+UMI_comp$Stage = factor(UMI_comp$Stage, levels = c("Meiosis", "Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "BM_shed", "TP_shed"))
+UMI_comp$Prep_NCC = sub("_Y", "_NCC", sub("_N", "_real", UMI_comp$Prep_NCC))
+
+
+NCCcomp = function(Sp){
+ggplot(UMI_comp[UMI_comp$Species == Sp,], aes(x = Prep_NCC, y = UMIs, color = Stage)) +
+  geom_jitter(size = 0.5, width=0.35) +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    title = Sp,
+    x = "",
+    y = "Transcripts per pollen precursor 
+    (x1000)") + theme(legend.position="none") +
+    scale_color_manual(values = c("Meiosis" = "#555", "Tetrad" = "#EB1E2C", "UM" = "#F9A729", "UM Bi" = "#FD6F30", "UM Mono" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "BM_shed" = "#BBC9E5", "TP" = "#A4A4D5", "TP_shed" = "#BBC9E5"))
+}
+
+svg("NCCcomp_Zm.svg", width=8, height=8)
+NCCcomp("Maize")
+dev.off()
+
+
+svg("NCCcomp.svg", width=9, height=8)
+ggarrange(NCCcomp("Maize"), NCCcomp("Rice"), NCCcomp("Tomato"), NCCcomp("Arabidopsis"), ncol=4, nrow=1, align = "h")
+dev.off()
+
+
+
+load("RiceRemap_7-8_2025.RData")
+
+Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Rice_Stages.xlsx")
+Rice_meta <- Rice_Stages[rep(row.names(Rice_Stages), each = 8), ]
+Rice_meta = as.data.frame(Rice_meta)
+rownames(Rice_meta) = paste(rep(Rice_Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Rice_Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Rice_Stages)), 's', sep ='')
+
+Rice_meta[which(Rice_meta[,10] == "shed"),12] = "TP_shed"
+Rice_meta[grep("sep only", Rice_meta[,10]),12] = "tetrad_sep"
+Rice_meta[grep("sep,", Rice_meta[,10])[c(6:8,13:16,23:24)],12] = "tetrad_sep"
+
+Rice_meta$No_cell2 = unlist(lapply(Rice_Stages$No_cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+Os_UMIs_all = D2[,rownames(Rice_meta)]
+Os_g1_all = g1_2[,rownames(Rice_meta)]
+Os_g2_all = g2_2[,rownames(Rice_meta)]
+
+BINR = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Rice_genes2[, 1]) * 10^6 + round(Rice_genes2[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(Os_g1_all)))
+    colnames(out2) = colnames(Os_g1_all)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+g1_bin = BINR(Os_g1_all)
+g2_bin = BINR(Os_g2_all)
+Os_AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+Os_AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(Os_AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+Os_AlleleFrac_bin[-R_binUse,] = NA
+Os_FracMono_all = 100*colMeans(abs(Os_AlleleFrac_bin - .5) >= .3, na.rm=T)
+#Os_FracMono_all[names(which(colSums(!is.na(Os_AlleleFrac_bin))<20))] = NA # Exclude samples with <10 informative bins
+
+
+Os_NCC = rownames(Rice_meta[(Rice_meta$No_cell2 == "Y"),])
+Os_real = rownames(Rice_meta[(Rice_meta$No_cell2 == "N"),])
+
+quantile(colSums(Os_UMIs_all[,Os_NCC]), p=c(0.9,0.95,0.98))
+    90%     95%     98% 
+11367.5 14248.0 18339.1
+
+median(colSums(Sl_UMIs_all[,Sl_real_BBB])) / median(colSums(Sl_UMIs_all[,Sl_NCC_BBB]))
+median(colSums(Sl_UMIs_all[,Sl_real_ETOH1])) / median(colSums(Sl_UMIs_all[,Sl_NCC_ETOH1]))
+
+Rice:
+median BBB real / median BBB NCC = 1.044351
+
+plot(colSums(Os_UMIs_all), cex=3, pch=19)
+points(which(colnames(Os_UMIs_all) %in% Os_NCC),colSums(Os_UMIs_all[,Os_NCC]), cex=3, pch=19, col="red")
+
+plot(colSums(Os_UMIs_all), cex=3, pch=19, ylim=c(0,30000))
+points(which(colnames(Os_UMIs_all) %in% Os_NCC),colSums(Os_UMIs_all[,Os_NCC]), cex=3, pch=19, col="red")
+abline(h=14000, col="purple", lwd=3) #95% quantile BBB NCCs
+abline(h=11000, col="purple", lwd=3) #90% quantile BBB NCCs
+points(which(colnames(Os_UMIs_all) %in% names(which(Os_FracMono_all > 40))), colSums(Os_UMIs_all[,names(which(Os_FracMono_all > 40))]), cex=3, pch=19, col="purple")
+points(which(colnames(Os_UMIs_all) %in% names(which(is.na(Os_FracMono_all)))), colSums(Os_UMIs_all[,names(which(is.na(Os_FracMono_all)))]), cex=3, pch=19, col="#777")
+lines(which(colnames(Os_UMIs_all) %in% Os_NCC),colSums(Os_UMIs_all[,Os_NCC]), col="red")
+
+
+
+
+load("Tomato_11_2024-4_2026_with_meta.RData")
+
+Sl_UMIs_all = D
+Sl_g1_all = g1
+Sl_g2_all = g2
+
+Sl_meta$Prep = c(rep("BBB", times = 927), rep("ETOH_1xGly", times = 288))
+
+BINSl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes[, 1]) * 10^6 + round(Sl_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(Sl_g1_all)))
+    colnames(out2) = colnames(Sl_g1_all)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINSl(Sl_g1_all)
+g2_bin = BINSl(Sl_g2_all)
+Sl_AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+Sl_AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+Sl_binUse = which(abs(rowMeans(Sl_AlleleFrac_bin, na.rm=T) - .5) < .4)  # was .4 instead of .3, .3 is >80%. Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+Sl_AlleleFrac_bin[-Sl_binUse,] = NA
+Sl_FracMono_all = 100*colMeans(abs(Sl_AlleleFrac_bin - .5) >= .3, na.rm=T)
+#Sl_FracMono_all[names(which(colSums(!is.na(Sl_AlleleFrac_bin))<20))] = NA
+
+
+Sl_NCC = Sl_meta[which(Sl_meta$No_cell2 == 'Y'),3]
+
+Sl_NCC_BBB = rownames(Sl_meta[(Sl_meta$No_cell2 == "Y" & Sl_meta$Prep == "BBB"),])
+Sl_real_BBB = rownames(Sl_meta[(Sl_meta$No_cell2 == "N" & Sl_meta$Prep == "BBB"),])
+
+Sl_NCC_ETOH1 = rownames(Sl_meta[(Sl_meta$No_cell2 == "Y" & Sl_meta$Prep == "ETOH_1xGly"),])
+Sl_real_ETOH1 = rownames(Sl_meta[(Sl_meta$No_cell2 == "N" & Sl_meta$Prep == "ETOH_1xGly"),])
+
+quantile(colSums(Sl_UMIs_all[,Sl_NCC_BBB]), p=c(0.9,0.95, 0.98))           
+  90%   95%   98% 
+ 7239 12073 14346
+quantile(colSums(Sl_UMIs_all[,Sl_NCC_ETOH1]), p=c(0.9,0.95, 0.98))
+    90%     95%     98% 
+1234.00 1537.95 1774.78 
+
+median(colSums(Sl_UMIs_all[,Sl_real_BBB])) / median(colSums(Sl_UMIs_all[,Sl_NCC_BBB]))
+median(colSums(Sl_UMIs_all[,Sl_real_ETOH1])) / median(colSums(Sl_UMIs_all[,Sl_NCC_ETOH1]))
+
+Tomato:
+median BBB real / median BBB NCC = 1.044351
+median ETOH real / median ETOH NCC = 1.058383
+
+plot(colSums(Sl_UMIs_all), cex=3, pch=19)
+points(which(colnames(Sl_UMIs_all) %in% Sl_NCC),colSums(Sl_UMIs_all[,Sl_NCC]), cex=3, pch=19, col="red")
+abline(v=927.5, col="red")
+
+plot(colSums(Sl_UMIs_all), cex=3, pch=19, ylim=c(0,25000))
+points(which(colnames(Sl_UMIs_all) %in% Sl_NCC),colSums(Sl_UMIs_all[,Sl_NCC]), cex=3, pch=19, col="red")
+abline(v=927.5, col="red", lwd=3)
+
+lines(c(0,927),c(12000,12000),lwd=3, col="purple") #95% quantile BBB NCC
+lines(c(0,927),c(7000,7000),lwd=3, col="purple") #90% quantile BBB NCC
+lines(c(928,1215),c(1500,1500),lwd=3, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(928,1215),c(1200,1200),lwd=3, col="purple") #90% quantile ETOH 1xGly NCC
+
+points(which(colnames(Sl_UMIs_all) %in% names(which(Sl_FracMono_all > 40))), colSums(Sl_UMIs_all[,names(which(Sl_FracMono_all > 40))]), cex=3, pch=19, col="purple")
+points(which(colnames(Sl_UMIs_all) %in% names(which(is.na(Sl_FracMono_all)))), colSums(Sl_UMIs_all[,names(which(is.na(Sl_FracMono_all)))]), cex=3, pch=19, col="#777")
+lines(which(colnames(Sl_UMIs_all) %in% Sl_NCC),colSums(Sl_UMIs_all[,Sl_NCC]), col="red")
+
+
+
+
+
+load("At_data_2_2026.RData")
+D2 = D
+g1_2 = g1
+g2_2 = g2
+At_meta2 = At_meta
+
+load('At_4_2026.RData')
+
+library(readxl)
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages_4-21-26.xlsx")
+
+At_meta <- At_Stages[rep(row.names(At_Stages), each = 8), ]
+At_meta = as.data.frame(At_meta)
+
+At_meta$Sample = c(paste(rep('A339-350_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A351-362_', times = 96), 1:96, rep('s', times=96), sep=''))
+rownames(At_meta) = At_meta$Sample
+
+At_meta$No_cell2 = unlist(lapply(At_Stages$No_Cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+At_meta3 = At_meta2[,c(2:9,11,4,12)]
+colnames(At_meta3) = colnames(At_meta)
+At_meta = rbind(At_meta3, At_meta)
+At_meta$Prep = c(rep("BBB", times = 1120), rep("ETOH_1xGly", times = 192))
+
+At_UMIs_all = cbind(D2, D)[,rownames(At_meta)]
+At_g1_all = cbind(g1_2, g1)[,rownames(At_meta)]
+At_g2_all = cbind(g2_2, g2)[,rownames(At_meta)]
+
+BINAt = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(genes[, 1]) * 10^6 + round(genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(At_g1_all)))
+    colnames(out2) = colnames(At_g1_all)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINAt(At_g1_all)
+g2_bin = BINAt(At_g2_all)
+At_AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+At_AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(At_AlleleFrac_bin, na.rm=T) - .5) < .4)  # was .4 instead of .3, .3 is >80%. Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+At_AlleleFrac_bin[-binUse,] = NA
+At_FracMono_all = 100*colMeans(abs(At_AlleleFrac_bin - .5) >= .3, na.rm=T)
+#At_FracMono_all[names(which(colSums(!is.na(At_AlleleFrac_bin))<20))] = NA
+
+
+At_NCC = rownames(At_meta[which(At_meta$No_cell2 == 'Y'),])
+
+At_NCC_BBB = rownames(At_meta[(At_meta$No_cell2 == "Y" & At_meta$Prep == "BBB"),])
+At_real_BBB = rownames(At_meta[(At_meta$No_cell2 == "N" & At_meta$Prep == "BBB"),])
+
+At_NCC_ETOH1 = rownames(At_meta[(At_meta$No_cell2 == "Y" & At_meta$Prep == "ETOH_1xGly"),])
+At_real_ETOH1 = rownames(At_meta[(At_meta$No_cell2 == "N" & At_meta$Prep == "ETOH_1xGly"),])
+
+quantile(colSums(At_UMIs_all[,At_NCC_BBB]), p=c(0.9,0.95, 0.98))           
+     90%      95%      98% 
+16398.30 22704.90 22851.96
+quantile(colSums(At_UMIs_all[,At_NCC_ETOH1]), p=c(0.9,0.95, 0.98))
+    90%     95%     98% 
+1140.90 1351.70 1492.86
+
+median(colSums(At_UMIs_all[,At_real_BBB])) / median(colSums(At_UMIs_all[,At_NCC_BBB]))
+median(colSums(At_UMIs_all[,At_real_ETOH1])) / median(colSums(At_UMIs_all[,At_NCC_ETOH1]))
+
+Arabidopsis:
+median BBB real / median BBB NCC = 1.550226
+median ETOH real / median ETOH NCC = 1.905149
+
+
+
+plot(colSums(At_UMIs_all), cex=3, pch=19)
+points(which(colnames(At_UMIs_all) %in% At_NCC),colSums(At_UMIs_all[,At_NCC]), cex=3, pch=19, col="red")
+abline(v=1120.5, col="red")
+
+plot(colSums(At_UMIs_all), cex=3, pch=19, ylim=c(0,25000))
+points(which(colnames(At_UMIs_all) %in% At_NCC),colSums(At_UMIs_all[,At_NCC]), cex=3, pch=19, col="red")
+abline(v=1120.5, col="red", lwd=3)
+
+lines(c(0,1120),c(23000,23000),lwd=3, col="purple") #95% quantile BBB NCC
+lines(c(0,1120),c(16000,16000),lwd=3, col="purple") #90% quantile BBB NCC
+lines(c(1121,1312),c(1400,1400),lwd=3, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(1121,1312),c(1100,1100),lwd=3, col="purple") #90% quantile ETOH 1xGly NCC
+
+points(which(colnames(At_UMIs_all) %in% names(which(At_FracMono_all > 40))), colSums(At_UMIs_all[,names(which(At_FracMono_all > 40))]), cex=3, pch=19, col="purple")
+points(which(colnames(At_UMIs_all) %in% names(which(is.na(At_FracMono_all)))), colSums(At_UMIs_all[,names(which(is.na(At_FracMono_all)))]), cex=3, pch=19, col="#777")
+lines(which(colnames(At_UMIs_all) %in% At_NCC),colSums(At_UMIs_all[,At_NCC]), col="red")
+
+
+svg('NCC_comparison2.svg', width=10, height=3)
+par(mfrow = c(1,4))
+
+plot(colSums(Zm2_UMIs_all), cex=1, pch=19, main="Maize")
+points(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), cex=1, pch=19, col="red")
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+lines(c(0,384),c(4500,4500),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,384),c(3000,3000),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(385,480),c(40000,40000),lwd=1, col="purple") #95% quantile ETOH 2xGly NCC
+lines(c(385,480),c(30000,30000),lwd=1, col="purple") #90% quantile ETOH 2xGly NCC
+lines(c(481,672),c(4200,4200),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(481,672),c(2000,2000),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+plot(colSums(Os_UMIs_all), cex=1, pch=19, main="Rice")
+points(which(colnames(Os_UMIs_all) %in% Os_NCC),colSums(Os_UMIs_all[,Os_NCC]), cex=1, pch=19, col="red")
+abline(h=14000, col="purple", lwd=1) #95% quantile BBB NCCs
+abline(h=11000, col="purple", lwd=1) #90% quantile BBB NCCs
+
+plot(colSums(Sl_UMIs_all), cex=1, pch=19, main="Tomato")
+points(which(colnames(Sl_UMIs_all) %in% Sl_NCC),colSums(Sl_UMIs_all[,Sl_NCC]), cex=1, pch=19, col="red")
+abline(v=927.5, col="red")
+lines(c(0,927),c(12000,12000),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,927),c(7000,7000),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(928,1215),c(1500,1500),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(928,1215),c(1200,1200),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+plot(colSums(At_UMIs_all), cex=1, pch=19, main="Arabidopsis")
+points(which(colnames(At_UMIs_all) %in% At_NCC),colSums(At_UMIs_all[,At_NCC]), cex=1, pch=19, col="red")
+abline(v=1120.5, col="red")
+lines(c(0,1120),c(23000,23000),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,1120),c(16000,16000),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(1121,1312),c(1400,1400),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(1121,1312),c(1100,1100),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+dev.off()
+
+
+NCC_compF = function(Sp, UMIs, max, NCC, FracMono, AlleleFrac_bin, bins){
+    plot(colSums(UMIs)/1000, cex=1, pch=19, ylim=c(0,max), main=Sp)
+    points(which(colnames(UMIs) %in% NCC),colSums(UMIs[,NCC])/1000, cex=1, pch=19, col="red")
+    points(which(colnames(UMIs) %in% names(which(FracMono > 40))), colSums(UMIs[,names(which(FracMono > 40))])/1000, cex=1, pch=19, col="purple")
+    points(which(colnames(UMIs) %in% names(which(colSums(!is.na(AlleleFrac_bin))<bins))), colSums(UMIs[,names(which(colSums(!is.na(AlleleFrac_bin))<bins))])/1000, cex=1, pch=19, col="#777")
+    lines(which(colnames(UMIs) %in% NCC),colSums(UMIs[,NCC])/1000, col="red")
+}
+
+NCC_compF("Maize", Zm2_UMIs_all, round(max(colSums(Zm2_UMIs_all)/1000)), Zm2_NCC, Zm2_FracMono_all, Zm2_AlleleFrac_bin, 10)
+
+
+
+svg('NCC_comparison3FracMono_10bin.svg', width=10, height=3)
+par(mfrow = c(1,4))
+
+NCC_compF("Maize", Zm2_UMIs_all, round(max(colSums(Zm2_UMIs_all[,Zm2_NCC])/1000))+5, Zm2_NCC, Zm2_FracMono_all, Zm2_AlleleFrac_bin, 10)
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+lines(c(0,384),c(4.5,4.5),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,384),c(3,3),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(385,480),c(40,40),lwd=1, col="purple") #95% quantile ETOH 2xGly NCC
+lines(c(385,480),c(30,30),lwd=1, col="purple") #90% quantile ETOH 2xGly NCC
+lines(c(481,672),c(4.2,4.2),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(481,672),c(2,2),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+NCC_compF("Rice", Os_UMIs_all, round(max(colSums(Os_UMIs_all[,Os_NCC])/1000))+5, Os_NCC, Os_FracMono_all, Os_AlleleFrac_bin, 10)
+abline(h=14, col="purple", lwd=1) #95% quantile BBB NCCs
+abline(h=11, col="purple", lwd=1) #90% quantile BBB NCCs
+
+NCC_compF("Tomato", Sl_UMIs_all, round(max(colSums(Sl_UMIs_all[,Sl_NCC])/1000))+5, Sl_NCC, Sl_FracMono_all, Sl_AlleleFrac_bin, 10)
+abline(v=927.5, col="red", lwd=1)
+lines(c(0,927),c(12,12),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,927),c(7,7),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(928,1215),c(1.5,1.5),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(928,1215),c(1.2,1.2),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+NCC_compF("Arabidopsis", At_UMIs_all, round(max(colSums(At_UMIs_all[,At_NCC])/1000))+5, At_NCC, At_FracMono_all, At_AlleleFrac_bin, 10)
+abline(v=1120.5, col="red", lwd=1)
+lines(c(0,1120),c(23,23),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,1120),c(16,16),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(1121,1312),c(1.4,1.4),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(1121,1312),c(1.1,1.1),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+dev.off()
+
+
+
+
+Os_UMIs_x = Os_UMIs_all[,order(Rice_meta$XGEN_primer)]
+Rice_meta_x = Rice_meta[colnames(Os_UMIs_x),]
+Os_NCC_x = rownames(Rice_meta_x[which(Rice_meta_x$No_cell2 == 'Y'),])
+Os_FracMono_x = Os_FracMono_all[colnames(Os_UMIs_x)]
+Os_AlleleFrac_bin_x = Os_AlleleFrac_bin[,colnames(Os_UMIs_x)]
+
+svg("NCC_comp_XGEN_order_Rice.svg", width=5, height=6)
+NCC_compF("Rice", Os_UMIs_x, round(max(colSums(Os_UMIs_x[,Os_NCC_x])/1000))+5, Os_NCC_x, Os_FracMono_x, Os_AlleleFrac_bin_x, 10)
+abline(v= c(1,96,192,272,368,464,560,656,752,848,944,1040,1136), col="black")
+abline(v= c(1,96,272,464,656,1136), col="green")
+dev.off()
+
+svg("NCC_comp_XGEN_order_Rice_Batch.svg", width=5, height=6)
+NCC_compF("Rice", Os_UMIs_x, round(max(colSums(Os_UMIs_x[,Os_NCC_x])/1000))+5, Os_NCC_x, Os_FracMono_x, Os_AlleleFrac_bin_x, 20)
+abline(v= c(1,96,192,272,368,464,560,656,752,848,944,1040,1136), col="black")
+abline(v= c(1,192,464,944,1136), col="green")
+dev.off()
+
+
+Rice_meta_x$Batch = c(rep(1, times=192),rep(2, times=272),rep(3, times=480),rep(4, times=192))
+Os_NCC_x_byB = data.frame(UMIs = colSums(Os_UMIs_x[,Os_NCC_x]), Batch = Rice_meta_x[Os_NCC_x,15])
+
+table(Os_NCC_x_byB$Batch)                        
+ 1  2  3  4 
+34 54 70 28
+by(Os_NCC_x_byB$UMIs, Os_NCC_x_byB$Batch, summary)
+Os_NCC_x_byB$Batch: 1
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   2634    4746    5540    5910    7152    9841 
+------------------------------------------------------------ 
+Os_NCC_x_byB$Batch: 2
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    711    4708    7542    8270   11354   21487 
+------------------------------------------------------------ 
+Os_NCC_x_byB$Batch: 3
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    778    2178    2786    3133    3858    7731 
+------------------------------------------------------------ 
+Os_NCC_x_byB$Batch: 4
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    885    4204    5462    8176    8293   27917
+
+
+
+
+
+Zm2_UMIs_df = data.frame(UMIs = colSums(Zm2_UMIs_all), NCC = Meta$No_cell2, Batch = Meta$Prep, 
+    FracMono = Zm2_FracMono_all > 40)
+Zm2_UMIs_df[names(which(colSums(!is.na(Zm2_AlleleFrac_bin))<20)),4] = NA
+Zm2_UMIs_df$FracMono = sub("TRUE","Mono", sub("FALSE","Bi", Zm2_UMIs_df$FracMono))
+Zm2_UMIs_df$FracMono[which(Zm2_UMIs_df$NCC == "Y")] = "NCC"
+Zm2_UMIs_df$FracMono[which(is.na(Zm2_UMIs_df$FracMono))] = "Unclear"
+Zm2_UMIs_df$FracMono = factor(Zm2_UMIs_df$FracMono, levels=c("Unclear", "Mono", "Bi", "NCC"))
+
+
+Os_UMIs_df = data.frame(UMIs = colSums(Os_UMIs_x), NCC = Rice_meta_x$No_cell2, Batch = Rice_meta_x$Batch, 
+    FracMono = Os_FracMono_x > 40)
+Os_UMIs_df[names(which(colSums(!is.na(Os_AlleleFrac_bin_x))<20)),4] = NA
+Os_UMIs_df$FracMono = sub("TRUE","Mono", sub("FALSE","Bi", Os_UMIs_df$FracMono))
+Os_UMIs_df$FracMono[which(Os_UMIs_df$NCC == "Y")] = "NCC"
+Os_UMIs_df$FracMono[which(is.na(Os_UMIs_df$FracMono))] = "Unclear"
+Os_UMIs_df$FracMono = factor(Os_UMIs_df$FracMono, levels=c("Unclear", "Mono", "Bi", "NCC"))
+Os_UMIs_df$Anther = Rice_meta_x$Sample
+
+
+table(Os_UMIs_df[Os_UMIs_df$NCC == "Y",3])
+# 1  2  3  4 
+#34 54 70 28 
+by(Os_UMIs_df[Os_UMIs_df$NCC == "Y",1], Os_UMIs_df[Os_UMIs_df$NCC == "Y",3], summary)
+
+
+Sl_UMIs_df = data.frame(UMIs = colSums(Sl_UMIs_all), NCC = Sl_meta$No_cell2, Batch = Sl_meta$Prep, 
+    FracMono = Sl_FracMono_all > 40)
+Sl_UMIs_df[names(which(colSums(!is.na(Sl_AlleleFrac_bin))<20)),4] = NA
+Sl_UMIs_df$FracMono = sub("TRUE","Mono", sub("FALSE","Bi", Sl_UMIs_df$FracMono))
+Sl_UMIs_df$FracMono[which(Sl_UMIs_df$NCC == "Y")] = "NCC"
+Sl_UMIs_df$FracMono[which(is.na(Sl_UMIs_df$FracMono))] = "Unclear"
+Sl_UMIs_df$FracMono = factor(Sl_UMIs_df$FracMono, levels=c("Unclear", "Mono", "Bi", "NCC"))
+
+At_UMIs_df = data.frame(UMIs = colSums(At_UMIs_all), NCC = At_meta$No_cell2, Batch = At_meta$Prep, 
+    FracMono = At_FracMono_all > 40)
+At_UMIs_df[names(which(colSums(!is.na(At_AlleleFrac_bin))<20)),4] = NA
+At_UMIs_df$FracMono = sub("TRUE","Mono", sub("FALSE","Bi", At_UMIs_df$FracMono))
+At_UMIs_df$FracMono[which(At_UMIs_df$NCC == "Y")] = "NCC"
+At_UMIs_df$FracMono[which(is.na(At_UMIs_df$FracMono))] = "Unclear"
+At_UMIs_df$FracMono = factor(At_UMIs_df$FracMono, levels=c("Unclear", "Mono", "Bi", "NCC"))
+
+
+
+UMI_StackHistF = function(Sp, df, b){
+    ggplot(data = df[which(df$Batch == b),], aes(x = log(UMIs+1,10), fill = FracMono)) +
+    geom_histogram(binwidth = 0.05, position = "stack") +
+    labs(title = paste(Sp, "Batch", b, sep = " "), x = "log(UMIs+1,10)", y = "Count", fill = "Group") +
+    theme_classic() + scale_fill_manual(values = c("Mono" = "purple3", "Bi" = "black", "NCC" = "red3", "Unclear" = "#999")) +
+    theme(legend.position="none")
+}
+
+UMI_StackHistF_l = function(Sp, df, b){
+    ggplot(data = df[which(df$Batch == b),], aes(x = log(UMIs+1,10), fill = FracMono)) +
+    geom_histogram(binwidth = 0.05, position = "stack") +
+    labs(title = paste(Sp, "Batch", b, sep = " "), x = "log(UMIs+1,10)", y = "Count", fill = "Group") +
+    theme_classic() + scale_fill_manual(values = c("Mono" = "purple3", "Bi" = "black", "NCC" = "red3", "Unclear" = "#999"))
+}
+
+
+
+svg("NCC_UMI_StackHist_Zm2.svg", width=9, height=3)
+    ggarrange(UMI_StackHistF("Maize", Zm2_UMIs_df, "BBB"), UMI_StackHistF("Maize", Zm2_UMIs_df, "ETOH_2xGly"), 
+    UMI_StackHistF_l("Maize", Zm2_UMIs_df, "ETOH_1xGly"), ncol=3, nrow=1, align = "h", widths=c(1,1,1.5))
+dev.off()
+
+
+svg("NCC_UMI_StackHist_Os.svg", width=12, height=3)
+    ggarrange(UMI_StackHistF("Rice", Os_UMIs_df, 1), UMI_StackHistF("Rice", Os_UMIs_df, 2), 
+    UMI_StackHistF("Rice", Os_UMIs_df, 3), UMI_StackHistF_l("Rice", Os_UMIs_df, 4), ncol=4, nrow=1, align = "h", 
+    widths=c(1,1,1,1.3))
+dev.off()
+
+
+svg("NCC_UMI_StackHist_Sl.svg", width=6, height=3)
+    ggarrange(UMI_StackHistF("Tomato", Sl_UMIs_df, "BBB"), UMI_StackHistF_l("Tomato", Sl_UMIs_df, "ETOH_1xGly"), 
+    ncol=2, nrow=1, align = "h", widths=c(1,1.5))
+dev.off()
+
+
+svg("NCC_UMI_StackHist_At.svg", width=9, height=3)
+    ggarrange(UMI_StackHistF("Arabidopsis", At_UMIs_df, "BBB"), UMI_StackHistF_l("Arabidopsis", At_UMIs_df, "ETOH_1xGly"), 
+    ncol=3, nrow=1, align = "h", widths=c(1,1.5))
+dev.off()
+
+
+Heatmap(cor(log(Os_UMIs_x[,Os_UMIs_df$Batch==1]+1,10), use = 'pairwise.complete.obs', method = 'pearson'),
+    name = 'Expression_cor', #right_annotation = rowAnnotation(Stage = Rice_meta_x$Stage_redo,
+    #"% Matching Haplotype" = Os_UMIs_df$FracMono,
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729", 
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "#BBC9E5"), 
+    "% Matching Haplotype" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(hmap, use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords],
+    "% Matching Haplotype" = HapFrac[ords],
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729", 
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "#BBC9E5"), 
+    "% Matching Haplotype" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+
+
+
+svg('NCC_comparison3FracMono.svg', width=10, height=3)
+par(mfrow = c(1,4))
+
+plot(colSums(Zm2_UMIs_all), cex=1, pch=19, ylim=c(0,55000), main="Maize")
+points(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), cex=1, pch=19, col="red")
+points(which(colnames(Zm2_UMIs_all) %in% names(which(Zm2_FracMono_all > 40))), colSums(Zm2_UMIs_all[,names(which(Zm2_FracMono_all > 40))]), cex=1, pch=19, col="purple")
+points(which(colnames(Zm2_UMIs_all) %in% names(which(colSums(!is.na(Zm2_AlleleFrac_bin))<bins))), colSums(Zm2_UMIs_all[,names(which(colSums(!is.na(Zm2_AlleleFrac_bin))<bins))]), cex=1, pch=19, col="#777")
+lines(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), col="red")
+
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+lines(c(0,384),c(4500,4500),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,384),c(3000,3000),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(385,480),c(40000,40000),lwd=1, col="purple") #95% quantile ETOH 2xGly NCC
+lines(c(385,480),c(30000,30000),lwd=1, col="purple") #90% quantile ETOH 2xGly NCC
+lines(c(481,672),c(4200,4200),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(481,672),c(2000,2000),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+
+plot(colSums(Os_UMIs_all), cex=1, pch=19, ylim=c(0,30000), main="Rice")
+points(which(colnames(Os_UMIs_all) %in% Os_NCC),colSums(Os_UMIs_all[,Os_NCC]), cex=1, pch=19, col="red")
+abline(h=14000, col="purple", lwd=1) #95% quantile BBB NCCs
+abline(h=11000, col="purple", lwd=1) #90% quantile BBB NCCs
+points(which(colnames(Os_UMIs_all) %in% names(which(Os_FracMono_all > 40))), colSums(Os_UMIs_all[,names(which(Os_FracMono_all > 40))]), cex=1, pch=19, col="purple")
+points(which(colnames(Zm2_UMIs_all) %in% names(which(colSums(!is.na(Zm2_AlleleFrac_bin))<bins))), colSums(Zm2_UMIs_all[,names(which(colSums(!is.na(Zm2_AlleleFrac_bin))<bins))]), cex=1, pch=19, col="#777")
+
+points(which(colnames(Os_UMIs_all) %in% names(which(is.na(Os_FracMono_all)))), colSums(Os_UMIs_all[,names(which(is.na(Os_FracMono_all)))]), cex=1, pch=19, col="#777")
+lines(which(colnames(Os_UMIs_all) %in% Os_NCC),colSums(Os_UMIs_all[,Os_NCC]), col="red")
+
+
+plot(colSums(Sl_UMIs_all), cex=1, pch=19, ylim=c(0,25000), main="Tomato")
+points(which(colnames(Sl_UMIs_all) %in% Sl_NCC),colSums(Sl_UMIs_all[,Sl_NCC]), cex=1, pch=19, col="red")
+abline(v=927.5, col="red", lwd=1)
+lines(c(0,927),c(12000,12000),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,927),c(7000,7000),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(928,1215),c(1500,1500),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(928,1215),c(1200,1200),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+points(which(colnames(Sl_UMIs_all) %in% names(which(Sl_FracMono_all > 40))), colSums(Sl_UMIs_all[,names(which(Sl_FracMono_all > 40))]), cex=1, pch=19, col="purple")
+points(which(colnames(Sl_UMIs_all) %in% names(which(is.na(Sl_FracMono_all)))), colSums(Sl_UMIs_all[,names(which(is.na(Sl_FracMono_all)))]), cex=1, pch=19, col="#777")
+lines(which(colnames(Sl_UMIs_all) %in% Sl_NCC),colSums(Sl_UMIs_all[,Sl_NCC]), col="red")
+
+
+plot(colSums(At_UMIs_all), cex=1, pch=19, ylim=c(0,25000), main="Arabidopsis")
+points(which(colnames(At_UMIs_all) %in% At_NCC),colSums(At_UMIs_all[,At_NCC]), cex=1, pch=19, col="red")
+abline(v=1120.5, col="red", lwd=1)
+lines(c(0,1120),c(23000,23000),lwd=1, col="purple") #95% quantile BBB NCC
+lines(c(0,1120),c(16000,16000),lwd=1, col="purple") #90% quantile BBB NCC
+lines(c(1121,1312),c(1400,1400),lwd=1, col="purple") #95% quantile ETOH 1xGly NCC
+lines(c(1121,1312),c(1100,1100),lwd=1, col="purple") #90% quantile ETOH 1xGly NCC
+points(which(colnames(At_UMIs_all) %in% names(which(At_FracMono_all > 40))), colSums(At_UMIs_all[,names(which(At_FracMono_all > 40))]), cex=1, pch=19, col="purple")
+points(which(colnames(At_UMIs_all) %in% names(which(is.na(At_FracMono_all)))), colSums(At_UMIs_all[,names(which(is.na(At_FracMono_all)))]), cex=1, pch=19, col="#777")
+lines(which(colnames(At_UMIs_all) %in% At_NCC),colSums(At_UMIs_all[,At_NCC]), col="red")
+
+dev.off()
+
+
+At_NCC2 = c(At_NCC, colSums(D[,NCCs]))
+Sl_NCC2 = colSums(Sl_UMIs_all[,Sl_meta[which(Sl_meta$No_cell2 == 'Y'),3]])
+
+
+svg('NCC_comparison.svg', width=10, height=3)
+par(mfrow = c(1,4))
+
+plot(Zm_NCC, cex=1, pch=19, main="Maize NCCs")
+abline(v=56.5, col="red")             
+abline(v=70.5, col="red")             
+
+plot(Os_NCC, cex=1, pch=19, main="Rice NCCs")
+
+plot(Sl_NCC2, cex=1, pch=19, main="Tomato NCCs")
+abline(v=126.5, col="red")
+
+plot(At_NCC2, cex=1, pch=19, main="Arabidopsis NCCs")
+abline(v=20.5, col="red")
+dev.off()
+
+
+
+
+plot(colSums(Zm2_UMIs_all), cex=3, pch=19, ylim=c(0,55000))
+points(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), cex=3, pch=19, col="red")
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+
+plot(colSums(Sl_UMIs_all), cex=3, pch=19)
+points(which(colnames(Sl_UMIs_all) %in% names(Sl_NCC2)),Sl_NCC2, cex=3, pch=19, col="red")
+abline(v=927.5, col="red")
+
+
+
+plot(colSums(Zm2_UMIs_all), cex=3, pch=19, ylim=c(0,55000))
+points(which(colnames(Zm2_UMIs_all) %in% Zm2_NCC),colSums(Zm2_UMIs_all[,Zm2_NCC]), cex=3, pch=19, col="red")
+abline(v=384.5, col="red")
+abline(v=480.5, col="red")
+
+plot(colSums(Sl_UMIs_all), cex=3, pch=19, ylim=c(0,25000))
+points(which(colnames(Sl_UMIs_all) %in% names(Sl_NCC2)),Sl_NCC2, cex=3, pch=19, col="red")
+abline(v=927.5, col="red")
+
+
+
+
+
+Sl_NCC_BBB = colSums(Sl_UMIs_all[,1:927][,which(colnames(Sl_UMIs_all[,1:927]) %in% names(Sl_NCC2))])
+Sl_NCC_ETOH = colSums(Sl_UMIs_all[,928:1215][,which(colnames(Sl_UMIs_all[,928:1215]) %in% names(Sl_NCC2))])
+Sl_real_BBB = colSums(Sl_UMIs_all[,1:927][,-which(colnames(Sl_UMIs_all[,1:927]) %in% names(Sl_NCC2))])
+Sl_real_ETOH = colSums(Sl_UMIs_all[,928:1215][,-which(colnames(Sl_UMIs_all[,928:1215]) %in% names(Sl_NCC2))])
+
+
+
+
+plot(Os_NCC, cex=3, pch=19, main="Rice NCCs")
+abline(v=1, col="red")
+abline(v=12, col="red")                    
+abline(v=105, col="red")
+abline(v=111, col="red")
+abline(v=13, col="purple")  
+abline(v=54, col="purple")
+abline(v=55, col="green")    
+abline(v=67, col="green")
+abline(v=112, col="green")
+abline(v=125, col="green")
+abline(v=68, col="blue")      
+abline(v=80, col="blue")
+abline(v=126, col="blue")
+abline(v=139, col="blue")
+abline(v=81, col="black")    
+abline(v=104, col="black")
+abline(v=140, col="black")
+abline(v=186, col="black")
+
+> grep("R1-78", names(Os_NCC))                 
+ [1]   1   2   3   4   5   6   7   8   9  10  11  12 105 106 107 108 109 110 111
+> abline(v=12, col="red")
+> plot(Os_NCC, cex=3, pch=19, main="Rice NCCs")
+> abline(v=12, col="red")                    
+> abline(v=105, col="red")
+> abline(v=111, col="red")
+> grep("R7-30", names(Os_NCC))                 
+ [1] 13 14 15 16 17 18 19 20 21 22 23 24 49 50 51 52 53 54
+> abline(v=13, col="purple")  
+> abline(v=54, col="purple")
+> grep("R31-84", names(Os_NCC))
+ [1]  55  56  57  58  59  60  61  62 112 113 114 115 116 117 118
+> grep("R37-90", names(Os_NCC))
+ [1]  63  64  65  66  67 119 120 121 122 123 124 125
+> abline(v=55, col="green")    
+> abline(v=67, col="green")
+> abline(v=112, col="green")
+> abline(v=125, col="green")
+> grep("R41-96", names(Os_NCC))
+ [1]  68  69  70  71  72  73  74 126 127 128 129 130 131 132
+> grep("R47-102", names(Os_NCC))
+ [1]  75  76  77  78  79  80 133 134 135 136 137 138 139
+> abline(v=68, col="blue")      
+> abline(v=80, col="blue")
+> abline(v=126, col="blue")
+> abline(v=139, col="blue")
+> grep("R53-108", names(Os_NCC))
+ [1]  81  82  83  84  85  86  87 140 141 142 143 144 145 146
+> grep("R65-118", names(Os_NCC))
+ [1]  96  97  98  99 100 101 102 103 104 154 155 156 157 158
+> abline(v=81, col="orange")    
+> abline(v=104, col="orange")
+> abline(v=140, col="orange")
+> grep("R125", names(Os_NCC))   
+ [1] 166 167 168 169 170 171 172 180 181 182 183 184 185 186
+> abline(v=186, col="orange")

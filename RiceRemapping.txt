@@ -551,8 +551,8 @@ pseudocount = 1*10^6/quantile(colSums(D2), p = .1)
 A2 = sweep(D2, 2, colSums(D2), '/')*10^6  # Transcripts per million normalization
 A2b = log(A2+pseudocount,10)  # Log transform
 A2d = A2b[rowSums(D2[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
-over30k = names(which(colSums(D2) >20000))
-over30k = over30k[which(Rice_meta[over30k,12] == "N")] #getting rid of the 4 no cell controls
+over30k = names(which(colSums(D2) >10000))
+over30k = over30k[which(Rice_meta[over30k,14] == "N")] #getting rid of the no cell controls (4 at 20k, 26 at 10k) #14 for newer table, 12 for old table
 
 fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
 hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
@@ -583,6 +583,30 @@ FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
 FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
 
 
+library(readxl)
+Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Rice_Stages.xlsx")
+#set.seed(1)
+#Rice_Stages = Rice_Stages[sample(nrow(Rice_Stages), round(nrow(Rice_Stages)/2)),]
+
+Rice_meta <- Rice_Stages[rep(row.names(Rice_Stages), each = 8), ]
+Rice_meta = as.data.frame(Rice_meta)
+rownames(Rice_meta) = paste(rep(Rice_Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Rice_Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Rice_Stages)), 's', sep ='')
+
+Rice_meta[which(Rice_meta[,10] == "shed"),9] = "TP_shed"
+Rice_meta[which(Rice_meta[,10] == "shed"),12] = "TP_shed"
+Rice_meta[grep("sep only", Rice_meta[,10]),9] = "tetrad_sep"
+Rice_meta[grep("sep only", Rice_meta[,10]),12] = "tetrad_sep"
+Rice_meta[grep("sep,", Rice_meta[,10])[c(6:8,13:16,23:24)],9] = "tetrad_sep"
+Rice_meta[grep("sep,", Rice_meta[,10])[c(6:8,13:16,23:24)],12] = "tetrad_sep"
+
+library(tidyverse)
+
+Rice_meta$No_cell2 = unlist(lapply(Rice_Stages$No_cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+
 RiceStages = Rice_meta[over30k,9]
 names(RiceStages) = over30k
 RiceBiSamp = names(which(FracMono_all[over30k] <= 40))
@@ -598,6 +622,24 @@ stages = RiceStages
 #stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP"))
 stages = factor(stages, levels = c("Tetrad", "UM Bi", "UM Mono", "UM/BM", "BM", "BM/TP", "TP"))
 #stages = factor(stages, levels = c("tetrads", "tetrad_sep0", "tetrad_sep", "UM Bi", "UM Mono", "BM", "TP"))
+
+
+RiceStages = Rice_meta[over30k,12]
+names(RiceStages) = over30k
+RiceBiSamp = names(which(FracMono_all[over30k] <= 40))
+RiceMonoSamp = names(which(FracMono_all[over30k] > 40))
+RiceStages[names(RiceStages[grep("early UM", RiceStages)])] = "UM"
+RiceStages[names(RiceStages[grep("mid UM", RiceStages)])] = "UM"
+RiceStages[names(RiceStages[grep("late UM", RiceStages)])] = "UM"
+#RiceStages[names(which(RiceStages == "tetrad_sep"))] = "Tetrad"
+#RiceStages[names(which(RiceStages == "tetrads"))] = "Tetrad"
+RiceStages[names(which(RiceStages[RiceBiSamp] == "UM"))] = "UM Bi"
+RiceStages[names(which(RiceStages[RiceMonoSamp] == "UM"))] = "UM Mono"
+stages = RiceStages
+stages = factor(stages, levels = c("Tetrad", "UM Bi", "UM Mono", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+#stages = factor(stages, levels = c("tetrads", "tetrad_sep", "UM Bi", "UM Mono", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+
+
 
 
 source('Pseudotime Velocity Functions.R')
@@ -648,9 +690,30 @@ level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
     top_annotation = HeatmapAnnotation(Stage = stages[ords], 
     "% Monoallelic" = FracMono_all[over30k][ords], 
     col = list(Stage = c("Tetrad" = "#EB1E2C", "UM Bi" = "#F9A729", "UM Mono" = "#F9A729",
-    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5"), "% Monoallelic" = FracMono_col)),
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "gray"), "% Monoallelic" = FracMono_col)),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 #dev.off()
+
+
+Heatmap(minmax(hmat2), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], 
+    "% Monoallelic" = FracMono_all[over30k][ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "early UM" = "#F9A729", "mid UM" = "#333333", "late UM" = "#F9A729",
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+
+
+###Objects to use downstream in comparisons:
+RiceUMIs = D2[,names(stages)] #min 10k UMIs, excluding no cell controls, 307 samples
+RiceStages = stages
+RiceAlleleFracBin = AlleleFrac_bin[,names(stages)]
+RiceFracMono = FracMono_all[names(stages)]
+
+save(RiceUMIs, RiceStages, RiceAlleleFracBin, RiceFracMono, file = "Rice.RData")
+
+load('Rice.RData')
 
 
 over30k = names(which(colSums(D2) >10000))
@@ -717,6 +780,11 @@ ratioHist('R119-136_21s') # biallelic UM
 ratioHist('R53-108_4s') #monoallelic UM
 
 
+
+
+
+library(readxl)
+Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Rice_Stages.xlsx")
 
 
 
@@ -860,3 +928,79 @@ table(Rice_meta[names(which(stages == "tetrad_sep")),6])
 
 #Estimated collection needs for 20 sep tetrads, 15 UM Bi
 #Plan to collect 3 plates 1-1.2 mm UMs, 1 plate 1 mm seperated tetrads
+
+
+
+
+
+
+RiceStages = Rice_meta[over30k,12]
+names(RiceStages) = over30k
+RiceBiSamp = names(which(FracMono_all[over30k] <= 40))
+RiceMonoSamp = names(which(FracMono_all[over30k] > 40))
+RiceStages[names(RiceStages[grep("early UM", RiceStages)])] = "UM"
+RiceStages[names(RiceStages[grep("mid UM", RiceStages)])] = "UM"
+RiceStages[names(RiceStages[grep("late UM", RiceStages)])] = "UM"
+RiceStages[names(which(RiceStages == "tetrad_sep"))] = "Tetrad"
+RiceStages[names(which(RiceStages == "tetrads"))] = "Tetrad"
+RiceStages[names(which(RiceStages[RiceBiSamp] == "UM"))] = "UM Bi"
+RiceStages[names(which(RiceStages[RiceMonoSamp] == "UM"))] = "UM Mono"
+stages = RiceStages
+stages = factor(stages, levels = c("Tetrad", "UM Bi", "UM Mono", "UM/BM", "BM", "BM/TP", "TP"))
+
+
+stages = Rice_meta[over30k,12]
+names(stages) = over30k
+stages = stages[-which(stages == "tetrads")]
+stages[which(stages == "tetrad_sep")] = "Tetrad"
+stages[which(stages == "early UM")] = "UM"
+stages[which(stages == "mid UM")] = "UM"
+stages[which(stages == "late UM")] = "UM"
+stages = stages[-which(stages == "BM/TP")]
+stages = stages[-which(stages == "TP_shed")]
+
+
+#stages = factor(stages, levels = c("Tetrad", "early UM", "mid UM", "late UM", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "TP"))
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+#svg('Rice_FracMonoByStage.svg', width=3, height=2)
+ggplot(FracMonoByStage, aes(x = Stage, y = FracMono, fill = Stage)) + geom_violin(linewidth=0.5, adjust = 0.3) + labs(title = "Rice", 
+x = "Stage", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("Tetrad" = "#EB1E2C", 
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "TP" = "#A4A4D5")) + ylim(0,100)
+#dev.off()
+
+ggplot(FracMonoByStage, aes(x = Stage, y = FracMono, fill = Stage)) + geom_violin(linewidth=0.5, adjust = 0.3) + labs(title = "Rice", 
+x = "Stage", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("Tetrad" = "#EB1E2C", 
+    "early UM" = "#F9A729", "mid UM" = "#F9A729", "late UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+    "BM/TP" = "gray", "TP" = "#A4A4D5", "TP_shed" = "#A4A4D5")) + ylim(0,100)
+
+
+
+
+stages = Rice_meta[over30k,12]
+names(stages) = over30k
+stages = stages[-which(stages == "tetrads")]
+stages[which(stages == "tetrad_sep")] = "Tetrad"
+stages[which(stages == "early UM")] = "UM"
+stages[which(stages == "mid UM")] = "UM"
+stages[which(stages == "late UM")] = "UM"
+
+
+Anther_Frac = data.frame(FracMono = FracMono_all[names(stages)], Anther = as.factor(Rice_meta[names(stages),5]), Stage = stages)
+Anther_Frac$Range = NA
+for (x in 1:88){
+    Anther_Frac[which(Anther_Frac$Anther == unique(Anther_Frac$Anther)[x]),4] = diff(range(Anther_Frac[Anther_Frac$Anther == unique(Anther_Frac$Anther)[x],1]))
+}
+
+ggplot(Anther_Frac, aes(x = Anther, y = FracMono, fill = Stage, color = Stage)) + geom_violin(linewidth=0.1, adjust = 0.3) + labs(title = "Rice", 
+x = "Anther", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("Tetrad" = "#EB1E2C",
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "gray")) + scale_color_manual(values=c("Tetrad" = "#EB1E2C",
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "gray")) + ylim(0,100)
+

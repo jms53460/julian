@@ -1,0 +1,1167 @@
+#Maize vs. Rice ortholog comparison
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+
+HomTab4 <- read.delim("Zm_Os_At_Sl_mart_export.txt")
+colnames(HomTab4) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Os_homology_type", "Os_percent_ID", "Os_confidence", 
+"At_geneID", "At_gene_name", "At_homology_type", "At_percent_ID", "At_confidence",
+"Sl_geneID", "Sl_gene_name", "Sl_homology_type", "Sl_percent_ID", "Sl_confidence")
+ConfHomZmOs = HomTab4[which(HomTab4$Os_confidence == 1),]
+length(unique(ConfHomZmOs$Os_geneID))
+#[1] 16925
+
+One2oneZmOs = ConfHomZmOs[which(ConfHomZmOs$Os_homology_type == "ortholog_one2one"),]
+One2oneZmOs = One2oneZmOs[which(!duplicated(One2oneZmOs$Zm_geneID)),1:7]
+rownames(One2oneZmOs) = One2oneZmOs[,1]
+dim(One2oneZmOs)
+#[1] 9541    7 #9541 1-1 orthologs rated as confident by Ensembl
+
+ZmOs = read.table('Zm_Os_dNdS.tab', skip = 2, sep = '\t', as.is = T)
+ZmOs = cbind(ZmOs, sub("[.].*", "", sub(".*LOC", "LOC", ZmOs[,4])), sub("_.*", "", sub("[|].*", '', sub(".*CDS:", "", ZmOs[,8]))), as.numeric(sub('.*[|]','',ZmOs[,4])))
+colnames(ZmOs)[13:15] = c('Os_G','Zm_G','Identity')
+
+ZmOs_NS = ZmOs[ZmOs$Zm_G %in% rownames(One2oneZmOs),]
+ZmOs_NS = ZmOs_NS[which(!duplicated(ZmOs_NS[,14])),]
+rownames(ZmOs_NS) = ZmOs_NS[,14]
+ZmOs_NS$dNdS = as.numeric(ZmOs_NS[,2]) / as.numeric(ZmOs_NS[,1])
+length(ZmOs_NS$dNdS)
+#[1] 7260 #7260 maize genes that are confident 1-1 orthologs w/ rice and have dN/dS data from CoGe
+
+
+load("Rice.RData")
+load("Maize_merge.RData")
+load("Maize.RData")
+
+hist(Zm_FracMono) #threshold of 40
+hist(Zm2_FracMono) #threshold of 40
+hist(Os_FracMono) #threshold of 40
+hist(Sl_FracMono) #threshold of 40
+hist(At_HapFrac) #threshold of 40
+
+Zm_merge_stages = c(as.character(Zm_stages), as.character(Zm2_stages))
+names(Zm_merge_stages) = c(names(Zm_stages), names(Zm2_stages))
+Zm_merge_stages[rownames(Zm_Meta[grep("mix", Zm_Meta[,5]),])] = "UM/BM"
+Zm_merge_stages[which(Zm_merge_stages == "Early" | Zm_merge_stages == "Middle" | Zm_merge_stages == "Late")] = "UM"
+#Zm_merge_stages[which(Zm_merge_stages == "TP_shed" | Zm_merge_stages == "TP")] = "Pollen"
+Zm_merge_stages = factor(Zm_merge_stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+
+table(ZmOs_NS$Os_G %in% rownames(Os_TPM))
+#TRUE 
+#7260 
+table(ZmOs_NS$Zm_G %in% rownames(Zm_merge_TPM))
+#FALSE  TRUE 
+#  824  6436
+
+ZmOs_NS = ZmOs_NS[ZmOs_NS$Zm_G %in% rownames(Zm_merge_TPM),]
+
+Zm_StageMean = function(stage){
+    rowMeans(Zm_merge_TPM[ZmOs_NS$Zm_G,names(Zm_merge_stages[which(Zm_merge_stages == stage)])])
+}
+Os_StageMean = function(stage){
+    rowMeans(Os_TPM[ZmOs_NS$Os_G,names(Os_stages[which(Os_stages == stage)])])
+}
+
+ZmOs_comp = as.data.frame(cbind(sapply(levels(Zm_merge_stages), Zm_StageMean), sapply(levels(Os_stages), Os_StageMean)))
+colnames(ZmOs_comp) = c(paste0("Zm_", levels(Zm_merge_stages)), paste0("Os_", levels(Os_stages)))
+ZmOs_comp$dNdS = ZmOs_NS$dNdS
+
+
+pseudocount = 100
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+ZmOs_comp$maxBi_Zm = apply(ZmOs_comp[,1:2], 1, max)
+ZmOs_comp$maxMono_Zm = apply(ZmOs_comp[,4:7], 1, max) #skipping UM/BM in maize for now as it is a mix of bi and mono samps
+ZmOs_comp$maxBi_Os = apply(ZmOs_comp[,8:9], 1, max)
+ZmOs_comp$maxMono_Os = apply(ZmOs_comp[,10:15], 1, max)
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Define expression bins
+bin_expression <- function(x) {
+  case_when(
+    is.na(x)                 ~ NA_character_,
+    x == 0                   ~ "0",
+    x > 0 & x < 1             ~ "<1",
+    x >= 1 & x < 10           ~ "1–10",
+    x >= 10 & x < 30          ~ "10–30",
+    x >= 30 & x <= 100        ~ "30–100",
+    x > 100                   ~ ">100"
+  )
+}
+
+# Set the desired order of the bins
+bin_levels <- c(
+  "0", "<1", "1–10",
+  "10–30", "30–100", ">100"
+)
+
+# Categorize expression at both stages
+ZmExpr <- ZmOs_comp[,17:18] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    ZmBi_bin = factor(
+      bin_expression(maxBi_Zm),
+      levels = bin_levels
+    ),
+    ZmMono_bin = factor(
+      bin_expression(maxMono_Zm),
+      levels = bin_levels
+    )
+  )
+
+head(ZmExpr)
+
+ZmExpr$dNdS = ZmOs_comp$dNdS
+
+Zm_heatmap_df <- ZmExpr |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    mean_dNdS = mean(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+ggplot(
+  Zm_heatmap_df,
+  aes(
+    x = ZmBi_bin,
+    y = ZmMono_bin,
+    fill = mean_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Mean dN/dS",
+  na.value = "grey90"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Mean dN/dS by maize expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+
+Zm_heatmap_df2 <- ZmExpr |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+
+ggplot(
+  Zm_heatmap_df2,
+  aes(
+    x = ZmBi_bin,
+    y = ZmMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "grey90"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median dN/dS by maize expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+
+
+#Now for rice:
+
+# Categorize expression at both stages
+OsExpr <- ZmOs_comp[,19:20] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    OsBi_bin = factor(
+      bin_expression(maxBi_Os),
+      levels = bin_levels
+    ),
+    OsMono_bin = factor(
+      bin_expression(maxMono_Os),
+      levels = bin_levels
+    )
+  )
+
+head(OsExpr)
+
+OsExpr$dNdS = ZmOs_comp$dNdS
+
+Os_heatmap_df <- OsExpr |>
+  filter(
+    !is.na(OsBi_bin),
+    !is.na(OsMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(OsBi_bin, OsMono_bin) |>
+  summarise(
+    mean_dNdS = mean(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Os_heatmap_df$mean_dNdS[which(Os_heatmap_df$n_genes <5)] = NA
+
+ggplot(
+  Os_heatmap_df,
+  aes(
+    x = OsBi_bin,
+    y = OsMono_bin,
+    fill = mean_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Mean dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Mean dN/dS by rice expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+
+Os_heatmap_df2 <- OsExpr |>
+  filter(
+    !is.na(OsBi_bin),
+    !is.na(OsMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(OsBi_bin, OsMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Os_heatmap_df2$median_dNdS[which(Os_heatmap_df2$n_genes <5)] = NA
+
+ggplot(
+  Os_heatmap_df2,
+  aes(
+    x = OsBi_bin,
+    y = OsMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median dN/dS by rice expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+
+
+
+length(which(rowMeans(ZmOs_comp[,1:15])>0))    
+#[1] 6411
+> dim(ZmOs_comp)
+#[1] 6436   16
+
+svg("ZmOs_comp.svg", width=8, height=8)
+Heatmap(minmax(log(ZmOs_comp[which(rowMeans(ZmOs_comp[,1:15])>0),1:15]+100,10)), cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+
+svg("ZmOs_comp2.svg", width=8, height=8)
+Heatmap(minmax(log(ZmOs_comp[which(rowMeans(ZmOs_comp[,1:15])>0),c(1:2,8:9,3:7,10:15)]+100,10)), cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+
+length(which(rowSums(ZmOs_comp[,1:15]) >= 100))
+[1] 3470
+
+Zm_merge_FracMono[names(Zm_merge_stages[Zm_merge_stages == "UM/BM"])]
+
+svg("ZmOs_comp_100TPM.svg", width=8, height=8)
+Heatmap(minmax(log(ZmOs_comp[which(rowSums(ZmOs_comp[,1:15]) >= 100),1:15]+100,10)), cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+Heatmap(minmax(log(ZmOs_comp[which(rowSums(ZmOs_comp[,1:7]) >= 100),1:15]+100,10)), cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+svg("ZmOs_comp_100TPM2.svg", width=8, height=8)
+Heatmap(cbind(minmax(log(ZmOs_comp[which(rowSums(ZmOs_comp[,1:7] >100) > 0 & rowSums(ZmOs_comp[,8:15] >100) >0),1:7]+100,10)),
+minmax(log(ZmOs_comp[which(rowSums(ZmOs_comp[,1:7] >100) > 0 & rowSums(ZmOs_comp[,8:15] >100) >0),8:15]+100,10))),
+ cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+usethese = which((rowSums(ZmOs_comp[,c(1,8)] >= 10) ==2) & (rowSums(ZmOs_comp[,c(6,14)]*10 <= ZmOs_comp[,c(1,8)]) ==2))
+
+svg("ZmOs_comp_tetPol.svg", width=8, height=8)
+Heatmap(cbind(minmax(log(ZmOs_comp[usethese,1:7]+100,10)),
+ minmax(log(ZmOs_comp[usethese,8:15]+100,10))),
+ cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+
+svg("ZmOs_comp2_100TPM2.svg", width=8, height=8)
+Heatmap(minmax(log(ZmOs_comp[which(rowSums(ZmOs_comp[,1:7] >100) > 0 | rowSums(ZmOs_comp[,8:15] >100) >0),1:15]+100,10)), cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+
+svg("ZmOs_comp2_100TPM.svg", width=8, height=8)
+Heatmap(minmax(log(ZmOs_comp[which(rowSums(ZmOs_comp[,1:15]) >= 100),c(1:2,8:9,3:7,10:15)]+100,10)), cluster_columns=F, show_row_names=F, use_raster=F, col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+dev.off()
+
+plot(log(ZmOs_comp$maxBi_Zm + 100,10), log(ZmOs_comp$maxMono_Zm +100,10), pch=19, cex=1)
+plot(log(ZmOs_comp$maxBi_Os + 100,10), log(ZmOs_comp$maxMono_Os +100,10), pch=19, cex=1)
+
+
+plot(log(ZmOs_comp$maxMono_Zm + 100,10)-log(ZmOs_comp$maxBi_Zm +100,10), log(ZmOs_comp$maxMono_Os + 100,10)-log(ZmOs_comp$maxBi_Os +100,10), pch=19, cex=1)
+abline(v=0,h=0) #maxMono and maxBi are equal
+
+plot(log(ZmOs_comp$maxMono_Zm + 100,10), log(ZmOs_comp$maxMono_Os + 100,10), pch=19, cex=1)
+points(log(ZmOs_comp$maxMono_Zm[which(ZmOs_comp$maxMono_Zm > 100 & ZmOs_comp$maxMono_Os <100)] +100,10), 
+    log(ZmOs_comp$maxMono_Os[which(ZmOs_comp$maxMono_Zm > 100 & ZmOs_comp$maxMono_Os <100)] +100,10), pch=19, cex=1, col="red3")
+points(log(ZmOs_comp$maxMono_Zm[which(ZmOs_comp$maxMono_Os > 100 & ZmOs_comp$maxMono_Zm <100)] +100,10), 
+    log(ZmOs_comp$maxMono_Os[which(ZmOs_comp$maxMono_Os > 100 & ZmOs_comp$maxMono_Zm <100)] +100,10), pch=19, cex=1, col="blue3")
+points(log(ZmOs_comp$maxMono_Zm[which(ZmOs_comp$maxMono_Os > 100 & ZmOs_comp$maxMono_Zm >100)] +100,10), 
+    log(ZmOs_comp$maxMono_Os[which(ZmOs_comp$maxMono_Os > 100 & ZmOs_comp$maxMono_Zm >100)] +100,10), pch=19, cex=1, col="purple4")
+
+OsOnly = rownames(ZmOs_comp[which(ZmOs_comp$maxMono_Os > 100 & ZmOs_comp$maxMono_Zm <100),])
+ZmOnly = rownames(ZmOs_comp[which(ZmOs_comp$maxMono_Zm > 100 & ZmOs_comp$maxMono_Os <100),])
+BothOsZm = rownames(ZmOs_comp[which(ZmOs_comp$maxMono_Zm > 100 & ZmOs_comp$maxMono_Os >100),])
+NeitherOsZm = rownames(ZmOs_comp[which(ZmOs_comp$maxMono_Zm < 100 & ZmOs_comp$maxMono_Os <100),])
+
+ZmOs_comp$cat = rownames(ZmOs_comp)
+ZmOs_comp$cat[ZmOs_comp$cat %in% OsOnly] = "OsOnly"
+ZmOs_comp$cat[ZmOs_comp$cat %in% ZmOnly] = "ZmOnly"
+ZmOs_comp$cat[ZmOs_comp$cat %in% BothOsZm] = "BothOsZm"
+ZmOs_comp$cat[ZmOs_comp$cat %in% NeitherOsZm] = "NeitherOsZm"
+table(ZmOs_comp$cat)
+
+
+NeitherOsZm[which(NeitherOsZm %in% rownames(ZmOs_comp[which(ZmOs_comp$maxBi_Os >100 & ZmOs_comp$maxBi_Zm >100),]))]
+#58 ortholog pairs with <100 max mean TPM in monoallelic stages are expressed >100 TPM in both species
+NeitherOsZm[which(NeitherOsZm %in% rownames(ZmOs_comp[which(ZmOs_comp$maxBi_Os >100 | ZmOs_comp$maxBi_Zm >100),]))]
+#489 ortholog pairs with <100 max mean TPM in monoallelic stages are expressed >100 TPM in one or both species
+
+Zm_merge_FracMono[names(Zm_merge_stages[Zm_merge_stages == "UM/BM"])]
+
+
+
+
+
+#############Redoing with only Brad's maize data and maize/sorghum dN/dS
+ZmSb = read.table('Zm_v4_sorghum_dNdS.tab', skip = 2, sep = '\t', as.is = T)
+ZmSb = cbind(ZmSb, sub("_.*", "", sub(".*CDS:", "", ZmSb[,4])), sub("_.*", "", sub("[|].*", '', sub(".*CDS:", "", ZmSb[,8]))), as.numeric(sub('.*[|]','',ZmSb[,4])))
+colnames(ZmSb)[13:15] = c('Zm_G','Sb_G','Identity')
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(ZmSb))
+for (sgene in as.character(unique(ZmSb[duplicated(ZmSb[,13]),13]))) {
+	tr = which(ZmSb[,13] == sgene)
+	removes[tr[rank(-ZmSb[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(ZmSb[duplicated(ZmSb[,14]),14]))) {
+	tr = which(ZmSb[,14] == mgene)
+	removes[tr[rank(-ZmSb[tr,15]) != 1]] = TRUE
+}
+ZmSb = ZmSb[!removes,]
+##
+
+ZmSb = ZmSb[ZmSb[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+ZmSb = ZmSb[-which(is.na(as.numeric(ZmSb[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+ZmSb = ZmSb[-which(as.numeric(ZmSb[,1]) == 0),] # Remove genes with 0 synonymous subs 
+ZmNS = as.numeric(ZmSb[,2]) / as.numeric(ZmSb[,1])
+names(ZmNS) = ZmSb[,13]
+
+
+meta = read.csv('GSE175505_Sample_Metadata.csv.gz', row.names=1)  # This file is also identical to Table S1 of Nelms and Walbot (2021)
+A = read.csv('GSE175505_Pollen_scRNAseq_transcript_counts.csv.gz', row.names=1)
+
+# Remove samples that did not pass quality control
+A = A[,sub('s_.+','s',colnames(A)) %in% (rownames(meta)[meta[,11] == 'Y'])]  
+meta = meta[unique(sub('s_.+','s',colnames(A))),]
+
+# Separate data into 3 matrices: the total number of transcripts per precursor (UMIs), the number of genoinformative transcripts matching the B73 allele (g1), and the number of genoinformative transcripts matching the A188 allele (g2)
+UMIs = A[,seq(1,ncol(A),4)] + A[,seq(2,ncol(A),4)] + A[,seq(3,ncol(A),4)] + A[,seq(4,ncol(A),4)]
+colnames(UMIs) = sub('_cf', '', colnames(UMIs))
+g1 = A[,seq(2,ncol(A),4)]
+colnames(g1) = sub('_g1', '', colnames(g1))
+g2 = A[,seq(3,ncol(A),4)]
+colnames(g2) = sub('_g2', '', colnames(g2))
+
+#over10k = names(which(colSums(UMIs) > 10000)) #skipping this, using Brad's original 2k cutoff
+A2 = sweep(UMIs, 2, colSums(UMIs), '/')*10^6  # Transcripts per million normalization
+
+stages = as.character(meta[colnames(UMIs),4])
+names(stages) = colnames(UMIs)
+#stages = stages[over10k] #applying 10k cutoff (Brad's original cutoff was 2k)
+excStage = c(rownames(meta[meta[colnames(UMIs),3] == "Interphase",]),rownames(meta[meta[colnames(UMIs),3] == "Meiosis",]))
+stages = stages[-which(names(stages) %in% excStage)]
+Zm_og_stages = factor(stages, levels = c("Tetrad", "Early", "Middle", "Late", "BM", "Pollen")) 
+
+Zm_og_TPM = A2[,names(Zm_og_stages)]
+
+Zm_og_StageMean = function(stage){
+    rowMeans(Zm_og_TPM[which(rownames(Zm_og_TPM) %in% ZmSb$Zm_G),names(Zm_og_stages[which(Zm_og_stages == stage)])])
+}
+
+ZmSb_data = as.data.frame(sapply(levels(Zm_og_stages), Zm_og_StageMean))
+ZmNS2 = ZmNS[names(ZmNS) %in% rownames(ZmSb_data)]
+ZmSb_data$dNdS = ZmNS2[rownames(ZmSb_data)]
+
+ZmSb_data$maxBi_Zm = apply(ZmSb_data[,1:4], 1, max)
+ZmSb_data$maxMono_Zm = apply(ZmSb_data[,5:6], 1, max) 
+
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Define expression bins
+bin_expression <- function(x) {
+  case_when(
+    is.na(x)                 ~ NA_character_,
+    x == 0                   ~ "0",
+    x > 0 & x < 1             ~ "<1",
+    x >= 1 & x < 10           ~ "1–10",
+    x >= 10 & x < 30          ~ "10–30",
+    x >= 30 & x <= 100        ~ "30–100",
+    x > 100                   ~ ">100"
+  )
+}
+
+# Set the desired order of the bins
+bin_levels <- c(
+  "0", "<1", "1–10",
+  "10–30", "30–100", ">100"
+)
+
+# Categorize expression at both stages
+ZmExpr <- ZmSb_data[,8:9] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    ZmBi_bin = factor(
+      bin_expression(maxBi_Zm),
+      levels = bin_levels
+    ),
+    ZmMono_bin = factor(
+      bin_expression(maxMono_Zm),
+      levels = bin_levels
+    )
+  )
+
+head(ZmExpr)
+
+ZmExpr$dNdS = ZmSb_data$dNdS
+
+Zm_heatmap_df <- ZmExpr |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    mean_dNdS = mean(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Zm_heatmap_df_neg <- ZmExpr[which(ZmExpr$dNdS <=1),] |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    mean_dNdS = mean(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+Zm_heatmap_df_neg$mean_dNdS[which(Zm_heatmap_df_neg$n_genes <5)] = NA
+
+
+Zm_heatmap_df_pos <- ZmExpr[which(ZmExpr$dNdS >1),] |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    mean_dNdS = mean(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+ggplot(
+  Zm_heatmap_df_pos,
+  aes(
+    x = ZmBi_bin,
+    y = ZmMono_bin,
+    fill = mean_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Mean dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Mean dN/dS by maize expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+
+Zm_heatmap_df2 <- ZmExpr |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Zm_heatmap_df2$median_dNdS[which(Zm_heatmap_df2$n_genes <5)] = NA
+
+
+ggplot(
+  Zm_heatmap_df2,
+  aes(
+    x = ZmBi_bin,
+    y = ZmMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median maize vs. sorghum dN/dS by maize expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+ZmExprSb = ZmExpr
+Zm_heatmap_dfSb = Zm_heatmap_df2
+
+
+
+#############Redoing with only Brad's maize data and maize/rice dN/dS
+Zm4Os = read.table('Zm_v4_rice_dNdS.tab', skip = 2, sep = '\t', as.is = T)
+Zm4Os = cbind(Zm4Os, sub("[.].*", "", sub(".*LOC", "LOC", Zm4Os[,4])), sub("_.*", "", sub("[|].*", '', sub(".*CDS:", "", Zm4Os[,8]))), as.numeric(sub('.*[|]','',Zm4Os[,4])))
+colnames(Zm4Os)[13:15] = c('Os_G','Zm_G','Identity')
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(Zm4Os))
+for (sgene in as.character(unique(Zm4Os[duplicated(Zm4Os[,13]),13]))) {
+	tr = which(Zm4Os[,13] == sgene)
+	removes[tr[rank(-Zm4Os[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(Zm4Os[duplicated(Zm4Os),14]))) {
+	tr = which(Zm4Os[,14] == mgene)
+	removes[tr[rank(-Zm4Os[tr,15]) != 1]] = TRUE
+}
+Zm4Os = Zm4Os[!removes,]
+##
+
+Zm4Os = Zm4Os[Zm4Os[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+Zm4Os = Zm4Os[-which(is.na(as.numeric(Zm4Os[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+ZmNSo = as.numeric(Zm4Os[,2]) / as.numeric(Zm4Os[,1])
+names(ZmNSo) = Zm4Os[,14] #7271
+
+
+ZmOs_data = as.data.frame(sapply(levels(Zm_og_stages), Zm_og_StageMean))
+ZmNSo2 = ZmNSo[names(ZmNSo) %in% rownames(ZmOs_data)]
+ZmOs_data$dNdS = ZmNSo2[rownames(ZmOs_data)]
+ZmOs_data = ZmOs_data[which(!is.na(ZmOs_data$dNdS)),]
+
+ZmOs_data$maxBi_Zm = apply(ZmOs_data[,1:4], 1, max)
+ZmOs_data$maxMono_Zm = apply(ZmOs_data[,5:6], 1, max) 
+
+# Categorize expression at both stages
+ZmExpr <- ZmOs_data[,8:9] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    ZmBi_bin = factor(
+      bin_expression(maxBi_Zm),
+      levels = bin_levels
+    ),
+    ZmMono_bin = factor(
+      bin_expression(maxMono_Zm),
+      levels = bin_levels
+    )
+  )
+
+head(ZmExpr)
+
+ZmExpr$dNdS = ZmOs_data$dNdS
+
+Zm_heatmap_df <- ZmExpr |>
+  filter(
+    !is.na(ZmBi_bin),
+    !is.na(ZmMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(ZmBi_bin, ZmMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Zm_heatmap_df$median_dNdS[which(Zm_heatmap_df$n_genes <5)] = NA
+
+
+ggplot(
+  Zm_heatmap_df,
+  aes(
+    x = ZmBi_bin,
+    y = ZmMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median maize vs. rice dN/dS by maize expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+ZmExprOs = ZmExpr
+Zm_heatmap_dfOs = Zm_heatmap_df
+
+
+
+
+
+#############Redoing with rice data and rice/maize dN/dS
+ZmNSo = as.numeric(Zm4Os[,2]) / as.numeric(Zm4Os[,1])
+names(ZmNSo) = Zm4Os[,13] #7271
+
+Os_StageMean = function(stage){
+    rowMeans(Os_TPM[names(ZmNSo),names(Os_stages[which(Os_stages == stage)])])
+}
+
+Os_data = as.data.frame(sapply(levels(Os_stages), Os_StageMean))
+ZmNSo2 = ZmNSo[names(ZmNSo) %in% rownames(Os_data)]
+Os_data$dNdS = ZmNSo2[rownames(Os_data)]
+Os_data = Os_data[which(!is.na(Os_data$dNdS)),]
+
+Os_data$maxBi_Os = apply(Os_data[,1:4], 1, max)
+Os_data$maxMono_Os = apply(Os_data[,5:6], 1, max) 
+
+# Categorize expression at both stages
+OsExpr <- Os_data[,10:11] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    OsBi_bin = factor(
+      bin_expression(maxBi_Os),
+      levels = bin_levels
+    ),
+    OsMono_bin = factor(
+      bin_expression(maxMono_Os),
+      levels = bin_levels
+    )
+  )
+
+head(OsExpr)
+
+OsExpr$dNdS = Os_data$dNdS
+
+Os_heatmap_df <- OsExpr |>
+  filter(
+    !is.na(OsBi_bin),
+    !is.na(OsMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(OsBi_bin, OsMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Os_heatmap_df$median_dNdS[which(Os_heatmap_df$n_genes <5)] = NA
+
+
+ggplot(
+  Os_heatmap_df,
+  aes(
+    x = OsBi_bin,
+    y = OsMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median rice vs. maize dN/dS by rice expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+OsExprZm = OsExpr
+Os_heatmap_dfZm = Os_heatmap_df
+
+
+
+
+#############Redoing with rice data and rice/longistaminata dN/dS
+
+RiceNSdata = read.table('Rice_Oryza_longistaminata_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(RiceNSdata))
+for (sgene in as.character(unique(RiceNSdata[duplicated(RiceNSdata[,13]),13]))) {
+	tr = which(RiceNSdata[,13] == sgene)
+	removes[tr[rank(-RiceNSdata[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(RiceNSdata[duplicated(RiceNSdata[,14]),14]))) {
+	tr = which(RiceNSdata[,14] == mgene)
+	removes[tr[rank(-RiceNSdata[tr,15]) != 1]] = TRUE
+}
+RiceNSdata = RiceNSdata[!removes,]
+##
+
+RiceNSdata = RiceNSdata[RiceNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+RiceNSdata = RiceNSdata[-which(is.na(as.numeric(RiceNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+RiceNSdata = RiceNSdata[-which(as.numeric(RiceNSdata[,1]) == 0),] # Remove genes with 0 synonymous subs #don't use for Lp or Bd
+RiceNS = as.numeric(RiceNSdata[,2]) / as.numeric(RiceNSdata[,1])
+names(RiceNS) = RiceNSdata[,13] #8732 longi, 
+
+
+Os_StageMean = function(stage){
+    rowMeans(Os_TPM[names(RiceNS),names(Os_stages[which(Os_stages == stage)])])
+}
+
+Os_data = as.data.frame(sapply(levels(Os_stages), Os_StageMean))
+OsNS2 = RiceNS[names(RiceNS) %in% rownames(Os_data)]
+Os_data$dNdS = OsNS2[rownames(Os_data)]
+Os_data = Os_data[which(!is.na(Os_data$dNdS)),]
+
+Os_data$maxBi_Os = apply(Os_data[,1:4], 1, max)
+Os_data$maxMono_Os = apply(Os_data[,5:6], 1, max) 
+
+# Categorize expression at both stages
+OsExpr <- Os_data[,10:11] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    OsBi_bin = factor(
+      bin_expression(maxBi_Os),
+      levels = bin_levels
+    ),
+    OsMono_bin = factor(
+      bin_expression(maxMono_Os),
+      levels = bin_levels
+    )
+  )
+
+head(OsExpr)
+
+OsExpr$dNdS = Os_data$dNdS
+
+Os_heatmap_df <- OsExpr |>
+  filter(
+    !is.na(OsBi_bin),
+    !is.na(OsMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(OsBi_bin, OsMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Os_heatmap_df$median_dNdS[which(Os_heatmap_df$n_genes <5)] = NA
+
+
+ggplot(
+  Os_heatmap_df,
+  aes(
+    x = OsBi_bin,
+    y = OsMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median rice vs. L. perrieri dN/dS by rice expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+OsExprOl = OsExpr
+Os_heatmap_dfOl = Os_heatmap_df
+
+
+
+
+RiceNSdata = read.table('Rice_Leersia_perrieri_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*CDS:", "", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+colnames(RiceNSdata)[13:15] = c('RiceGene','LeersiaGene','Identity')
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(RiceNSdata))
+for (sgene in as.character(unique(RiceNSdata[duplicated(RiceNSdata[,13]),13]))) {
+	tr = which(RiceNSdata[,13] == sgene)
+	removes[tr[rank(-RiceNSdata[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(RiceNSdata[duplicated(RiceNSdata[,14]),14]))) {
+	tr = which(RiceNSdata[,14] == mgene)
+	removes[tr[rank(-RiceNSdata[tr,15]) != 1]] = TRUE
+}
+RiceNSdata = RiceNSdata[!removes,]
+##
+
+RiceNSdata = RiceNSdata[RiceNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+RiceNSdata = RiceNSdata[-which(is.na(as.numeric(RiceNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+RiceNS = as.numeric(RiceNSdata[,2]) / as.numeric(RiceNSdata[,1])
+names(RiceNS) = RiceNSdata[,13] 
+
+
+Os_StageMean = function(stage){
+    rowMeans(Os_TPM[names(RiceNS),names(Os_stages[which(Os_stages == stage)])])
+}
+
+Os_data = as.data.frame(sapply(levels(Os_stages), Os_StageMean))
+OsNS2 = RiceNS[names(RiceNS) %in% rownames(Os_data)]
+Os_data$dNdS = OsNS2[rownames(Os_data)]
+Os_data = Os_data[which(!is.na(Os_data$dNdS)),]
+
+Os_data$maxBi_Os = apply(Os_data[,1:4], 1, max)
+Os_data$maxMono_Os = apply(Os_data[,5:6], 1, max) 
+
+# Categorize expression at both stages
+OsExpr <- Os_data[,10:11] |>
+  tibble::rownames_to_column("gene") |>
+  mutate(
+    OsBi_bin = factor(
+      bin_expression(maxBi_Os),
+      levels = bin_levels
+    ),
+    OsMono_bin = factor(
+      bin_expression(maxMono_Os),
+      levels = bin_levels
+    )
+  )
+
+head(OsExpr)
+
+OsExpr$dNdS = Os_data$dNdS
+
+Os_heatmap_df <- OsExpr |>
+  filter(
+    !is.na(OsBi_bin),
+    !is.na(OsMono_bin),
+    !is.na(dNdS)
+  ) |>
+  group_by(OsBi_bin, OsMono_bin) |>
+  summarise(
+    median_dNdS = median(dNdS),
+    n_genes = n(),
+    .groups = "drop"
+  )
+
+Os_heatmap_df$median_dNdS[which(Os_heatmap_df$n_genes <5)] = NA
+
+
+ggplot(
+  Os_heatmap_df,
+  aes(
+    x = OsBi_bin,
+    y = OsMono_bin,
+    fill = median_dNdS
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.4) +
+  geom_text(aes(label = n_genes), size = 3) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Median dN/dS",
+  na.value = "#777"
+) +
+  scale_x_discrete(drop = FALSE) +
+  scale_y_discrete(drop = FALSE) +
+  coord_equal() +
+  labs(
+    x = "Max biallelic expression (TPM)",
+    y = "Max monoallelic expression (TPM)",
+    title = "Median rice vs. L. perrieri dN/dS by rice expression category"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1
+    )
+  )
+
+OsExprLp = OsExpr
+Os_heatmap_dfLp = Os_heatmap_df
+
+
+
+
+boxplot(OsExpr$dNdS ~ OsExpr$OsBi_bin, ylim = c(0,1), pch=19, main="Median rice vs. L. perrieri dN/dS by rice expression category", ylab="dN/dS", xlab="Max biallelic expression (TPM)")
+boxplot(OsExpr$dNdS ~ OsExpr$OsMono_bin, ylim = c(0,1), pch=19, main="Median rice vs. L. perrieri dN/dS by rice expression category", ylab="dN/dS", xlab="Max monoallelic expression (TPM)")
+
+plotBox = function(dNdS, bin, mainlab, xlab, max){
+    bxp_info <- boxplot(dNdS ~ bin, plot = FALSE)
+    boxplot(dNdS ~ bin, , ylim = c(0,max), pch=19, 
+    main=mainlab, ylab="dN/dS", 
+    xlab=xlab,  
+            names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+}
+
+
+svg("Maize_rice_dNdS_boxplots.svg", width=10, height=16)
+par(mfrow = c(5,2))
+plotBox(OsExprOl$dNdS, OsExprOl$OsBi_bin, "Median rice vs. O. longistaminata dN/dS 
+by rice expression category", "Max biallelic expression (TPM)",1)
+plotBox(OsExprOl$dNdS, OsExprOl$OsMono_bin, "Median rice vs. O. longistaminata dN/dS 
+by rice expression category", "Max monoallelic expression (TPM)",1)
+
+plotBox(OsExprLp$dNdS, OsExprLp$OsBi_bin, "Median rice vs. L. perrieri dN/dS 
+by rice expression category", "Max biallelic expression (TPM)",0.5)
+plotBox(OsExprLp$dNdS, OsExprLp$OsMono_bin, "Median rice vs. L. perrieri dN/dS 
+by rice expression category", "Max monoallelic expression (TPM)",0.5)
+
+plotBox(OsExprZm$dNdS, OsExprZm$OsBi_bin, "Median rice vs. maize dN/dS 
+by rice expression category", "Max biallelic expression (TPM)",0.5)
+plotBox(OsExprZm$dNdS, OsExprZm$OsMono_bin, "Median rice vs. maize dN/dS 
+by rice expression category", "Max monoallelic expression (TPM)",0.5)
+
+plotBox(ZmExprOs$dNdS, ZmExprOs$ZmBi_bin, "Median maize vs. rice dN/dS 
+by maize expression category", "Max biallelic expression (TPM)",0.5)
+plotBox(ZmExprOs$dNdS, ZmExprOs$ZmMono_bin, "Median maize vs. rice dN/dS 
+by maize expression category", "Max monoallelic expression (TPM)",0.5)
+
+plotBox(ZmExprSb$dNdS, ZmExprSb$ZmBi_bin, "Median maize vs. sorghum dN/dS 
+by maize expression category", "Max biallelic expression (TPM)",0.8)
+plotBox(ZmExprSb$dNdS, ZmExprSb$ZmMono_bin, "Median maize vs. sorghum dN/dS 
+by maize expression category", "Max monoallelic expression (TPM)",0.8)
+dev.off()
+
+
+svg("Maize_rice_dNdS_boxplots2.svg", width=25, height=6)
+par(mfrow = c(2,5))
+plotBox(OsExprOl$dNdS, OsExprOl$OsBi_bin, "Median rice vs. O. longistaminata dN/dS
+ by rice expression category", "Max biallelic expression (TPM)",1)
+plotBox(OsExprLp$dNdS, OsExprLp$OsBi_bin, "Median rice vs. L. perrieri dN/dS
+ by rice expression category", "Max biallelic expression (TPM)",0.5)
+plotBox(OsExprZm$dNdS, OsExprZm$OsBi_bin, "Median rice vs. maize dN/dS
+ by rice expression category", "Max biallelic expression (TPM)",0.5)
+plotBox(ZmExprOs$dNdS, ZmExprOs$ZmBi_bin, "Median maize vs. rice dN/dS
+ by maize expression category", "Max biallelic expression (TPM)",0.5)
+plotBox(ZmExprSb$dNdS, ZmExprSb$ZmBi_bin, "Median maize vs. sorghum dN/dS
+ by maize expression category", "Max biallelic expression (TPM)",0.8)
+
+plotBox(OsExprOl$dNdS, OsExprOl$OsMono_bin, "Median rice vs. O. longistaminata dN/dS
+ by rice expression category", "Max monoallelic expression (TPM)",1)
+plotBox(OsExprLp$dNdS, OsExprLp$OsMono_bin, "Median rice vs. L. perrieri dN/dS
+ by rice expression category", "Max monoallelic expression (TPM)",0.5)
+plotBox(OsExprZm$dNdS, OsExprZm$OsMono_bin, "Median rice vs. maize dN/dS
+ by rice expression category", "Max monoallelic expression (TPM)",0.5)
+plotBox(ZmExprOs$dNdS, ZmExprOs$ZmMono_bin, "Median maize vs. rice dN/dS
+ by maize expression category", "Max monoallelic expression (TPM)",0.5)
+plotBox(ZmExprSb$dNdS, ZmExprSb$ZmMono_bin, "Median maize vs. sorghum dN/dS
+ by maize expression category", "Max monoallelic expression (TPM)",0.8)
+
+dev.off()
+
+
+
+bxp_info <- boxplot(OsExpr$dNdS ~ OsExpr$OsBi_bin, plot = FALSE)
+boxplot(OsExpr$dNdS ~ OsExpr$OsBi_bin, , ylim = c(0,1), pch=19, 
+main="Median rice vs. L. perrieri dN/dS by rice expression category", ylab="dN/dS", 
+xlab="Max biallelic expression (TPM)",  
+        names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+
+bxp_info <- boxplot(OsExpr$dNdS ~ OsExpr$OsMono_bin, plot = FALSE)
+boxplot(OsExpr$dNdS ~ OsExpr$OsMono_bin, , ylim = c(0,1), pch=19, 
+main="Median rice vs. L. perrieri dN/dS by rice expression category", ylab="dN/dS", 
+xlab="Max monoallelic expression (TPM)",  
+        names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+
+
+bxp_info <- boxplot(OsExpr$dNdS ~ OsExpr$OsBi_bin, plot = FALSE)
+boxplot(OsExpr$dNdS ~ OsExpr$OsBi_bin, , ylim = c(0,1), pch=19, 
+main="Median rice vs. L. perrieri dN/dS by rice expression category", ylab="dN/dS", 
+xlab="Max biallelic expression (TPM)",  
+        names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+
+bxp_info <- boxplot(OsExpr$dNdS ~ OsExpr$OsMono_bin, plot = FALSE)
+boxplot(OsExpr$dNdS ~ OsExpr$OsMono_bin, , ylim = c(0,1), pch=19, 
+main="Median rice vs. L. perrieri dN/dS by rice expression category", ylab="dN/dS", 
+xlab="Max monoallelic expression (TPM)",  
+        names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+

@@ -663,6 +663,14 @@ pVel = function (xx, nboot = 200)
 }
 
 
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+stages = stages[-which(stages == "Meiosis")]
+stages = factor(stages, level = c("tetrad", "tetrad_sep", "UM", "UM/BM", "BM", "BM_shed"))
+
+
 stages = Sl_meta[over30k,8]
 names(stages) = over30k
 stages = stages[-which(is.na(FracMono_all[over30k]))]
@@ -687,7 +695,7 @@ o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
 FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
 
 
-svg('Tomato_Expression_2_8_26.svg', width=7, height=4)
+#svg('Tomato_Expression_2_8_26.svg', width=7, height=4) #ran without meiocytes on 8/26/26 accidentally
 Heatmap(minmax(hmat2), name = 'expression
 level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
     top_annotation = HeatmapAnnotation(Stage = stages[ords], 
@@ -695,7 +703,19 @@ level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
     col = list(Stage = c("Meiosis" = "gray", "tetrad" = "#EB1E2C", "tetrad_sep" = "#EB1E2C",
     "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#5FBB68"), "% Monoallelic" = FracMono_col)),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
-dev.off()
+#dev.off()
+
+
+
+###Objects to use downstream in comparisons:
+TomUMIs = D2[,names(stages)] #min 10k UMIs, excluding no cell controls, 307 samples
+TomStages = stages
+TomAlleleFracBin = AlleleFrac_bin[,names(stages)]
+TomFracMono = FracMono_all[names(stages)]
+save(TomUMIs, TomStages, TomAlleleFracBin, TomFracMono, file = "Tomato.RData")
+
+load('Tomato.RData')
+
 
 FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
 

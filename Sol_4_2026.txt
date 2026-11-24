@@ -361,10 +361,13 @@ load('TomatoRemap_11_2024-7_2025.RData')
 D = cbind(D2,D)
 g1 = cbind(g1_2,g1)
 g2 = cbind(g2_2,g2)
+reads_UMIs = t(cbind(t(reads_UMIs2),t(reads_UMIs))) #redo
+
 
 D = D[,Sl_meta$Sample]
 g1 = g1[,Sl_meta$Sample]
 g2 = g2[,Sl_meta$Sample]
+reads_UMIs = reads_UMIs[Sl_meta$Sample,]
 
 save(D,g1,g2,Sl_genes,reads_UMIs,Sl_Stages,Sl_meta, file = "Tomato_11_2024-4_2026_with_meta.RData")
 
@@ -372,4 +375,175 @@ save(D,g1,g2,Sl_genes,reads_UMIs,Sl_Stages,Sl_meta, file = "Tomato_11_2024-4_202
 plot(colSums(D)[NCpairs[,1]],colSums(D)[NCpairs[,2]], col=colorRampPalette(c('black', 'red'))(7)[NCpairs0[,3]], pch=19, xlim = c(0,30000), ylim = c(0,30000))
 
 NCCs = Sl_meta[which(Sl_meta$No_cell2 == 'Y'),3]
+colSums(D[,NCCs])
 
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+over30k = names(which(colSums(D) >10000))
+over30k = over30k[which(Sl_meta[over30k,14] == "N")] #getting rid of no cell controls
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over30k]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+
+BINSl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes[, 1]) * 10^6 + round(Sl_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+library(ggplot2)
+library(ggpubr)
+g1_bin = BINSl(g1)
+g2_bin = BINSl(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+Sl_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # was .4 instead of .3, .3 is >80%. Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-Sl_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
+
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+
+stages[grep('4', stages[over30k])]
+FracMono_all[over30k][grep('4', stages[over30k])]
+colSums(D[,over30k][,grep('4', stages[over30k])])
+
+
+
+> summary(colSums(D[,NCCs[1:126]]))  
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    232    1734    2988    3982    4744   21091
+> summary(colSums(D[,NCCs[127:178]]))
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  221.0   521.5   668.0   772.9   921.5  1919.0
+
+
+
+
+Sl_plotScaleBar = ggplot() + scale_x_continuous(expand=c(0,0), limits = c(-10, max(Sl_genes[,2])/10^6 + 10), breaks = seq(0,300,20)) + theme(panel.background = element_blank(), axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.line.x=element_line(), plot.margin = margin(0,0,0,0,'cm')) + xlab('Chromosome position (Mb)')
+plotChr = function (cell, chr, pad = 10) 
+{
+    Cdat = data.frame(f_col0 = AlleleFrac_bin[, cell], Chr = floor(as.numeric(rownames(AlleleFrac_bin))/10^6), 
+        Position = (as.numeric(rownames(AlleleFrac_bin))%%10^6) + 0.5)
+    Cdat = Cdat[Cdat$Chr == chr, ]
+    ggplot(Cdat) + geom_rect(data = data.frame(xmin = -pad, xmax = max(Sl_genes[,2])/10^6 + 
+        pad, ymin = 0, ymax = 1), aes(xmin = xmin, xmax = xmax, 
+        ymin = ymin, ymax = ymax), fill = "#EEEEEE") + geom_point(aes(y = f_col0, 
+        x = Position), cex = 3) + geom_hline(yintercept = 0.5, 
+        linetype = "dashed") + theme(panel.background = element_blank(), 
+        axis.title = element_blank(), panel.border = element_blank(), 
+        panel.grid = element_blank(), axis.ticks.x = element_blank(), 
+        axis.text.x = element_blank()) + scale_y_continuous(breaks = seq(0, 
+        1, 0.25), labels = c("0%", "", "50%", "", "100%"), limits = c(-0.4, 
+        1.05)) + scale_x_continuous(expand = c(0, 0)) + annotate("segment", 
+        x = -pad, xend = -pad, y = 0, yend = 1) + theme(plot.margin = margin(0, 
+        0, 0.15, 0, "cm"))
+}
+
+plotCell_bin = function (cell) 
+{
+    annotate_figure(ggarrange(plotChr(cell, chr = 1), plotChr(cell, 
+        chr = 2), plotChr(cell, chr = 3), plotChr(cell, chr = 4), plotChr(cell, chr = 5),
+        plotChr(cell, chr = 6), plotChr(cell, chr = 7), plotChr(cell, chr = 8), plotChr(cell, chr = 9),
+        plotChr(cell, chr = 10), plotChr(cell, chr = 11), plotChr(cell, chr = 12), 
+        Sl_plotScaleBar, ncol = 1, nrow = 13, align = "v", 
+        heights = c(rep(1, 5), 0.4)), left = text_grob("          % Transcripts from lycopersicum allele", 
+        rot = 90, size = 10), top = cell)
+}
+
+
+
+source('Pseudotime Velocity Functions.R')
+
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+
+
+stages = Sl_meta[over30k,8]
+names(stages) = over30k
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+stages = factor(stages, level = c("Meiosis", "tetrad", "tetrad_sep", "UM", "UM/BM", "BM", "BM_shed"))
+
+
+
+stages = stages[-which(is.na(FracMono_all[over30k]))]
+stages = stages[-which(stages == "tetrad")]
+stages[names(which(stages == "tetrad_sep"))] = "Tetrad"
+stages[names(which(stages == "BM_shed"))] = "BM"
+stages = factor(stages, level = c("Meiosis", "Tetrad", "UM", "UM/BM", "BM"))
+
+pseudos = pVel(A2d[rank(-fano) <= 2000,names(stages)], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+
+hmat2 = A2d[,names(stages)][rank(-fano[rownames(A2d)]) <= 500,ords]
+
+library(seriation)
+o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+
+
+svg('Tomato_Expression_2_8_26.svg', width=7, height=4)
+Heatmap(minmax(hmat2), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], 
+    "% Monoallelic" = FracMono_all[names(stages)][ords], 
+    col = list(Stage = c("Meiosis" = "gray", "tetrad" = "#EB1E2C", "tetrad_sep" = "#EB1E2C",
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#5FBB68"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+dev.off()
+
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+svg('Tomato_FracMonoByStage_10k.svg', width=3, height=2)
+ggplot(FracMonoByStage, aes(x = Stage, y = FracMono, fill = Stage)) + geom_violin(size=0.5, adjust = 1) + labs(title = "Tomato", 
+x = "Stage", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("Meiosis" = "gray", 
+    "Tetrad" = "#EB1E2C", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68")) 
+dev.off()
+
+
+hist(FracMonoByStage[which(FracMonoByStage$Stage == "UM"),1], xlim=c(0,100), breaks=10)
+
+
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+
+CellHist = function(stg) {
+	gghistogram(FracMonoByStage[FracMonoByStage$Stage == stg,], 'FracMono', fill = 'dark gray', bins = 21) + scale_y_continuous(expand = c(0,0)) + xlim(c(-5,105)) + theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.position = 'none', plot.margin = margin(20,0,0,0))
+}

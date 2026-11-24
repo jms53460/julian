@@ -51,8 +51,8 @@ A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have
 
 MonoSamp = names(stages[grep("mono", stages)])
 BiSamp = names(stages[-grep("mono", stages)])
-plot(rowMeans(A3[,MonoSamp]), rowMeans(A3[,BiSamp]))
-plot(rowMeans(D[dNdSgenes,MonoSamp]), rowMeans(D[dNdSgenes,BiSamp]))
+#plot(rowMeans(A3[,MonoSamp]), rowMeans(A3[,BiSamp]))
+#plot(rowMeans(D[dNdSgenes,MonoSamp]), rowMeans(D[dNdSgenes,BiSamp]))
 
 meanExp = matrix(0, ncol = length(unique(stages)), nrow = nrow(A2))
 rownames(meanExp) = rownames(A2)
@@ -68,6 +68,8 @@ boxplot(list("ND" = AtNS0[names(which(meanExp0[,2] < 1))], "1-10" = AtNS0[which(
 boxplot(list("ND" = AtNS0[names(which(meanExp0[,3] < 1))], "1-10" = AtNS0[which(between(meanExp0[,3], 1,10))], "11-29" = AtNS0[which(between(meanExp0[,3], 10,30))], "30-99" = AtNS0[which(between(meanExp0[,3], 30,100))], ">=100" = AtNS0[names(which(meanExp0[,3] >= 100))]), ylim=c(0,1), main="UM/BM monoallelic")
 boxplot(list("ND" = AtNS0[names(which(meanExp0[,5] < 1))], "1-10" = AtNS0[which(between(meanExp0[,5], 1,10))], "11-29" = AtNS0[which(between(meanExp0[,5], 10,30))], "30-99" = AtNS0[which(between(meanExp0[,5], 30,100))], ">=100" = AtNS0[names(which(meanExp0[,5] >= 100))]), ylim=c(0,1), main="Tri biallelic")
 boxplot(list("ND" = AtNS0[names(which(meanExp0[,6] < 1))], "1-10" = AtNS0[which(between(meanExp0[,6], 1,10))], "11-29" = AtNS0[which(between(meanExp0[,6], 10,30))], "30-99" = AtNS0[which(between(meanExp0[,6], 30,100))], ">=100" = AtNS0[names(which(meanExp0[,6] >= 100))]), ylim=c(0,1), main="Tri monoallelic")
+
+boxplot(list("ND" = AtNS0[names(which(meanExp0[,6] < 1))], "1-10" = AtNS0[which(between(meanExp0[,6], 1,10))], "11-29" = AtNS0[which(between(meanExp0[,6], 10,30))], "30-99" = AtNS0[which(between(meanExp0[,6], 30,100))], ">=100" = AtNS0[names(which(meanExp0[,6] >= 100))]), ylim=c(0,1), main="Arabidopsis pollen", pch=19, cex=0.5, xlab = "Transcripts per million", ylab="dN/dS")
 
 
 summary(apply(meanExp, 1, mean))
@@ -105,6 +107,9 @@ BiGs2 = names(which(rowMeans(Y_samp[IncGs2,], na.rm=T) <= 0.6))
 
 dNdSComp2 = data.frame("dNdS" = c(AtNS, AtNS[IncGs2], AtNS[BiGs2], AtNS[MonoGs2]), Class = c(rep("AllGs", times = length(AtNS)), rep("IncGs", times = length(IncGs2)), rep("BiGs", times = length(BiGs2)), rep("MonoGs", times = length(MonoGs2))))
 boxplot(dNdS ~ Class, data=dNdSComp2, ylim=c(0,1), main="0.6 haploid expression score threshold") 
+
+boxplot(dNdS ~ Class, data=dNdSComp2, ylim=c(0,1), main="Arabidopsis", ylab="dN/dS", pch=19, cex=0.5) 
+
 table(dNdSComp2$Class)
 # AllGs   BiGs  IncGs MonoGs #0.6
 # 19641    114    587    489
@@ -114,6 +119,17 @@ pairwise.wilcox.test(dNdSComp2$dNdS, dNdSComp2$Class, p.adjust = 'holm')  # p-va
 
 
 
+###
+Both = names(which(meanExp2[,1] >=100 & meanExp2[,6] >=100))
+Tetrad = names(which(meanExp2[,1] >=100))
+Tetrad2 = Tetrad[!Tetrad %in% Both]
+Pollen = names(which(meanExp2[,6] >=100))
+Pollen2 = Pollen[!Pollen %in% Both]
+
+
+dNdSComp3 = data.frame("dNdS" = c(AtNS[Both], AtNS[Tetrad2], AtNS[Pollen2]), Class = c(rep("Both", times = length(Both)), rep("Tetrad", times = length(Tetrad2)),rep("Pollen", times = length(Pollen2))))
+boxplot(dNdS ~ Class, data=dNdSComp3, ylim=c(0,1), main="Arabidopsis", ylab="dN/dS", pch=19, cex=0.5) 
+pairwise.wilcox.test(dNdSComp3$dNdS, dNdSComp3$Class, p.adjust = 'holm')  # p-values
 
 
 
@@ -245,6 +261,8 @@ table(dNdSComp$Class)
 # AllGs   BiGs  IncGs MonoGs #B. distachyon
 # 12019     69   1005    936
 #pairwise.wilcox.test(dNdSComp$dNdS, dNdSComp$Class, p.adjust = 'holm')  # p-values
+boxplot(ZmOs_comp$dNdS ~ ZmOs_comp$cat, ylim=c(0,0.5))
+pairwise.wilcox.test(ZmOs_comp$dNdS, ZmOs_comp$cat, p.adjust = 'holm')  # p-values
 
 
 #Trying using how haploid expressed a gene is for a sample for setting MonoGs and BiGs. Didn't go well for rice, too few genes in BiGs category
@@ -411,6 +429,158 @@ boxplot(list("ND" = TomNS0[names(which(meanExp0[,4] < 1))], "1-10" = TomNS0[whic
 boxplot(list("ND" = TomNS0[names(which(meanExp0[,5] < 1))], "1-10" = TomNS0[which(between(meanExp0[,5], 1,10))], "11-29" = TomNS0[which(between(meanExp0[,5], 10,30))], "30-99" = TomNS0[which(between(meanExp0[,5], 30,100))], ">=100" = TomNS0[names(which(meanExp0[,5] >= 100))]), ylim=c(0,1), main="BM")
 boxplot(list("ND" = TomNS0[names(which(meanExp0[,6] < 1))], "1-10" = TomNS0[which(between(meanExp0[,6], 1,10))], "11-29" = TomNS0[which(between(meanExp0[,6], 10,30))], "30-99" = TomNS0[which(between(meanExp0[,6], 30,100))], ">=100" = TomNS0[names(which(meanExp0[,6] >= 100))]), ylim=c(0,1), main="BM_shed")
 #boxplot(list("ND" = TomNS0[names(which(meanExp0[,7] < 1))], "1-10" = TomNS0[which(between(meanExp0[,7], 1,10))], "11-29" = TomNS0[which(between(meanExp0[,7], 10,30))], "30-99" = TomNS0[which(between(meanExp0[,7], 30,100))], ">=100" = TomNS0[names(which(meanExp0[,7] >= 100))]), ylim=c(0,1), main="BM_shed")
+
+Sl_StageMean = function(stage){
+    rowMeans(Sl_TPM[which(rownames(Sl_TPM) %in% names(TomNS)),names(Sl_stages[which(Sl_stages == stage)])])
+}
+
+Sl_data = as.data.frame(sapply(levels(Sl_stages), Sl_StageMean))
+SlNS = TomNS[names(TomNS) %in% rownames(Sl_data)]
+Sl_data$dNdS = SlNS[rownames(Sl_data)]
+
+PostM = rownames(Sl_data)[rowSums(Sl_data[,1:6] >=100) >0]
+PreSGT = rownames(Sl_data)[rowSums(Sl_data[,1:2] >=100) >0]
+PostSGT = rownames(Sl_data)[rowSums(Sl_data[,3:6] >=100) >0]
+PreSGTonly = PreSGT[which(!PreSGT %in% PostSGT)]
+PostSGTonly = PostSGT[which(!PostSGT %in% PreSGT)]
+Pollen = rownames(Sl_data)[Sl_data[,6] >=100]
+PostSGTPrePollen = PostSGT[which(!PostSGT %in% Pollen)]
+PreAndPostSGT = PreSGT[which(PreSGT %in% PostSGT)]
+
+
+Sl_data$cat = rownames(Sl_data)
+Sl_data[PreSGTonly,8] = "Pre-SGT only"
+Sl_data[PostSGT,8] = "Post-SGT"
+
+Sl_data$cat2 = rownames(Sl_data)
+Sl_data[PreSGTonly,9] = "Pre-SGT only"
+Sl_data[PostSGTPrePollen,9] = "Post-SGT
+pre-pollen"
+Sl_data[Pollen,9] = "Pollen"
+
+Sl_data$cat3 = rownames(Sl_data)
+Sl_data[PreSGTonly,10] = "Pre-SGT only"
+Sl_data[PostSGTonly,10] = "Post-SGT only"
+Sl_data[PreAndPostSGT,10] = "Both"
+
+
+Sl_data2 = Sl_data[PostM,]
+
+Sl_data2$cat = factor(Sl_data2$cat, levels=c("Pre-SGT only", "Post-SGT"))
+Sl_data2$cat2 = factor(Sl_data2$cat2, levels=c("Pre-SGT only", "Post-SGT
+pre-pollen", "Pollen"))
+Sl_data2$cat3 = factor(Sl_data2$cat3, levels=c("Pre-SGT only", "Post-SGT only", "Both"))
+
+
+
+plotBox = function(dNdS, bin, mainlab, xlab, max){
+    bxp_info <- boxplot(dNdS ~ bin, plot = FALSE)
+    boxplot(dNdS ~ bin, , ylim = c(0,max), pch=19, 
+    main=mainlab, ylab="dN/dS", 
+    xlab=xlab,  
+            names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+}
+
+#Sl_data_CM334 = Sl_data2
+Sl_data_Chiltepin = Sl_data2
+#Sl_data_Eggplant = Sl_data2
+
+par(mfrow=c(3,2))
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat2, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat2, p.adjust = 'holm')  # p-values
+
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat2, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat2, p.adjust = 'holm')  # p-values
+
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat2, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat2, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Eggplant$dNdS[which(Sl_data_Eggplant$dNdS <=1)], Sl_data_Eggplant$cat3[which(Sl_data_Eggplant$dNdS <=1)], "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Sl_data_Eggplant$dNdS[which(Sl_data_Eggplant$dNdS <=1)], Sl_data_Eggplant$cat3[which(Sl_data_Eggplant$dNdS <=1)], p.adjust = 'holm')  # p-values
+
+
+plotBox(Sl_data2$dNdS[which(Sl_data2$dNdS <=1)], Sl_data2$cat3[which(Sl_data2$dNdS <=1)], "Tomato vs. Chiltepin", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Sl_data2$dNdS[which(Sl_data2$dNdS <=1)], Sl_data2$cat3[which(Sl_data2$dNdS <=1)], p.adjust = 'holm')  # p-values
+
+
+svg("Tomato_dNdS_boxplots.svg", width=10, height=6)
+par(mfrow=c(2,3))
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat2, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat2, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat2, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+dev.off()
+
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat3, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat3, p.adjust = 'holm')  # p-values
+              Pre-SGT only Post-SGT only
+Post-SGT only 0.070        -            
+Both          0.053        0.529
+
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat3, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat3, p.adjust = 'holm')  # p-values
+              Pre-SGT only Post-SGT only
+Post-SGT only 0.0882       -            
+Both          0.0024       0.0639
+
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat3, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat3, p.adjust = 'holm')  # p-values
+              Pre-SGT only Post-SGT only
+Post-SGT only 0.244        -            
+Both          0.047        0.244
+
+
+par(mfrow=c(2,3))
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat2, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat2, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat3, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat3, p.adjust = 'holm')  # p-values
+
+
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat2, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat2, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat3, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat3, p.adjust = 'holm')  # p-values
+
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat2, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat2, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat3, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat3, p.adjust = 'holm')  # p-values
+
+
+
+par(mfrow=c(2,3))
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat, p.adjust = 'holm')  # p-values
+
+plotBox(Sl_data_CM334$dNdS, Sl_data_CM334$cat3, "Tomato vs. Pepper CM334", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_CM334$dNdS, Sl_data_CM334$cat3, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat3, "Tomato vs. Pepper Chiltepin", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Chiltepin$dNdS, Sl_data_Chiltepin$cat3, p.adjust = 'holm')  # p-values
+plotBox(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat3, "Tomato vs. Eggplant", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Sl_data_Eggplant$dNdS, Sl_data_Eggplant$cat3, p.adjust = 'holm')  # p-values
+
+
+
+
 
 
 

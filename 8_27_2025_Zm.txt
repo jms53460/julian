@@ -771,11 +771,12 @@ g2 = A[,seq(3,ncol(A),4)]
 B = read.csv(file = 'Gene locations.csv', row.names = 1)
 
 stages = as.character(meta[,4])
+
+
 Late_UM_table = as.data.frame(matrix(data = c(g1["Zm00001d022124",which(stages == "Late")],g2["Zm00001d022124",which(stages == "Late")]), nrow = 2, ncol = length(which(stages == "Late")), byrow=TRUE))
 Late_UM_table = as.data.frame(matrix(data = c(g1["Zm00001d012675",which(stages == "Late")],g2["Zm00001d012675",which(stages == "Late")]), nrow = 2, ncol = length(which(stages == "Late")), byrow=TRUE))
 
 BM_table = as.data.frame(matrix(data = c(g1["Zm00001d012675",which(stages == "BM")],g2["Zm00001d012675",which(stages == "BM")]), nrow = 2, ncol = length(which(stages == "BM")), byrow=TRUE))
-
 
 
 source('Pseudotime Velocity Functions.R')
@@ -823,8 +824,10 @@ AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative 
 Z_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
 AlleleFrac_bin[-Z_binUse,] = NA
 FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
-names(FracMono_all) = sub("_g1", "", names(FracMono_all))
 
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
+
+names(FracMono_all) = sub("_g1", "", names(FracMono_all))
 
 hmat2 = A2d[rank(-fano[rownames(A2d)]) <= 500,ords][,127:349]
 o1 = seriate(dist(t(scale(t(hmat2)))), method = "OLO")
@@ -844,6 +847,40 @@ level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
     annotation_legend_param = list(Stage = list(at = c("Tetrad", "Early UM", "Middle UM", "Late UM", "UM/BM", "BM", "Pollen")))),
     col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
 dev.off()
+
+
+
+#samples from florets with mix of UM and BM: 
+stages = as.character(meta[,3])
+stages[grep('mix', meta[,5])] = "UM/BM"
+
+names(stages) = rownames(meta)
+stages = stages[-which(stages == "Interphase")]
+stages[which(stages == "Pollen")] = "TP"
+
+stages = factor(stages, levels = c("Meiosis","Tetrad", "UM", "UM/BM", "BM", "TP"))
+names(stages)
+
+#ratio = g1/(g1+g2)
+#ratio[(g1+g2) < 10] = NA  # Remove measurements with under 10 genoinformative transcripts
+#geneUse = which(abs(rowMeans(g1/(g1+g2), na.rm=T) - .5) < .4)  # Exclude genes with >90% of all transcripts mapping to the same allele across all samples
+#ratio[-geneUse,] = NA
+#FracMono_all = 100*colMeans(abs(ratio - .5) >= .3, na.rm=T)
+#FracMono_all[names(which(colSums(!is.na(ratio))<10))] = NA
+#names(FracMono_all) = sub("_g1", "", names(FracMono_all))
+
+
+FracMonoByStage = data.frame(FracMono = FracMono_all[names(stages)], Stage = stages)
+
+
+svg('Maize_FracMonoByStage.svg', width=3.5, height=2)
+ggplot(FracMonoByStage, aes(x = Stage, y = FracMono, fill = Stage)) + geom_violin(linewidth=0.4, adjust = 1) + labs(title = "Maize", 
+x = "Stage", y = "% Monoallelic
+    Transcripts") + theme(plot.title = element_text(hjust = 0.5), legend.position = "none", 
+    panel.grid=element_blank(), axis.ticks.x = element_blank()) + scale_fill_manual(values=c("Meiosis" = "gray", "Tetrad" = "#EB1E2C", 
+    "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "TP" = "#A4A4D5")) + ylim(0,100)
+dev.off()
+
 
 
 

@@ -1,0 +1,372 @@
+#dNdS_analysis2
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load("Arabidopsis.RData")
+load("Rice.RData")
+load("Maize_merge.RData")
+load("Tomato.RData") 
+
+
+#Rice CoGe: https://genomevolution.org/coge/SynMap.pl 
+#Oryza sativa japonica (Rice) (v7, id16890): masked
+#Oryza longistaminata (Oryza longistaminata acc. IRGC110404) (vV2.1, id51405): masked using RepeatMasker        ###2 Mya
+#Leersia perrieri (Gramene v1.4 Barbazuk Lab AS Project) (v1.4, id60020): unmasked      ###20 Mya
+#Brachypodium distachyon (Brachypodium_distachyon_v3.0.dna_rm.toplevel.fa) (vv3, id52736): masked       ###50 Mya
+##Remapping rice using files from https://rice.uga.edu/download_osa1r7.shtml
+
+#Move forward with one of the three options:
+    RiceNSdata = read.table('Rice_Oryza_longistaminata_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*OL", "OL", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('RiceGene','longiGene','Identity')
+
+    RiceNSdata = read.table('Rice_Leersia_perrieri_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*CDS:", "", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('RiceGene','LeersiaGene','Identity')
+
+    RiceNSdata = read.table('Rice_Brachypodium_distachyon_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[|].*", '', sub(".*CDS:", "", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('RiceGene','BrachyGene','Identity')    
+
+    RiceNSdata = read.table('Rice_japonica_indica_dNdS.tab', skip = 2, sep = '\t', as.is = T)
+    RiceNSdata = cbind(RiceNSdata, sub("[.].*", "", sub(".*LOC", "LOC", RiceNSdata[,4])), sub("[.].*", '', sub(".*Osir", "Osir", RiceNSdata[,8])), as.numeric(sub('.*[|]','',RiceNSdata[,4])))
+    colnames(RiceNSdata)[13:15] = c('JaponicaGene','IndicaGene','Identity')
+
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(RiceNSdata))
+for (sgene in as.character(unique(RiceNSdata[duplicated(RiceNSdata[,13]),13]))) {
+	tr = which(RiceNSdata[,13] == sgene)
+	removes[tr[rank(-RiceNSdata[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(RiceNSdata[duplicated(RiceNSdata[,14]),14]))) {
+	tr = which(RiceNSdata[,14] == mgene)
+	removes[tr[rank(-RiceNSdata[tr,15]) != 1]] = TRUE
+}
+RiceNSdata = RiceNSdata[!removes,]
+##
+
+RiceNSdata = RiceNSdata[RiceNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+RiceNSdata = RiceNSdata[-which(is.na(as.numeric(RiceNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+#RiceNSdata = RiceNSdata[-which(as.numeric(RiceNSdata[,1]) == 0),] # Remove genes with 0 synonymous subs #don't use for Lp or Bd
+RiceNS = as.numeric(RiceNSdata[,2]) / as.numeric(RiceNSdata[,1])
+names(RiceNS) = RiceNSdata[,13]
+
+Os_StageMean = function(stage){
+    rowMeans(Os_TPM[which(rownames(Os_TPM) %in% names(RiceNS)),names(Os_stages[which(Os_stages == stage)])])
+}
+
+Os_data = as.data.frame(sapply(levels(Os_stages2), Os_StageMean))
+OsNS = RiceNS[names(RiceNS) %in% rownames(Os_data)]
+Os_data$dNdS = OsNS[rownames(Os_data)]
+
+PostM = rownames(Os_data)[rowSums(Os_data[,1:7] >=100) >0]
+PreSGT = rownames(Os_data)[rowSums(Os_data[,1:2] >=100) >0]
+PostSGT = rownames(Os_data)[rowSums(Os_data[,3:7] >=100) >0]
+PreSGTonly = PreSGT[which(!PreSGT %in% PostSGT)]
+PostSGTonly = PostSGT[which(!PostSGT %in% PreSGT)]
+Pollen = rownames(Os_data)[Os_data[,7] >=100]
+PostSGTPrePollen = PostSGT[which(!PostSGT %in% Pollen)]
+PreAndPostSGT = PreSGT[which(PreSGT %in% PostSGT)]
+
+
+Os_data$cat = rownames(Os_data)
+Os_data[PreSGTonly,10] = "Pre-SGT only"
+Os_data[PostSGT,10] = "Post-SGT"
+
+Os_data$cat2 = rownames(Os_data)
+Os_data[PreSGTonly,11] = "Pre-SGT only"
+Os_data[PostSGTPrePollen,11] = "Post-SGT
+pre-pollen"
+Os_data[Pollen,11] = "Pollen"
+
+Os_data$cat3 = rownames(Os_data)
+Os_data[PreSGTonly,12] = "Pre-SGT only"
+Os_data[PostSGTonly,12] = "Post-SGT only"
+Os_data[PreAndPostSGT,12] = "Both"
+
+
+Os_data2 = Os_data[PostM,]
+
+Os_data2$cat = factor(Os_data2$cat, levels=c("Pre-SGT only", "Post-SGT"))
+Os_data2$cat2 = factor(Os_data2$cat2, levels=c("Pre-SGT only", "Post-SGT
+pre-pollen", "Pollen"))
+Os_data2$cat3 = factor(Os_data2$cat3, levels=c("Pre-SGT only", "Post-SGT only", "Both"))
+
+plotBox = function(dNdS, bin, mainlab, xlab, max){
+    bxp_info <- boxplot(dNdS ~ bin, plot = FALSE)
+    boxplot(dNdS ~ bin, , ylim = c(0,max), pch=19, 
+    main=mainlab, ylab="dN/dS", 
+    xlab=xlab,  
+            names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+}
+
+#Os_data_longi = Os_data2
+#Os_data_perrieri = Os_data2
+#Os_data_Brachy = Os_data2
+#Os_data_indica = Os_data2
+
+
+par(mfrow=c(2,3))
+plotBox(Os_data_longi$dNdS, Os_data_longi$cat, "Rice vs. O. longistaminata", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Os_data_longi$dNdS, Os_data_longi$cat, p.adjust = 'holm')  # p-values
+plotBox(Os_data_perrieri$dNdS, Os_data_perrieri$cat, "Rice vs. L. perrieri", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Os_data_perrieri$dNdS, Os_data_perrieri$cat, p.adjust = 'holm')  # p-values
+#plotBox(Os_data_Brachy$dNdS, Os_data_Brachy$cat, "Rice vs. Brachypodium", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Os_data_Brachy$dNdS, Os_data_Brachy$cat, p.adjust = 'holm')  # p-values
+plotBox(Os_data_indica$dNdS, Os_data_indica$cat, "Rice japonica vs. indica", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Os_data_indica$dNdS, Os_data_indica$cat, p.adjust = 'holm')  # p-values
+
+
+plotBox(Os_data_longi$dNdS, Os_data_longi$cat3, "Rice vs. O. longistaminata", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Os_data_longi$dNdS, Os_data_longi$cat3, p.adjust = 'holm')  # p-values
+plotBox(Os_data_perrieri$dNdS, Os_data_perrieri$cat3, "Rice vs. L. perrieri", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Os_data_perrieri$dNdS, Os_data_perrieri$cat3, p.adjust = 'holm')  # p-values
+#plotBox(Os_data_Brachy$dNdS, Os_data_Brachy$cat3, "Rice vs. Brachypodium", "Gene expression timing", 0.8)
+#pairwise.wilcox.test(Os_data_Brachy$dNdS, Os_data_Brachy$cat3, p.adjust = 'holm')  # p-values
+plotBox(Os_data_indica$dNdS, Os_data_indica$cat3, "Rice japonica vs. indica", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Os_data_indica$dNdS, Os_data_indica$cat3, p.adjust = 'holm')  # p-values
+
+
+
+
+
+
+ZmNS_data = read.table('Zm_v4_sorghum_dNdS.tab', skip = 2, sep = '\t', as.is = T)
+ZmNS_data = cbind(ZmNS_data, sub("_.*", "", sub(".*CDS:", "", ZmSb[,4])), sub("_.*", "", sub("[|].*", '', sub(".*CDS:", "", ZmNS_data[,8]))), as.numeric(sub('.*[|]','',ZmNS_data[,4])))
+colnames(ZmNS_data)[13:15] = c('Zm_G','Sb_G','Identity')
+
+ZmNS_data = read.table('Zm_v5_teosinte_dNdS.tab', skip = 2, sep = '\t', as.is = T)
+ZmNS_data = cbind(ZmNS_data, sub("_.*", "", sub(".*CDS:", "", ZmNS_data[,8])), sub("_.*", "", sub(".*Zx", "Zx", ZmNS_data[,4])), as.numeric(sub('.*[|]','',ZmNS_data[,4])))
+colnames(ZmNS_data)[13:15] = c('Zm_G','Teo_G','Identity')
+
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(ZmNS_data))
+for (sgene in as.character(unique(ZmNS_data[duplicated(ZmNS_data[,13]),13]))) {
+	tr = which(ZmNS_data[,13] == sgene)
+	removes[tr[rank(-ZmNS_data[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(ZmNS_data[duplicated(ZmNS_data[,14]),14]))) {
+	tr = which(ZmNS_data[,14] == mgene)
+	removes[tr[rank(-ZmNS_data[tr,15]) != 1]] = TRUE
+}
+ZmNS_data = ZmNS_data[!removes,]
+##
+
+ZmNS_data = ZmNS_data[ZmNS_data[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+ZmNS_data = ZmNS_data[-which(is.na(as.numeric(ZmNS_data[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+ZmNS_data = ZmNS_data[-which(as.numeric(ZmNS_data[,1]) == 0),] # Remove genes with 0 synonymous subs 
+ZmNS = as.numeric(ZmNS_data[,2]) / as.numeric(ZmNS_data[,1])
+names(ZmNS) = ZmNS_data[,13]
+
+#For the sorghum only:
+#Downloaded table with all gene model versions: https://download.maizegdb.org/Pan-genes/Pan-Zea/
+PanGeneTab = read.delim("pan-zea.v4.pan-genes_table.tsv")
+V5toV4tab = PanGeneTab[,6:7]
+V5toV4tab = V5toV4tab[which(rowSums(V5toV4tab == "NONE") == 0),]
+V5toV4tab$Zm00001d = sub("_.*", "", V5toV4tab$Zm00001d)
+V5toV4tab$Zm00001eb = sub("_.*", "", V5toV4tab$Zm00001eb)
+
+vConvert = V5toV4tab[which(V5toV4tab$Zm00001d %in% names(ZmNS)),]
+rownames(vConvert) = vConvert[,1]
+
+length(ZmNS)
+#[1] 14892
+ZmNSv5 = ZmNS[names(ZmNS) %in% vConvert[,1]]
+names(ZmNSv5) = vConvert[names(ZmNSv5),2]
+length(ZmNSv5)
+#[1] 13194
+ZmNSv5 = ZmNSv5[-which(is.na(ZmNSv5))]
+
+Zm_StageMean = function(stage){
+    rowMeans(Zm_merge_TPM[which(rownames(Zm_merge_TPM) %in% names(ZmNSv5)),names(Zm_merge_stages[which(Zm_merge_stages == stage)])])
+}
+
+Zm_data = as.data.frame(sapply(levels(Zm_merge_stages), Zm_StageMean))
+ZmNS = ZmNSv5[names(ZmNSv5) %in% rownames(Zm_data)]
+Zm_data$dNdS = ZmNS[rownames(Zm_data)]
+#end sorghum only
+
+
+
+Zm_StageMean = function(stage){
+    rowMeans(Zm_merge_TPM[which(rownames(Zm_merge_TPM) %in% names(ZmNS)),names(Zm_merge_stages[which(Zm_merge_stages == stage)])])
+}
+
+Zm_data = as.data.frame(sapply(levels(Zm_merge_stages), Zm_StageMean))
+ZmNS = ZmNS[names(ZmNS) %in% rownames(Zm_data)]
+Zm_data$dNdS = ZmNS[rownames(Zm_data)]
+
+
+PostM = rownames(Zm_data)[rowSums(Zm_data[,1:7] >=100) >0]
+PreSGT = rownames(Zm_data)[rowSums(Zm_data[,1:2] >=100) >0]
+PostSGT = rownames(Zm_data)[rowSums(Zm_data[,4:7] >=100) >0]
+PreSGTonly = PreSGT[which(!PreSGT %in% PostSGT)]
+PostSGTonly = PostSGT[which(!PostSGT %in% PreSGT)]
+Pollen = rownames(Zm_data)[Zm_data[,6] >=100]
+PostSGTPrePollen = PostSGT[which(!PostSGT %in% Pollen)]
+PreAndPostSGT = PreSGT[which(PreSGT %in% PostSGT)]
+
+
+Zm_data$cat = rownames(Zm_data)
+Zm_data[PreSGTonly,9] = "Pre-SGT only"
+Zm_data[PostSGT,9] = "Post-SGT"
+
+Zm_data$cat2 = rownames(Zm_data)
+Zm_data[PreSGTonly,10] = "Pre-SGT only"
+Zm_data[PostSGTPrePollen,10] = "Post-SGT
+pre-pollen"
+Zm_data[Pollen,10] = "Pollen"
+
+Zm_data$cat3 = rownames(Zm_data)
+Zm_data[PreSGTonly,11] = "Pre-SGT only"
+Zm_data[PostSGTonly,11] = "Post-SGT only"
+Zm_data[PreAndPostSGT,11] = "Both"
+
+
+Zm_data2 = Zm_data[PostM,]
+
+Zm_data2$cat = factor(Zm_data2$cat, levels=c("Pre-SGT only", "Post-SGT"))
+Zm_data2$cat2 = factor(Zm_data2$cat2, levels=c("Pre-SGT only", "Post-SGT
+pre-pollen", "Pollen"))
+Zm_data2$cat3 = factor(Zm_data2$cat3, levels=c("Pre-SGT only", "Post-SGT only", "Both"))
+
+plotBox = function(dNdS, bin, mainlab, xlab, max){
+    bxp_info <- boxplot(dNdS ~ bin, plot = FALSE)
+    boxplot(dNdS ~ bin, , ylim = c(0,max), pch=19, 
+    main=mainlab, ylab="dN/dS", 
+    xlab=xlab,  
+            names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+}
+
+#Zm_data_sorghum = Zm_data2
+#Zm_data_teosinte = Zm_data2
+
+par(mfrow=c(2,3))
+plotBox(Zm_data_sorghum$dNdS, Zm_data_sorghum$cat, "Maize vs. Sorghum", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Zm_data_sorghum$dNdS, Zm_data_sorghum$cat, p.adjust = 'holm')  # p-values
+plotBox(Zm_data_sorghum$dNdS, Zm_data_sorghum$cat2, "Maize vs. Sorghum", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Zm_data_sorghum$dNdS, Zm_data_sorghum$cat2, p.adjust = 'holm')  # p-values
+plotBox(Zm_data_sorghum$dNdS, Zm_data_sorghum$cat3, "Maize vs. Sorghum", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Zm_data_sorghum$dNdS, Zm_data_sorghum$cat3, p.adjust = 'holm')  # p-values
+
+plotBox(Zm_data_teosinte$dNdS, Zm_data_teosinte$cat, "Maize vs. Teosinte", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Zm_data_teosinte$dNdS, Zm_data_teosinte$cat, p.adjust = 'holm')  # p-values
+plotBox(Zm_data_teosinte$dNdS, Zm_data_teosinte$cat2, "Maize vs. Teosinte", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Zm_data_teosinte$dNdS, Zm_data_teosinte$cat2, p.adjust = 'holm')  # p-values
+plotBox(Zm_data_teosinte$dNdS, Zm_data_teosinte$cat3, "Maize vs. Teosinte", "Gene expression timing", 0.8)
+pairwise.wilcox.test(Zm_data_teosinte$dNdS, Zm_data_teosinte$cat3, p.adjust = 'holm')  # p-values
+
+
+
+
+
+#Arabidopsis thaliana and lyrata CoGe: https://genomevolution.org/r/9fb74
+#Arabidopsis thaliana Col-0 (thale cress) (v10, id24739): masked repeats 50x
+#Arabidopsis lyrata (EnsemblPlantsv1) (vEnsemblPlantsv1, id36190): Masked by source        ###5 MYA
+#Capsella rubella (vCaprub_01, id56621): masked using RepeatMasker      ###10-14 MYA
+#Brassica rapa (v1.5, id28890): NCBI WindowMasker (Hard)     ###17-20 MYA
+
+#Move forward with one of the three options:
+    #Arabidopsis lyrata comparison
+    AtNSdata = read.table('Arabidopsis_thaliana_lyrata_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*CDS:", "CDS:", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
+    colnames(AtNSdata)[13:15] = c('thalianaGene','lyrataGene','Identity')
+
+    #Capsella rubella comparison
+    AtNSdata = read.table('Arabidopsis_thaliana_Capsella_rubella_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*cds-", "cds-", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
+    colnames(AtNSdata)[13:15] = c('thalianaGene','CapsellaGene','Identity')
+
+    #Brassica rapa comparison
+    AtNSdata = read.table('Arabidopsis_thaliana_Brassica_rapa_CoGe.tab', skip = 2, sep = '\t', as.is = T)
+    AtNSdata = cbind(AtNSdata, sub("[.].*", "", sub("[|].*", "", sub(".*AT", "ID=gene-AT", AtNSdata[,4]))), sub("[|].*", '', sub(".*Bra", "Bra", AtNSdata[,8])), as.numeric(sub('.*[|]','',AtNSdata[,4])))
+    colnames(AtNSdata)[13:15] = c('thalianaGene','BrassicaGene','Identity')
+
+## Remove putative orthologs that are not reciprocal best hits ##
+removes = rep(FALSE, nrow(AtNSdata))
+for (sgene in as.character(unique(AtNSdata[duplicated(AtNSdata[,13]),13]))) {
+	tr = which(AtNSdata[,13] == sgene)
+	removes[tr[rank(-AtNSdata[tr,15]) != 1]] = TRUE
+}
+for (mgene in as.character(unique(AtNSdata[duplicated(AtNSdata[,14]),14]))) {
+	tr = which(AtNSdata[,14] == mgene)
+	removes[tr[rank(-AtNSdata[tr,15]) != 1]] = TRUE
+}
+AtNSdata = AtNSdata[!removes,]
+##
+
+AtNSdata = AtNSdata[AtNSdata[,15] >= 80,]  # Require at least 80% identity between orthologs when calculating dNdS
+AtNSdata = AtNSdata[-which(is.na(as.numeric(AtNSdata[,1]))),] # Remove genes that lack calculated synonymous and non-synonymous rates or are undefined
+#AtNSdata = AtNSdata[-which(as.numeric(AtNSdata[,1]) == 0),] # Remove genes with 0 synonymous subs #skip for capsella and brassica
+AthalNS = as.numeric(AtNSdata[,2]) / as.numeric(AtNSdata[,1])
+names(AthalNS) = AtNSdata[,13]
+
+
+At_StageMean = function(stage){
+    rowMeans(At_TPM[which(rownames(At_TPM) %in% names(AthalNS)),names(At_stages[which(At_stages == stage)])])
+}
+
+At_data = as.data.frame(sapply(levels(At_stages), At_StageMean))
+AtNS = AthalNS[names(AthalNS) %in% rownames(At_data)]
+At_data$dNdS = AtNS[rownames(At_data)]
+
+PostM = rownames(At_data)[rowSums(At_data[,1:6] >=100) >0]
+PreSGT = rownames(At_data)[At_data[,1] >=100]
+PostSGT = rownames(At_data)[rowSums(At_data[,2:6] >=100) >0]
+PreSGTonly = PreSGT[which(!PreSGT %in% PostSGT)]
+PostSGTonly = PostSGT[which(!PostSGT %in% PreSGT)]
+Pollen = rownames(At_data)[At_data[,6] >=100]
+PostSGTPrePollen = PostSGT[which(!PostSGT %in% Pollen)]
+PreAndPostSGT = PreSGT[which(PreSGT %in% PostSGT)]
+
+
+At_data$cat = rownames(At_data)
+At_data[PreSGTonly,8] = "Pre-SGT only"
+At_data[PostSGT,8] = "Post-SGT"
+
+At_data$cat2 = rownames(At_data)
+At_data[PreSGTonly,9] = "Pre-SGT only"
+At_data[PostSGTPrePollen,9] = "Post-SGT
+pre-pollen"
+At_data[Pollen,9] = "Pollen"
+
+At_data$cat3 = rownames(At_data)
+At_data[PreSGTonly,10] = "Pre-SGT only"
+At_data[PostSGTonly,10] = "Post-SGT only"
+At_data[PreAndPostSGT,10] = "Both"
+
+
+At_data2 = At_data[PostM,]
+
+At_data2$cat = factor(At_data2$cat, levels=c("Pre-SGT only", "Post-SGT"))
+At_data2$cat2 = factor(At_data2$cat2, levels=c("Pre-SGT only", "Post-SGT
+pre-pollen", "Pollen"))
+At_data2$cat3 = factor(At_data2$cat3, levels=c("Pre-SGT only", "Post-SGT only", "Both"))
+
+plotBox = function(dNdS, bin, mainlab, xlab, max){
+    bxp_info <- boxplot(dNdS ~ bin, plot = FALSE)
+    boxplot(dNdS ~ bin, , ylim = c(0,max), pch=19, 
+    main=mainlab, ylab="dN/dS", 
+    xlab=xlab,  
+            names = paste0(bxp_info$names, "\n(n = ", bxp_info$n, ")"))
+}
+
+#At_data_lyrata = At_data2
+#At_data_Capsella = At_data2
+
+par(mfrow=c(2,3))
+plotBox(At_data_lyrata$dNdS, At_data_lyrata$cat, "A. thaliana vs. A. lyrata", "Gene expression timing", 0.8)
+pairwise.wilcox.test(At_data_lyrata$dNdS, At_data_lyrata$cat, p.adjust = 'holm')  # p-values
+plotBox(At_data_lyrata$dNdS, At_data_lyrata$cat2, "A. thaliana vs. A. lyrata", "Gene expression timing", 0.8)
+pairwise.wilcox.test(At_data_lyrata$dNdS, At_data_lyrata$cat2, p.adjust = 'holm')  # p-values
+plotBox(At_data_lyrata$dNdS, At_data_lyrata$cat3, "A. thaliana vs. A. lyrata", "Gene expression timing", 0.8)
+pairwise.wilcox.test(At_data_lyrata$dNdS, At_data_lyrata$cat3, p.adjust = 'holm')  # p-values
+
+plotBox(At_data_Capsella$dNdS, At_data_Capsella$cat, "A. thaliana vs. C. rubella", "Gene expression timing", 0.8)
+pairwise.wilcox.test(At_data_Capsella$dNdS, At_data_Capsella$cat, p.adjust = 'holm')  # p-values
+plotBox(At_data_Capsella$dNdS, At_data_Capsella$cat2, "A. thaliana vs. C. rubella", "Gene expression timing", 0.8)
+pairwise.wilcox.test(At_data_Capsella$dNdS, At_data_Capsella$cat2, p.adjust = 'holm')  # p-values
+plotBox(At_data_Capsella$dNdS, At_data_Capsella$cat3, "A. thaliana vs. C. rubella", "Gene expression timing", 0.8)
+pairwise.wilcox.test(At_data_Capsella$dNdS, At_data_Capsella$cat3, p.adjust = 'holm')  # p-values
+

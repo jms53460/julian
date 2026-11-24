@@ -1,11 +1,7 @@
-#Process maize F1 data from April 2026 sequencing
+#Process maize Mu active and maintainer pollen data from April 2026 sequencing
 ssh jms53460@xfer.gacrc.uga.edu
-mkdir /work/bnlab/Apr2026Seq
-cd /work/bnlab/Apr2026Seq
 
-mkdir MaizeMu_4_2026
-
-cd /scratch/jms53460/MaizeMu_4_2026
+mkdir /scratch/jms53460/MaizeMu_4_2026
 mkdir /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M73-84* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
@@ -13,7 +9,6 @@ cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M85-96* /scratch/jms53460/Mai
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M97-108* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M109-120* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
 cp /work/bnlab/Apr2026Seq/24323-16-04142026_144440/M121-132* /scratch/jms53460/MaizeMu_4_2026/Raw_Data
-
 
 cp /home/jms53460/Zm-B73-REFERENCE-NAM-5.0.fa /scratch/jms53460/MaizeMu_4_2026
 cp /home/jms53460/CELSeq_barcodes.txt /scratch/jms53460/MaizeMu_4_2026
@@ -129,11 +124,37 @@ do
 done
 
 
-interact --mem=5G
-ml R/4.4.2-gfbf-2024a
-cd /scratch/jms53460/MaizeRemap/
-R
+### UMItools failed to run, with no error message provided (everything else ran fine)
+### I found that running UMItools separately from everything else allows it to run. (script below)
+#!/bin/bash
+#SBATCH --job-name=MaizeMu_4_2026_UMIs                                    # Job name
+#SBATCH --partition=batch                                                 # Partition (queue) name
+#SBATCH --ntasks=1                                                        # Single task job
+#SBATCH --cpus-per-task=6                                                 # Number of cores per task
+#SBATCH --mem=200gb                                                       # Total memory for job
+#SBATCH --time=12:00:00                                                   # Time limit hrs:min:sec
+#SBATCH --output=/scratch/jms53460/MaizeMu_4_2026/UMIs.out                # Location of standard output file
+#SBATCH --error=/scratch/jms53460/MaizeMu_4_2026/UMIs.err                 # Location of error log file
+#SBATCH --mail-user=jms53460@uga.edu                                      # Where to send mail
+#SBATCH --mail-type=END,FAIL                                              # Mail events (BEGIN, END, FAIL, ALL)
 
+cd /scratch/jms53460/MaizeMu_4_2026/
+
+module load UMI-tools/1.1.4-foss-2023a
+for file in "featurecounts/"*_s.bam*
+do
+    file2="${file:14:-16}"
+    if [ ! -f "UMIcounts/${file2}.tsv" ]; then
+
+        umi_tools count --per-gene --gene-tag=XT --assigned-status-tag=XS -I "bams/$file2" -S "UMIcounts/${file2}.tsv"
+    fi
+done
+
+
+interact --mem=5G # request memory in an interactive session so I can set up the tables I need in R
+ml R/4.4.2-gfbf-2024a
+cd /scratch/jms53460/MaizeMu_4_2026/
+R
 
 genes = read.table('Zm-B73-REFERENCE-NAM-5.0_Zm00001eb.1.gff3', sep = '\t', quote = "")[,c(1,3,5,9)]
 annots = strsplit(genes[,4], ';')
@@ -153,7 +174,7 @@ for (f in files) {
 	xx = read.table(paste('UMIcounts/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
 	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
 }
-colnames(A) = sub('_SNPsplit.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m37_48', 'M37-48', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
+colnames(A) = sub('_s.bam.f.tsv', '', sub('S107_L003_', '', sub('S108_L003_', '', sub('S104_L003_', '', sub('S105_L003_', '', sub('S106_L003_', '', colnames(A)))))))
 A[is.na(A)] = 0
 
 B = A[order(rownames(A)),]
@@ -162,45 +183,7 @@ B = B[!duplicated(rownames(B)),]
 for (g in unique(rownames(B)[duplicated(rownames(B))])) {
 	B[g,] = colSums(B2[rownames(B2) %in% g,])
 }
-D2 = B
-
-files = dir('UMIcounts_g1')
-A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
-rownames(A) = rownames(genes)
-colnames(A) = files
-for (f in files) {
-	xx = read.table(paste('UMIcounts_g1/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
-}
-colnames(A) = sub('_SNPsplit_g1.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m37_48', 'M37-48', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
-A[is.na(A)] = 0
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-g1_2 = B
-
-files = dir('UMIcounts_g2')
-A = matrix(NA, nrow = length(rownames(genes)), ncol = length(files))
-rownames(A) = rownames(genes)
-colnames(A) = files
-for (f in files) {
-	xx = read.table(paste('UMIcounts_g2/', f, sep = ''), sep = '\t', quote="", header=T, row.names=1)
-	A[,f] = xx[match(rownames(genes),rownames(xx)),1]
-}
-colnames(A) = sub('_SNPsplit_g2.tsv', '', sub('Nelms_', '', sub('S130_L004_', '', sub('m37_48', 'M37-48', sub('S5_', '', sub('S4_', '', sub('S18_', '', sub('S19_', '', colnames(A)))))))))
-A[is.na(A)] = 0
-
-B = A[order(rownames(A)),]
-B2 = B
-B = B[!duplicated(rownames(B)),]
-for (g in unique(rownames(B)[duplicated(rownames(B))])) {
-	B[g,] = colSums(B2[rownames(B2) %in% g,])
-}
-g2_2 = B
+D = B
 
 genes[,1] = sub('chr', '', genes[,1])
 
@@ -208,25 +191,80 @@ genes = genes[order(genes[,2]),] #order by position
 genes = genes[order(genes[,1]),] #order by chr
 
 reads = read.table('featurecounts/read_counts.tab.summary', sep = '\t', quote = "", header=T, row.names=1)[1,]
-colnames(reads) = sub('SNPsplit.', '', sub('M1.12_S130_L004', 'M1-12', sub('Nelms_M13.24_S18', 'M13-24', sub('Nelms_M25.36_S19', 'M25-36', sub('m37_48_BBB_S5', 'M37-48_BBB', sub('m37_48_ETOH_S4', 'M37-48_ETOH', sub('_SNPsplit.bam', '', colnames(reads))))))))
+colnames(reads) = sub('hisat2_out.M97.108_S106_L003_', 'M97-108_', sub('hisat2_out.M85.96_S105_L003_', 'M85-96_', sub('hisat2_out.M73.84_S104_L003_', 'M73-84_', sub('hisat2_out.M121.132_S108_L003_', 'M121-132_', sub('hisat2_out.M109.120_S107_L003_', 'M109-120_', sub('_s.bam', '', colnames(reads)))))))
 
-D2 = D2[rownames(genes), colnames(reads)] #D2 and reads originally have different orders of columns
-g1_2 = g1_2[rownames(genes),]
-g2_2 = g2_2[rownames(genes),]
-Zm_genes2 = genes
+D = D[rownames(genes), colnames(reads)] #in case D and reads originally have different orders of columns
+Zm_genes = genes
 
-reads_per_UMI = t(reads/colSums(D2))
-reads_UMIs2 = data.frame(reads = t(reads), UMIs = colSums(D2), reads_per_UMI = reads_per_UMI)
-colnames(reads_UMIs2) = c("reads", "UMIs", "reads_per_UMI")
+reads_per_UMI = t(reads/colSums(D))
+reads_UMIs = data.frame(reads = t(reads), UMIs = colSums(D), reads_per_UMI = reads_per_UMI)
+colnames(reads_UMIs) = c("reads", "UMIs", "reads_per_UMI")
 
-save(D2,g1_2,g2_2,Zm_genes2,reads_UMIs2, file = "MaizeRemap_8-10_2025.RData")
+save(D,Zm_genes,reads_UMIs, file = "MaizeMu_4_2026.RData")
 q()
 
 
 ###Copying this to my local computer
-scp sapelo2:/scratch/jms53460/MaizeRemap/MaizeRemap_8-10_2025.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
-
+scp sapelo2:/scratch/jms53460/MaizeMu_4_2026/MaizeMu_4_2026.RData 'C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R'
 
 ###In local R terminal
 setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
-load('MaizeRemap_8-10_2025.RData')
+load('MaizeMu_4_2026.RData')
+
+plot(reads_UMIs$reads_per_UMI) # Check reads per UMI. Looks reasonable. One plate looks a bit low
+summary(reads_UMIs$reads_per_UMI)  
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#  1.722   2.064   2.241   2.421   2.725   3.770
+
+library(readxl)
+# load anther genotype data
+Geno <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/MaizeMu_Geno_4_22_26.xlsx")
+
+# prepare full meta data table from anther genotype data table
+Meta <- Geno[rep(row.names(Geno), each = 8), ]
+Meta = as.data.frame(Meta)
+Meta$Sample = paste(rep(Geno$Plate, each = 8), rep((as.numeric(sub('[A-Z].+','',Geno$Primer)) - 1)*8, each = 8) + rep(1:8, nrow(Geno)), 's', sep ='')
+rownames(Meta) = Meta$Sample
+
+# make sample order match between tables
+D = D[,rownames(Meta)]
+reads_UMIs = reads_UMIs[rownames(Meta),]
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+
+hist(colSums(D), breaks=30) # looking at distribution of UMI counts per sample
+abline(v=50000) # 50k seems like a reasonable although stringent UMI cutoff option
+
+over50k = names(which(colSums(D) >50000)) # set UMI cutoff
+
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+hmat = A2d[rank(-fano[rownames(A2d)]) <= 500,over50k]
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+library('ComplexHeatmap')
+library(circlize)
+summary(log(colSums(D[,over50k]),10)) # use to set UMI_col min and max for heatmap annotation (result shown below)
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#  4.785   5.186   5.301   5.302   5.417   5.780
+UMI_col = colorRamp2(c(4.75, 5.8), c("white", "forestgreen"))
+
+Heatmap(minmax(hmat)[,over50k], 
+    name = 'Expression', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")), 
+    top_annotation = HeatmapAnnotation(UMIs = log(colSums(D[,over50k]),10), Genotype = Meta[over50k,6], 
+    col = list(UMIs = UMI_col, Genotype = c("Maintainer" = "white", "MuActive" = "black"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100),
+    show_row_names=F, show_column_names=F)
+
+Heatmap(cor(minmax(hmat)[,over50k], use = 'pairwise.complete.obs', method = 'pearson'), 
+    name = 'Expression_cor', top_annotation = HeatmapAnnotation(UMIs = log(colSums(D[,over50k]),10), Genotype = Meta[over50k,6], 
+    col = list(UMIs = UMI_col, Genotype = c("Maintainer" = "white", "MuActive" = "black"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100),
+    show_row_names=F, show_column_names=F)
+
+
+save(D,Zm_genes,reads_UMIs,Geno,Meta, file = "MaizeMu_4_2026_with_meta.RData")

@@ -1,0 +1,575 @@
+#Prep_for_ortholog_comp
+###In local R terminal
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(circlize)
+library(seriation)
+library('ComplexHeatmap')
+source('Pseudotime Velocity Functions.R')
+pVel = function (xx, nboot = 200) 
+{
+    xx = t(xx)
+    stages = as.numeric(stages)
+    names(stages) = rownames(xx)
+    set.seed(1)
+    out = NULL
+    for (i in 1:nboot) {
+        samps = sample(rownames(xx), replace = T)
+        pT = pseudotime(xx[samps, ], stages)
+
+        pT = 100 * (pT - quantile(pT, 0.1))/diff(quantile(pT, c(0.1, 0.9)))
+        names(pT) = samps
+        out = c(out, pT)
+        if (i == 1) {
+            cat("0% |---------|---------|---------|---------| 100%\n   .")
+        }
+        if ((i%%round(nboot/40)) == 0) {
+            cat(".")
+        }
+    }
+    pT = by(out, names(out), mean)[rownames(xx)]
+    pV = c(rep(NA, 4), velFn(pT[order(pT)]), rep(NA, 4))
+    pV = pV/median(pV, na.rm = T)
+    return(list(pT = pT, pV = pV))
+}
+minmax = function(x) {
+	sweep(x - log(pseudocount, 10), 1, apply(x - log(pseudocount, 10), 1, max), '/')
+}
+
+
+###Rice prep
+load("RiceRemap_7-8_2025.RData")
+
+Rice_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Rice_Stages.xlsx")
+Rice_meta <- Rice_Stages[rep(row.names(Rice_Stages), each = 8), ]
+Rice_meta = as.data.frame(Rice_meta)
+rownames(Rice_meta) = paste(rep(Rice_Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Rice_Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Rice_Stages)), 's', sep ='')
+
+Rice_meta[which(Rice_meta[,10] == "shed"),12] = "TP_shed"
+Rice_meta[grep("sep only", Rice_meta[,10]),12] = "tetrad_sep"
+Rice_meta[grep("sep,", Rice_meta[,10])[c(6:8,13:16,23:24)],12] = "tetrad_sep"
+
+Rice_meta$No_cell2 = unlist(lapply(Rice_Stages$No_cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+D2 = D2[,rownames(Rice_meta)]
+g1_2 = g1_2[,rownames(Rice_meta)]
+g2_2 = g2_2[,rownames(Rice_meta)]
+
+BINR = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Rice_genes2[, 1]) * 10^6 + round(Rice_genes2[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_2)))
+    colnames(out2) = colnames(g1_2)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+g1_bin = BINR(g1_2)
+g2_bin = BINR(g2_2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+R_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-R_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA # Exclude samples with <10 informative bins
+
+over10k = names(which(colSums(D2) >10000))
+over10k = over10k[which(Rice_meta[over10k,14] == "N")] #getting rid of the no cell controls (4 at 20k, 26 at 10k) #14 for newer table, 12 for old table
+
+stages = Rice_meta[over10k,12]
+names(stages) = over10k
+RiceBiSamp = names(which(FracMono_all[over10k] <= 40))
+RiceMonoSamp = names(which(FracMono_all[over10k] > 40))
+stages[names(stages[grep("early UM", stages)])] = "UM"
+stages[names(stages[grep("mid UM", stages)])] = "UM"
+stages[names(stages[grep("late UM", stages)])] = "UM"
+stages[grep("tetrad", stages)] = "Tetrad"
+stages[names(which(stages[RiceBiSamp] == "UM"))] = "UM Bi"
+stages[names(which(stages[RiceMonoSamp] == "UM"))] = "UM Mono"
+stages = factor(stages, levels = c("Tetrad", "UM Bi", "UM Mono", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+
+pseudocount = 1*10^6/quantile(colSums(D2), p = .1)
+A2 = sweep(D2, 2, colSums(D2), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D2[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+pseudos = pVel(A2d[rank(-fano) <= 2000,over10k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+hmap = A2d[,over10k][rank(-fano[rownames(A2d)]) <= 500,ords]
+o1 = seriate(dist(t(scale(t(hmap)))), method = "OLO")
+
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.0, 5.55), c("white", "forestgreen")) #summary(log(colSums(D2[,over10k]),10)) #to choose min and max
+
+#manually splitting using table(stages) and heatmaps to guide
+split = factor(rep(c("Os_Tetrad1","Os_Tetrad2","Os_Tetrad3","Os_UMb1","Os_UMb2","Os_UMb3","Os_UMm1","Os_UMm2","Os_UM/BM","Os_BM","Os_BM/TP","Os_TP1","Os_TP2","Os_TP_shed"), c(8,15,10,8,32,30,16,17,10,24,10,35,89,3)), levels = c("Os_Tetrad1","Os_Tetrad2","Os_Tetrad3","Os_UMb1","Os_UMb2","Os_UMb3","Os_UMm1","Os_UMm2","Os_UM/BM","Os_BM","Os_BM/TP","Os_TP1","Os_TP2","Os_TP_shed"))
+
+Heatmap(minmax(hmap), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")), column_split = split,
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], "UMIcounts" = log(colSums(D2[,ords]),10),
+    "% Monoallelic" = FracMono_all[over10k][ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM Bi" = "#F9A729", "UM Mono" = "#F9A729",
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "gray"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(minmax(hmap), use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords], "UMIcounts" = log(colSums(D2[,ords]),10), Source = Source[ords],
+    "% Monoallelic" = FracMono_all[ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM Bi" = "#F9A729", "UM Mono" = "#F9A729",
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "gray"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), show_row_names = FALSE, show_column_names = FALSE)
+
+splitSamps = data.frame(split = split, samp = names(stages[ords]))
+calcMeanExp = function(x){
+    rowMeans(A2[,splitSamps[splitSamps[,1] == x,2]]) #mean TPM of each gene for each group
+}
+
+###Objects to use downstream in comparisons:
+Os_meanExp = sapply(levels(split)[which(table(split)>=3)], calcMeanExp) #apply meanExp only to the groups with >=3 samples
+Os_UMIs = D2[,names(stages)] #min 10k UMIs, excluding no cell controls, 307 samples
+Os_g1 = g1_2[,names(stages)]
+Os_g2 = g2_2[,names(stages)]
+Os_Meta = Rice_meta[names(stages),]
+Os_stages = stages
+Os_AlleleFracBin = AlleleFrac_bin[,names(stages)]
+Os_FracMono = FracMono_all[names(stages)]
+
+save(Os_meanExp, Os_UMIs, Os_g1, Os_g2, Os_Meta, Os_stages, Os_AlleleFracBin, Os_FracMono, file="Rice.RData")
+
+
+###Maize prep
+load('MaizeF1_4_2026.RData')
+load('MaizeRemap_8-10_2025.RData')
+
+D = cbind(D2,D)
+g1 = cbind(g1_2,g1)
+g2 = cbind(g2_2,g2)
+reads_UMIs = t(cbind(t(reads_UMIs2),t(reads_UMIs)))
+
+Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/Maize_Stages.xlsx")
+Meta <- Stages[rep(row.names(Stages), each = 8), ]
+Meta = as.data.frame(Meta)
+Meta$Sample = paste(rep(Stages$Plate, each = 8), '_', rep((as.numeric(sub('[A-Z].+','',Stages$Celseq_primer)) - 1)*8, each = 8) + rep(1:8, nrow(Stages)), 's', sep ='')
+rownames(Meta) = Meta$Sample
+
+Meta$No_cell2 = unlist(lapply(Stages$No_cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+D = D[,rownames(Meta)]
+g1 = g1[,rownames(Meta)]
+g2 = g2[,rownames(Meta)]
+reads_UMIs = reads_UMIs[rownames(Meta),]
+
+BINZ = function (xx, bin = 10^7) 
+{
+    bin = as.numeric(Zm_genes[, 1]) * 10^7 + round(Zm_genes[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+g1_bin = BINZ(g1)
+g2_bin = BINZ(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
+
+No_cell = rownames(Meta[(which(Meta[,15] == "Y")),])
+over10k = names(which(colSums(D) >10000))
+ETOH_Remove = names(which(colSums(D[,over10k[grep("ETOH", over10k)]]) < 50000))
+over10k = over10k[-which(over10k %in% ETOH_Remove)]
+over10k = over10k[-which(over10k %in% No_cell)] #2 no cell made it through
+over10k = over10k[-grep("BBB", over10k)] #154
+
+#excluding contamination suspect samples: c("M25-36_82s", "M25-36_86s", "M13-24_11s", "M13-24_30s", "M37-48_ETOH_74s") #maybe "M13-24_57s"
+over10k = over10k[-which(over10k %in% c("M25-36_82s", "M25-36_86s", "M13-24_11s", "M13-24_30s", "M37-48_ETOH_74s"))] #149
+
+stages = as.character(Meta[over10k,13])
+names(stages) = over10k
+stages = factor(stages, levels = c('UM','UM/BM','BM','BM/TP','TP','TP_shed'))
+table(stages)
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1)
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+pseudos = pVel(A2d[rank(-fano) <= 2000,over10k], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+hmap = A2d[,over10k][rank(-fano[rownames(A2d)]) <= 500,ords]
+o1 = seriate(dist(t(scale(t(hmap)))), method = "OLO")
+
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.0, 6.0), c("white", "forestgreen")) #summary(log(colSums(D[,over10k]),10)) #to choose min and max
+
+#manually splitting using table(stages) and heatmaps to guide
+split = factor(rep(c("Zm2_UM", "Zm2_UM/BM", "Zm2_BM1", "Zm2_BM2", "Zm2_BM/TP", "Zm2_TP1", "Zm2_TP2", "Zm2_TP_shed"), c(2,1,6,22,19,38,38,23)), levels = c("Zm2_UM", "Zm2_UM/BM", "Zm2_BM1", "Zm2_BM2", "Zm2_BM/TP", "Zm2_TP1", "Zm2_TP2", "Zm2_TP_shed"))
+
+Heatmap(minmax(hmap), column_split = split, 
+name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords],
+    "% Monoallelic" = FracMono_all[over10k][ords], 
+    col = list(Stage = c("UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "TP_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(minmax(hmap)[,over10k][,ords], use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords],
+    "% Monoallelic" = FracMono_all[over10k][ords], 
+    col = list(Stage = c("UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "TP_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+splitSamps = data.frame(split = split, samp = names(stages[ords]))
+calcMeanExp = function(x){
+    rowMeans(A2[,splitSamps[splitSamps[,1] == x,2]]) #mean TPM of each gene for each group
+}
+
+Zm2_meanExp = sapply(levels(split)[which(table(split)>=3)], calcMeanExp) #apply meanExp only to the groups with >=3 samples
+Zm2_UMIs = D[,over10k]
+Zm2_g1 = g1[,over10k]
+Zm2_g2 = g2[,over10k]
+Zm2_Meta = Meta[over10k,]
+Zm2_stages = stages
+Zm2_AlleleFracBin = AlleleFrac_bin[,over10k]
+Zm2_FracMono = FracMono_all[over10k]
+
+save(Zm2_meanExp, Zm2_UMIs, Zm2_g1, Zm2_g2, Zm2_Meta, Zm2_stages, Zm2_AlleleFracBin, Zm2_FracMono, file="Zm2.RData")
+
+###Loading 2021 data
+# Load transcript count data and metadata from GEO accession GSE175505
+meta = read.csv('GSE175505_Sample_Metadata.csv.gz', row.names=1)  # This file is also identical to Table S1 of Nelms and Walbot (2021)
+A = read.csv('GSE175505_Pollen_scRNAseq_transcript_counts.csv.gz', row.names=1)
+
+# Remove samples that did not pass quality control
+A = A[,sub('s_.+','s',colnames(A)) %in% (rownames(meta)[meta[,11] == 'Y'])]  
+meta = meta[unique(sub('s_.+','s',colnames(A))),]
+
+# Separate data into 3 matrices: the total number of transcripts per precursor (UMIs), the number of genoinformative transcripts matching the B73 allele (g1), and the number of genoinformative transcripts matching the A188 allele (g2)
+UMIs = A[,seq(1,ncol(A),4)] + A[,seq(2,ncol(A),4)] + A[,seq(3,ncol(A),4)] + A[,seq(4,ncol(A),4)]
+colnames(UMIs) = sub('_cf', '', colnames(UMIs))
+g1 = A[,seq(2,ncol(A),4)]
+colnames(g1) = sub('_g1', '', colnames(g1))
+g2 = A[,seq(3,ncol(A),4)]
+colnames(g2) = sub('_g2', '', colnames(g2))
+
+over10k = names(which(colSums(UMIs) > 10000))
+
+#Downloaded table with all gene model versions: https://download.maizegdb.org/Pan-genes/Pan-Zea/
+PanGeneTab = read.delim("pan-zea.v4.pan-genes_table.tsv")
+V5toV4tab = PanGeneTab[,6:7]
+V5toV4tab = V5toV4tab[which(rowSums(V5toV4tab == "NONE") == 0),]
+V5toV4tab$Zm00001d = sub("_.*", "", V5toV4tab$Zm00001d)
+V5toV4tab$Zm00001eb = sub("_.*", "", V5toV4tab$Zm00001eb)
+
+vConvert = V5toV4tab[which(V5toV4tab$Zm00001d %in% rownames(UMIs)),]
+UMIs = UMIs[vConvert[,1],]
+g1 = g1[vConvert[,1],]
+g2 = g2[vConvert[,1],]
+rownames(UMIs) = vConvert[,2]
+rownames(g1) = vConvert[,2]
+rownames(g2) = vConvert[,2]
+
+Zm2_UMIs = Zm2_UMIs[rownames(UMIs),] #goes from 39756 genes to 23804 genes, and ~25% of transcripts are lost in both datasets
+Zm2_g1 = Zm2_g1[rownames(UMIs),]
+Zm2_g2 = Zm2_g2[rownames(UMIs),]
+Zm2_meanExp = Zm2_meanExp[rownames(UMIs),]
+
+stages = as.character(meta[colnames(UMIs),4])
+names(stages) = colnames(UMIs)
+stages = stages[over10k] #applying 10k cutoff (Brad's original cutoff was 2k)
+stages[stages == "Pollen"] = "TP"
+excStage = c(rownames(meta[meta[colnames(UMIs),3] == "Interphase",]),rownames(meta[meta[colnames(UMIs),3] == "Meiosis",]))
+stages = stages[-which(names(stages) %in% excStage)]
+stages = factor(stages, levels = c("Tetrad", "Early", "Middle", "Late", "BM", "TP")) 
+
+#Tetrad  Early Middle   Late     BM     TP #2k cutoff gives 223 samples
+#    22     89     67     19     11     15
+#Tetrad  Early Middle   Late     BM     TP #10k cutoff gives 166 samples
+#    20     68     44     10      9     15
+
+UMIs = UMIs[,names(stages)]
+g1 = g1[,names(stages)]
+g2 = g2[,names(stages)]
+
+BINZ = function (xx, bin = 10^7) 
+{
+    bin = as.numeric(Zm_genes[rownames(UMIs), 1]) * 10^7 + round(Zm_genes[rownames(UMIs), 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1)))
+    colnames(out2) = colnames(g1)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+g1_bin = BINZ(g1)
+g2_bin = BINZ(g2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
+
+pseudocount = 1*10^6/quantile(colSums(UMIs), p = .1)
+A2 = sweep(UMIs, 2, colSums(UMIs), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(UMIs[,colnames(A2b)] >= 10) >= 10, ]  # Require each gene to have at least 10 UMIs in at least 10 cells
+
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+pseudos = pVel(A2d[rank(-fano) <= 2000,], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+hmap = A2d[rank(-fano[rownames(A2d)]) <= 500,ords]
+o1 = seriate(dist(t(scale(t(hmap)))), method = "OLO")
+
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+
+#2k cutoff version
+UMI_col = colorRamp2(c(3.15, 5.75), c("white", "forestgreen")) #summary(log(colSums(UMIs),10)) #to choose min and max
+#manually splitting using table(stages) and heatmaps to guide
+split = factor(rep(c("Zm_Tetrad", "Zm_UMe1", "Zm_UMe2", "Zm_UMm1", "Zm_UMm2","Zm_UMm3","Zm_UMl", "Zm_BM", "Zm_TP"), c(22,55,34,29,26,12,19,11,15)), levels = c("Zm_Tetrad", "Zm_UMe1", "Zm_UMe2", "Zm_UMm1", "Zm_UMm2","Zm_UMm3","Zm_UMl", "Zm_BM", "Zm_TP"))
+
+#10k cutoff version
+UMI_col = colorRamp2(c(3.8, 5.75), c("white", "forestgreen")) #summary(log(colSums(UMIs),10)) #to choose min and max
+#split = factor(rep(c("Zm_Tetrad","Zm_UMe","Zm_UMm","Zm_UMl","Zm_BM","Zm_TP"), c(20,68,44,10,9,15)), levels = c("Zm_Tetrad","Zm_UMe","Zm_UMm","Zm_UMl","Zm_BM","Zm_TP"))
+split = factor(rep(c("Zm_Tetrad", "Zm_UMe1", "Zm_UMe2", "Zm_UMm1", "Zm_UMm2","Zm_UMm3","Zm_UMl", "Zm_BM", "Zm_TP"), c(20,53,15,17,21,6,10,9,15)), levels = c("Zm_Tetrad", "Zm_UMe1", "Zm_UMe2", "Zm_UMm1", "Zm_UMm2","Zm_UMm3","Zm_UMl", "Zm_BM", "Zm_TP"))
+
+
+
+Heatmap(minmax(hmap), name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")), column_split = split,
+    top_annotation = HeatmapAnnotation(Stage = stages[ords], "UMIcounts" = log(colSums(Maize_UMIs[,ords]),10),
+    "% Monoallelic" = FracMono_all[ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "Early" = "#F9A729", "Middle" = "#F9A729", "Late" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "TP_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col, "UMIcounts" = UMI_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(minmax(hmap), use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords], "UMIcounts" = log(colSums(Maize_UMIs[,ords]),10), Source = Source[ords],
+    "% Monoallelic" = FracMono_all[ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "Early" = "#F9A729", "Middle" = "#F9D23C", "Late" = "limegreen",
+     "BM" = "#5FBB68", "TP" = "#A4A4D5", 
+    "TP_shed" = "#BBC9E5"), "% Monoallelic" = FracMono_col, "UMIcounts" = UMI_col, "Source" = c("Brad" = "green2", "Julian" = "purple2"))),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), show_row_names = FALSE, show_column_names = FALSE)
+
+splitSamps = data.frame(split = split, samp = names(stages[ords]))
+calcMeanExp = function(x){
+    rowMeans(A2[,splitSamps[splitSamps[,1] == x,2]]) #mean TPM of each gene for each group
+}
+
+###Objects to use downstream in comparisons:
+Zm_meanExp = sapply(levels(split)[which(table(split)>=3)], calcMeanExp) #apply meanExp only to the groups with >=3 samples
+Zm_UMIs = UMIs
+Zm_g1 = g1
+Zm_g2 = g2
+Zm_Meta = meta[names(stages),]
+Zm_stages = stages
+Zm_AlleleFracBin = AlleleFrac_bin
+Zm_FracMono = FracMono_all
+
+save(Zm_meanExp, Zm_UMIs, Zm_g1, Zm_g2, Zm_Meta, Zm_stages, Zm_AlleleFracBin, Zm_FracMono,
+    Zm2_meanExp, Zm2_UMIs, Zm2_g1, Zm2_g2, Zm2_Meta, Zm2_stages, Zm2_AlleleFracBin, Zm2_FracMono, file="Maize.RData")
+
+
+###Tomato prep
+
+load("TomatoRemap_11_2024-7_2025_with_meta.RData")
+
+BINSl = function (xx, bin = 10^6) 
+{
+    bin = as.numeric(Sl_genes2[, 1]) * 10^6 + round(Sl_genes2[, 2]/bin)
+    out = by(xx, bin, colSums)
+    out2 = t(matrix(unlist(out), nrow = ncol(g1_2)))
+    colnames(out2) = colnames(g1_2)
+    rownames(out2) = names(out)
+    return(out2)
+}
+
+g1_bin = BINSl(g1_2)
+g2_bin = BINSl(g2_2)
+AlleleFrac_bin = g1_bin/(g1_bin + g2_bin)
+AlleleFrac_bin[(g1_bin+g2_bin) < 10] = NA #remove bins with <10 genoinformative transcripts
+Sl_binUse = which(abs(rowMeans(AlleleFrac_bin, na.rm=T) - .5) < .4)  # was .4 instead of .3, .3 is >80%. Exclude bins with >90% of all transcripts mapping to the same allele across all samples
+AlleleFrac_bin[-Sl_binUse,] = NA
+FracMono_all = 100*colMeans(abs(AlleleFrac_bin - .5) >= .3, na.rm=T)
+FracMono_all[names(which(colSums(!is.na(AlleleFrac_bin))<10))] = NA
+
+over10k = names(which(colSums(D2) >10000))
+over10k = over10k[which(Sl_meta[over10k,14] == "N")] #getting rid of no cell controls
+
+stages = Sl_meta[over10k,8]
+names(stages) = over10k
+stages = stages[-which(is.na(FracMono_all[over10k]))]
+stages = stages[-which(stages == "Meiosis")]
+stages[grep("tetrad", stages)] = "Tetrad"
+stages[names(which(FracMono_all[names(stages[stages == "UM"])] <= 40))] = "UM Bi"
+stages[names(which(FracMono_all[names(stages[stages == "UM"])] > 40))] = "UM Mono"
+stages = factor(stages, level = c("Tetrad", "UM Bi", "UM Mono", "UM/BM", "BM", "BM_shed"))
+
+pseudocount = 1*10^6/quantile(colSums(D2), p = .1)
+A2 = sweep(D2, 2, colSums(D2), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D2[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+pseudos = pVel(A2d[rank(-fano) <= 2000,names(stages)], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+hmap = A2d[,names(stages)][rank(-fano[rownames(A2d)]) <= 500,ords]
+o1 = seriate(dist(t(scale(t(hmap)))), method = "OLO")
+
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.0, 5.6), c("white", "forestgreen")) #summary(log(colSums(D2[,over10k]),10)) #to choose min and max
+
+#manually splitting using table(stages) and heatmaps to guide
+split = factor(rep(c("Sl_Tetrad", "Sl_UMb", "Sl_UMm", "Sl_UM/BM", "Sl_BM1","Sl_BM2", "Sl_BM_shed"), c(19,5,4,10,24,23,31)), levels = c("Sl_Tetrad", "Sl_UMb", "Sl_UMm", "Sl_UM/BM", "Sl_BM1","Sl_BM2", "Sl_BM_shed"))
+
+Heatmap(minmax(hmap), column_split = split, 
+name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords],
+    "% Monoallelic" = FracMono_all[names(stages)][ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM Bi" = "#F9A729", "UM Mono" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#64CDCC"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(minmax(hmap), use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords],
+    "% Monoallelic" = FracMono_all[names(stages)][ords], 
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM Bi" = "#F9A729", "UM Mono" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM_shed" = "#64CDCC"), "% Monoallelic" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+splitSamps = data.frame(split = split, samp = names(stages[ords]))
+calcMeanExp = function(x){
+    rowMeans(A2[,splitSamps[splitSamps[,1] == x,2]]) #mean TPM of each gene for each group
+}
+
+###Objects to use downstream in comparisons:
+Sl_meanExp = sapply(levels(split)[which(table(split)>=3)], calcMeanExp) #apply meanExp only to the groups with >=3 samples
+Sl_UMIs = D2[,names(stages)]
+Sl_g1 = g1_2[,names(stages)]
+Sl_g2 = g2_2[,names(stages)]
+Sl_Meta = Sl_meta[names(stages),]
+Sl_stages = stages
+Sl_AlleleFracBin = AlleleFrac_bin[,names(stages)]
+Sl_FracMono = FracMono_all[names(stages)]
+
+save(Sl_meanExp, Sl_UMIs, Sl_g1, Sl_g2, Sl_Meta, Sl_stages, Sl_AlleleFracBin, Sl_FracMono, file="Tomato.RData")
+
+
+###Arabidopsis prep
+load("At_data_2_2026.RData")
+
+over10k = names(which(colSums(D) >10000))
+over10k = over10k[which(At_meta[over10k,12] == "N")] #getting rid of the no cell controls (5 at 10k, 2 at 20k, 0 at 25k)
+
+HapFrac = HapFrac_all[over10k]
+HapFrac = (HapFrac - 0.5)*200
+
+stages = At_meta[over10k,9]
+names(stages) = over10k
+stages = sub("tetrads", "Tetrad", stages)
+stages = sub("Tri", "TP", stages)
+stages[grep("shed", At_meta[over10k,11])] = "TP_shed"
+stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+
+pseudocount = 1*10^6/quantile(colSums(D), p = .1) #Set pseudocount as 10^6 / 10% quantile of UMI counts per sample
+A2 = sweep(D, 2, colSums(D), '/')*10^6  # Transcripts per million normalization
+A2b = log(A2+pseudocount,10)  # Log transform
+A2d = A2b[rowSums(D[,colnames(A2b)] >= 5) >= 3, ]  # Require each gene to have at least 5 UMIs in at least 3 cells
+
+fano = apply(A2d, 1, var)/rowMeans(A2d)  # fano factor is a measure of gene variance
+pseudos = pVel(A2d[rank(-fano) <= 2000,names(stages)], nboot = 80)  # Calculate pseudotime and pseudotime velocity using accessory functions in R script
+ords = order(stages, pseudos$pT)  # order samples based on morphologically-defined stage, then order samples within a stage by pseudotime
+hmap = A2d[,names(stages)][rank(-fano[rownames(A2d)]) <= 500,ords]
+o1 = seriate(dist(t(scale(t(hmap)))), method = "OLO")
+
+FracMono_col = colorRamp2(c(0, 100), c("white", "purple4"))
+UMI_col = colorRamp2(c(4.0, 5.6), c("white", "forestgreen")) #summary(log(colSums(D2[,over10k]),10)) #to choose min and max
+
+#manually splitting using table(stages) and heatmaps to guide
+split = factor(rep(c("At_Tetrad", "At_UM1","At_UM2","At_UM3", "At_UM/BM", "At_BM", "At_BM/TP","At_TP1","At_TP2","At_TP3","At_TP4","At_TP_shed"), c(7,50,55,33,28,169,8,8,28,70,29,3)), levels = c("At_Tetrad", "At_UM1","At_UM2","At_UM3", "At_UM/BM", "At_BM", "At_BM/TP","At_TP1","At_TP2","At_TP3","At_TP4","At_TP_shed"))
+
+Heatmap(minmax(hmap), column_split = split,
+name = 'expression
+level (TPM)', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages[ords],
+    "% Matching Haplotype" = HapFrac[ords],
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729", 
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "#BBC9E5"), 
+    "% Matching Haplotype" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_rows=as.dendrogram(o1[[1]]), cluster_columns=F, show_row_names = FALSE, show_column_names = FALSE)
+
+Heatmap(cor(minmax(hmap), use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', right_annotation = rowAnnotation(Stage = stages[ords],
+    "% Matching Haplotype" = HapFrac[ords],
+    col = list(Stage = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729", 
+    "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "TP_shed" = "#BBC9E5"), 
+    "% Matching Haplotype" = FracMono_col)),
+col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+splitSamps = data.frame(split = split, samp = names(stages[ords]))
+calcMeanExp = function(x){
+    rowMeans(A2[,splitSamps[splitSamps[,1] == x,2]]) #mean TPM of each gene for each group
+}
+
+###Objects to use downstream in comparisons:
+At_meanExp = sapply(levels(split)[which(table(split)>=3)], calcMeanExp) #apply meanExp only to the groups with >=3 samples
+At_UMIs = D[,names(stages)]
+At_g1 = g1[,names(stages)]
+At_g2 = g2[,names(stages)]
+At_Meta = At_meta[names(stages),]
+At_stages = stages
+At_HapFrac_genes = HapFrac_genes_all[,names(stages)]
+At_HapFrac = HapFrac
+
+save(At_meanExp, At_UMIs, At_g1, At_g2, At_Meta, At_stages, At_HapFrac_genes, At_HapFrac, file="Arabidopsis.RData")
+#Need to add in At_4_2026.RData data, which has 12 samples over10k (need to calculate HapFrac for these)
+
+
+
+
+load('At_4_2026.RData')
+
+library(readxl)
+At_Stages <- read_excel("C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R/At_Stages_4-21-26.xlsx")
+
+At_meta <- At_Stages[rep(row.names(At_Stages), each = 8), ]
+At_meta = as.data.frame(At_meta)
+
+At_meta$Sample = c(paste(rep('A339-350_', times = 96), 1:96, rep('s', times=96), sep=''), paste(rep('A351-362_', times = 96), 1:96, rep('s', times=96), sep=''))
+rownames(At_meta) = At_meta$Sample
+
+At_meta$No_cell2 = unlist(lapply(At_Stages$No_Cell, function(xx) {       
+        out = rep('N', 8)
+        out[as.numeric(strsplit(xx,',')[[1]])] = 'Y'
+        return(out) }))
+
+NCCs = At_meta[which(At_meta$No_cell2 == 'Y'),10]
+colSums(D[,NCCs])
+
+over10k = names(which(colSums(D) >10000)) #12 samples
+over10k = over10k[which(At_meta[over10k,11] == "N")] #getting rid of no cell controls (no NCCs had passed 10k)
+
+
+

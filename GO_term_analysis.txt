@@ -1,0 +1,1800 @@
+#GO term analysis
+
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
+load("Arabidopsis.RData")
+load("Rice.RData")
+load("Maize_merge.RData")
+load("Tomato.RData") 
+
+
+Zm_GO_tab <- read.delim("Zm_GO_mart_export.txt")
+Zm_GO = Zm_GO_tab[,c(1,2,3,6)]
+Zm_GO = Zm_GO[-which(Zm_GO[,3] == ""),]
+colnames(Zm_GO) = c("Zm_geneID", "GO_ID", "GO_term", "GO_domain")
+
+
+StageMean = function(stage, TPM, stages){
+    rowMeans(TPM[,names(stages[which(stages == stage)])])
+}
+
+ZmMeanExp = sapply(c("Tetrad", "UM", "BM", "Pollen"), StageMean, TPM= Zm_merge_TPM, stages=Zm_merge_stages)
+
+ZmTetradGO = table(Zm_GO[Zm_GO$Zm_geneID %in% names(which(ZmMeanExp[,1] > 100)),2])
+#ZmTetradGO = ZmTetradGO[order(ZmTetradGO, decreasing=T)]
+head(ZmTetradGO[order(ZmTetradGO, decreasing=T)])
+           nucleus          cytoplasm nucleotide binding  metal ion binding 
+               858                594                516                486 
+       ATP binding           membrane 
+               430                419
+
+ZmPollenGO = table(Zm_GO[Zm_GO$Zm_geneID %in% names(which(ZmMeanExp[,6] > 100)),2])
+#ZmPollenGO = ZmPollenGO[order(ZmPollenGO, decreasing=T)]
+head(ZmPollenGO[order(ZmPollenGO, decreasing=T)])
+            membrane    metal ion binding   nucleotide binding 
+                 386                  348                  334 
+         ATP binding transferase activity            cytoplasm 
+                 311                  286                  254
+
+
+
+Os_stages2 = as.character(Os_stages)
+names(Os_stages2) = names(Os_stages)
+Os_stages2 = sub(" Mono", "", sub(" Bi", "", Os_stages2))
+Os_stages2 = factor(Os_stages2, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "TP_shed"))
+
+OsMeanExp = sapply(c("Tetrad", "UM", "BM", "TP"), StageMean, TPM= Os_TPM, stages=Os_stages2)
+
+Os_GO_tab <- read.delim("Os_GO_mart_export.txt")
+Os_GO = Os_GO_tab[,c(1,3,2,5)]
+Os_GO = Os_GO[-which(Os_GO[,3] == ""),]
+colnames(Os_GO) = c("Os_geneID", "GO_ID", "GO_term", "GO_domain")
+Os_GO = Os_GO[grep("Os", Os_GO$Os_geneID),]
+
+riceIDtable = read.csv("riceIDtable.csv")
+riceIDtable = riceIDtable[,7:8]
+riceIDtable = riceIDtable[riceIDtable$rapdb %in% unique(Os_GO$Os_geneID),]
+riceIDtable = riceIDtable[which(!duplicated(riceIDtable[,2])),] #eliminate duplicates. check using which(duplicated(riceIDtable[,1])) and which(duplicated(riceIDtable[,2]))
+rownames(riceIDtable) = riceIDtable[,1]
+Os_GO = Os_GO[which(Os_GO$Os_geneID %in% riceIDtable[,1]),]
+RiceConvert = function(x){ Os_GO$Os_geneID[x] = riceIDtable[Os_GO$Os_geneID[x],2] }
+Os_GO$Os_geneID = sapply(1:length(Os_GO$Os_geneID), RiceConvert)
+Os_GO = Os_GO[which(Os_GO$Os_geneID %in% rownames(Os_TPM)),]
+
+OsTetradGO = table(Os_GO[Os_GO$Os_geneID %in% names(which(OsMeanExp[,1] > 100)),2])
+head(OsTetradGO[order(OsTetradGO, decreasing=T)])
+                           nucleus                          cytoplasm 
+                               495                                441 
+                 metal ion binding structural constituent of ribosome 
+                               337                                286 
+                          membrane                 nucleotide binding 
+                               281                                234 
+
+OsPollenGO = table(Os_GO[Os_GO$Os_geneID %in% names(which(OsMeanExp[,7] > 100)),2])
+head(OsPollenGO[order(OsPollenGO, decreasing=T)])
+            membrane            cytoplasm    metal ion binding 
+                 254                  218                  207 
+  nucleotide binding transferase activity          ATP binding 
+                 183                  177                  169 
+
+
+
+
+Sl_GO_tab <- read.delim("Sl_GO_mart_export.txt")
+Sl_GO = Sl_GO_tab[,c(1,3,4,7)]
+Sl_GO = Sl_GO[-which(Sl_GO[,3] == ""),]
+colnames(Sl_GO) = c("Sl_geneID", "GO_ID", "GO_term", "GO_domain")
+Sl_GO$Sl_geneID = sub("gene-", "", sub("[.].*", "", Sl_GO$Sl_geneID))
+
+Sl_stages2 = as.character(Sl_stages)
+names(Sl_stages2) = names(Sl_stages)
+Sl_stages2 = sub(" Mono", "", sub(" Bi", "", Sl_stages2))
+Sl_stages2 = factor(Sl_stages2, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM_shed"))
+
+SlMeanExp = sapply(c("Tetrad", "UM", "BM", "BM_shed"), StageMean, TPM= Sl_TPM, stages=Sl_stages2)
+
+SlTetradGO = table(Sl_GO[Sl_GO$Sl_geneID %in% names(which(SlMeanExp[,1] > 100)),2])
+head(SlTetradGO[order(SlTetradGO, decreasing=T)])
+        protein binding             ATP binding    nucleic acid binding 
+                    148                     139                      82 
+            RNA binding                membrane protein kinase activity 
+                     77                      65                      52
+
+SlPollenGO = table(Sl_GO[Sl_GO$Sl_geneID %in% names(which(SlMeanExp[,5] > 100)),2])
+head(SlPollenGO[order(SlPollenGO, decreasing=T)])
+            ATP binding                membrane protein kinase activity 
+                    114                      77                      77 
+protein phosphorylation         protein binding             GTP binding 
+                     77                      76                      33
+
+
+
+At_GO_tab <- read.delim("At_GO_mart_export.txt")
+At_GO = At_GO_tab[,c(1,3,4,7)]
+At_GO = At_GO[-which(At_GO[,3] == ""),]
+colnames(At_GO) = c("At_geneID", "GO_ID", "GO_term", "GO_domain")
+
+AtMeanExp = sapply(c("Tetrad", "UM", "BM", "TP"), StageMean, TPM= At_TPM, stages=At_stages)
+rownames(AtMeanExp) = sub("ID=gene-", "", rownames(AtMeanExp))
+
+AtTetradGO = table(At_GO[At_GO$At_geneID %in% names(which(AtMeanExp[,"Tetrad"] > 1)),3])
+head(AtTetradGO[order(AtTetradGO, decreasing=T)])
+        nucleus       cytoplasm protein binding         cytosol    mRNA binding 
+           2495            1259            1071             743             715 
+    chloroplast 
+            640
+
+AtPollenGO = table(At_GO[At_GO$At_geneID %in% names(which(AtMeanExp[,"TP"] > 1)),3])
+head(AtPollenGO[order(AtPollenGO, decreasing=T)])
+           nucleus          cytoplasm    plasma membrane    protein binding 
+               992                817                635                510 
+           cytosol molecular_function 
+               488                467
+
+#topgo
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+GOplot = function(GO, range, title){
+ggplot(as.data.frame(GO[order(GO, decreasing=T)][range]), aes(x = Var1, y = Freq)) +
+  geom_col() + theme_classic() + labs(
+    x = "GO term",
+    y = "Frequency",
+    title = title
+  ) + theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+GOplot(ZmPollenGO, 1:20, "Maize Pollen")
+GOplot(OsPollenGO, 1:20, "Rice Pollen")
+GOplot(SlPollenGO, 1:20, "Tomato Pollen")
+GOplot(AtPollenGO, 1:20, "Arabidopsis Pollen")
+
+
+ggplot(as.data.frame(AtPollenGO[order(AtPollenGO, decreasing=T)][1:20]), aes(x = Var1, y = Freq)) +
+  geom_col() + theme_classic() + labs(
+    x = "GO term",
+    y = "Frequency",
+    title = "Arabidopsis Pollen"
+  ) + theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+
+#Alternate GO for rice
+Os_GO_tab <- read.delim("Os_MSU.GOSlim_assignment", header=F)
+Os_GO_tab[,1] = sub("[.].*", "", Os_GO_tab[,1])
+Os_GO = Os_GO_tab[,c(1,4)]
+colnames(Os_GO) = c("Os_geneID", "GO_term")
+
+OsTetradGO = table(Os_GO[Os_GO$Os_geneID %in% names(which(OsMeanExp[,1] > 100)),2])
+head(OsTetradGO[order(OsTetradGO, decreasing=T)])
+  cellular process biological_process            cytosol  metabolic process 
+               866                698                688                628 
+          membrane cellular_component 
+               570                485 
+
+OsPollenGO = table(Os_GO[Os_GO$Os_geneID %in% names(which(OsMeanExp[,7] > 100)),2])
+head(OsPollenGO[order(OsPollenGO, decreasing=T)])
+
+ZmPollenGO = table(Zm_GO[Zm_GO$Zm_geneID %in% names(which(ZmMeanExp[,6] > 100)),2])
+#ZmPollenGO = ZmPollenGO[order(ZmPollenGO, decreasing=T)]
+head(ZmPollenGO[order(ZmPollenGO, decreasing=T)])
+            membrane    metal ion binding   nucleotide binding 
+                 410                  380                  343 
+         ATP binding transferase activity            cytoplasm 
+                 312                  289                  282
+
+
+
+
+
+
+colnames(AtMeanExp) = c("Tetrad", "UM", "BM", "Pollen")
+colnames(SlMeanExp) = c("Tetrad", "UM", "BM", "Pollen")
+colnames(OsMeanExp) = c("Tetrad", "UM", "BM", "Pollen")
+
+
+####Newest code####
+mean_TPM_list <- list(
+  At = as.data.frame(AtMeanExp),
+  Sl = as.data.frame(SlMeanExp),
+  Os = as.data.frame(OsMeanExp),
+  Zm = as.data.frame(ZmMeanExp)
+)
+
+selected_stages <- c("Tetrad", "UM", "BM", "Pollen")
+
+# Test several expression cutoffs
+TPM_cutoffs <- c(1, 30, 100)
+
+#Test that all is well
+imap(mean_TPM_list, function(x, species) {
+
+  cat(
+    species,
+    "\nGenes:", nrow(x),
+    "\nStages:", ncol(x),
+    "\nDuplicated gene IDs:", sum(duplicated(rownames(x))),
+    "\nMissing values:", sum(is.na(x)),
+    "\n\n"
+  )
+})
+
+
+GO_list <- list(
+  At = as.data.frame(At_GO),
+  Sl = as.data.frame(Sl_GO),
+  Os = as.data.frame(Os_GO),
+  Zm = as.data.frame(Zm_GO)
+)
+
+library(tidyverse)
+
+GO_long <- imap_dfr(
+  GO_list,
+  function(df, species) {
+
+    df %>%
+      transmute(
+        Gene_ID = as.character(
+          .data[[grep("geneID", names(df),
+                      ignore.case = TRUE,
+                      value = TRUE)[1]]]
+        ),
+        GO_ID = as.character(GO_ID),
+        GO_term = as.character(GO_term),
+        GO_domain = as.character(GO_domain),
+        Species = species
+      )
+  }
+) %>%
+  distinct(Species, Gene_ID, GO_ID, GO_domain, .keep_all = TRUE)
+
+GO_BP <- GO_long %>%
+  filter(GO_domain == "biological_process") %>%
+  distinct(Species, Gene_ID, GO_ID)
+
+#Check annotation coverage
+GO_BP %>%
+  group_by(Species) %>%
+  summarise(
+    Annotated_genes = n_distinct(Gene_ID),
+    Unique_BP_terms = n_distinct(GO_ID),
+    .groups = "drop"
+  )
+
+build_GO_profiles <- function(cutoff) {
+
+  profiles <- list()
+
+  for (sp in names(mean_TPM_list)) {
+
+    mat <- mean_TPM_list[[sp]]
+
+    for (st in selected_stages) {
+
+      # Identify expressed genes
+      expressed <- rownames(mat)[
+        !is.na(mat[, st]) &
+          mat[, st] >= cutoff
+      ]
+
+      # Retrieve BP annotations
+      go <- GO_BP %>%
+        filter(
+          Species == sp,
+          Gene_ID %in% expressed
+        )
+
+      # Number of expressed genes with BP annotation
+      n_annotated <- n_distinct(go$Gene_ID)
+
+      if (nrow(go) == 0 || n_annotated == 0) {
+
+        profile <- numeric()
+
+      } else {
+
+        profile_table <- go %>%
+          group_by(GO_ID) %>%
+          summarise(
+            Gene_count = n_distinct(Gene_ID),
+            .groups = "drop"
+          ) %>%
+          mutate(
+            Proportion = Gene_count / n_annotated
+          )
+
+        profile <- setNames(
+          profile_table$Proportion,
+          profile_table$GO_ID
+        )
+      }
+
+      key <- paste(sp, st, sep = "_")
+
+      profiles[[key]] <- list(
+        Species = sp,
+        Stage = st,
+        Cutoff = cutoff,
+        Expressed_genes = length(expressed),
+        Annotated_genes = n_annotated,
+        Profile = profile
+      )
+    }
+  }
+
+  profiles
+}
+
+GO_profiles_by_cutoff <- setNames(
+  lapply(TPM_cutoffs, build_GO_profiles),
+  paste0("TPM_", TPM_cutoffs)
+)
+
+jaccard_similarity <- function(a, b) {
+
+  a <- names(a)
+  b <- names(b)
+
+  if (length(a) == 0 || length(b) == 0) {
+    return(NA_real_)
+  }
+
+  length(intersect(a, b)) /
+    length(union(a, b))
+}
+
+
+cosine_similarity <- function(a, b) {
+
+  all_terms <- union(names(a), names(b))
+
+  if (length(all_terms) == 0) {
+    return(NA_real_)
+  }
+
+  vec_a <- setNames(
+    numeric(length(all_terms)),
+    all_terms
+  )
+
+  vec_b <- vec_a
+
+  vec_a[names(a)] <- a
+  vec_b[names(b)] <- b
+
+  denominator <- sqrt(sum(vec_a^2)) *
+    sqrt(sum(vec_b^2))
+
+  if (denominator == 0) {
+    return(NA_real_)
+  }
+
+  sum(vec_a * vec_b) / denominator
+}
+
+calculate_matched_similarity <- function(profiles, cutoff) {
+
+  species_pairs <- combn(
+    names(mean_TPM_list),
+    2,
+    simplify = FALSE
+  )
+
+  map_dfr(species_pairs, function(pair) {
+
+    map_dfr(selected_stages, function(st) {
+
+      profile_a <- profiles[[
+        paste(pair[1], st, sep = "_")
+      ]]$Profile
+
+      profile_b <- profiles[[
+        paste(pair[2], st, sep = "_")
+      ]]$Profile
+
+      tibble(
+        Species1 = pair[1],
+        Species2 = pair[2],
+        Stage = st,
+        Cutoff = cutoff,
+
+        Jaccard = jaccard_similarity(
+          profile_a,
+          profile_b
+        ),
+
+        Cosine = cosine_similarity(
+          profile_a,
+          profile_b
+        )
+      )
+    })
+  })
+}
+
+matched_results <- map_dfr(
+  seq_along(TPM_cutoffs),
+  function(i) {
+
+    calculate_matched_similarity(
+      profiles = GO_profiles_by_cutoff[[i]],
+      cutoff = TPM_cutoffs[i]
+    )
+  }
+)
+
+
+library(ggplot2)
+
+matched_results <- matched_results %>%
+  mutate(
+    Stage = factor(
+      Stage,
+      levels = selected_stages
+    ),
+
+    Comparison = paste(
+      Species1, "vs", Species2
+    ),
+
+    Cutoff = factor(
+      Cutoff,
+      levels = TPM_cutoffs
+    )
+  )
+
+ggplot(
+  matched_results,
+  aes(
+    x = Stage,
+    y = Comparison,
+    fill = Jaccard
+  )
+) +
+  geom_tile(
+    color = "white",
+    linewidth = 0.5
+  ) +
+  facet_wrap(
+    ~ Cutoff,
+    labeller = label_both
+  ) + scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100), limits=c(0,1),
+  na.value = "grey90"
+) +
+  labs(
+    title = "BP GO-term Jaccard similarity",
+    subtitle = "Matched developmental stages across species",
+    x = "Developmental stage",
+    y = "Species comparison",
+    fill = "Jaccard"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+
+
+ggplot(
+  matched_results,
+  aes(
+    x = Stage,
+    y = Comparison,
+    fill = Cosine
+  )
+) +
+  geom_tile(
+    color = "white",
+    linewidth = 0.5
+  ) +
+  facet_wrap(
+    ~ Cutoff,
+    labeller = label_both
+  ) + scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100), limits=c(0,1),
+  na.value = "grey90"
+) +
+  labs(
+    title = "BP GO-profile cosine similarity",
+    subtitle = "Matched developmental stages across species",
+    x = "Developmental stage",
+    y = "Species comparison",
+    fill = "Cosine"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+
+
+
+
+calculate_cross_stage_similarity <- function(profiles, cutoff) {
+
+  species_pairs <- combn(
+    names(mean_TPM_list),
+    2,
+    simplify = FALSE
+  )
+
+  map_dfr(species_pairs, function(pair) {
+
+    map_dfr(selected_stages, function(stage_a) {
+
+      map_dfr(selected_stages, function(stage_b) {
+
+        profile_a <- profiles[[
+          paste(pair[1], stage_a, sep = "_")
+        ]]$Profile
+
+        profile_b <- profiles[[
+          paste(pair[2], stage_b, sep = "_")
+        ]]$Profile
+
+        tibble(
+          Species1 = pair[1],
+          Species2 = pair[2],
+          Stage1 = stage_a,
+          Stage2 = stage_b,
+          Cutoff = cutoff,
+
+          Jaccard = jaccard_similarity(
+            profile_a,
+            profile_b
+          ),
+
+          Cosine = cosine_similarity(
+            profile_a,
+            profile_b
+          )
+        )
+      })
+    })
+  })
+}
+
+cross_stage_results <- map_dfr(
+  seq_along(TPM_cutoffs),
+  function(i) {
+
+    calculate_cross_stage_similarity(
+      profiles = GO_profiles_by_cutoff[[i]],
+      cutoff = TPM_cutoffs[i]
+    )
+  }
+)
+
+
+
+species_names <- c("At", "Sl", "Os", "Zm")
+
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(purrr)
+
+stage_order <- c("Tetrad", "UM", "BM", "Pollen")
+
+heatmap_colors <- colorRampPalette(
+  c("#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020")
+)(100)
+
+plot_cross_stage_heatmap <- function(
+    data,
+    species_a,
+    species_b,
+    metric = "Jaccard",
+    cutoff = 1,
+    stage_order = c("Tetrad", "UM", "BM", "Pollen"),
+    color_scale = "fixed"
+) {
+
+  if (!metric %in% c("Jaccard", "Cosine")) {
+    stop("metric must be 'Jaccard' or 'Cosine'")
+  }
+
+  if (!color_scale %in% c("fixed", "minmax")) {
+    stop("color_scale must be 'fixed' or 'minmax'")
+  }
+
+  plot_data <- data %>%
+    filter(
+      ((Species1 == species_a & Species2 == species_b) |
+       (Species1 == species_b & Species2 == species_a)),
+      Cutoff == cutoff
+    ) %>%
+    mutate(
+      Stage_y = if_else(
+        Species1 == species_a,
+        as.character(Stage1),
+        as.character(Stage2)
+      ),
+      Stage_x = if_else(
+        Species1 == species_a,
+        as.character(Stage2),
+        as.character(Stage1)
+      )
+    )
+
+  if (nrow(plot_data) == 0) {
+    stop("No data found for this species pair and cutoff.")
+  }
+
+  # X-axis: Tetrad -> UM -> BM -> Pollen (left to right)
+  plot_data$Stage_x <- factor(
+    plot_data$Stage_x,
+    levels = stage_order
+  )
+
+  # Y-axis: Tetrad -> UM -> BM -> Pollen (bottom to top)
+  plot_data$Stage_y <- factor(
+    plot_data$Stage_y,
+    levels = stage_order
+  )
+
+  if (color_scale == "fixed") {
+    color_limits <- c(0.2, 1)
+  } else {
+    color_limits <- range(plot_data[[metric]], na.rm = TRUE)
+
+    if (diff(color_limits) == 0) {
+      color_limits <- color_limits + c(-0.001, 0.001)
+    }
+  }
+
+  ggplot(
+    plot_data,
+    aes(x = Stage_x, y = Stage_y, fill = .data[[metric]])
+  ) +
+    geom_tile(color = "white", linewidth = 0.8) +
+    geom_text(
+      aes(label = ifelse(
+        is.na(.data[[metric]]),
+        "",
+        sprintf("%.2f", .data[[metric]])
+      )),
+      size = 4,
+      color = "black"
+    ) +
+    scale_fill_gradientn(
+      colors = heatmap_colors,
+      limits = color_limits,
+      na.value = "grey90",
+      name = metric
+    ) +
+    scale_x_discrete(
+      limits = stage_order,
+      drop = FALSE
+    ) +
+    # Explicitly set bottom-to-top order
+    scale_y_discrete(
+      limits = stage_order,
+      drop = FALSE
+    ) +
+    coord_equal() +
+    labs(
+      title = paste(species_a, "vs.", species_b),
+      subtitle = paste(
+        metric,
+        "| TPM cutoff:", cutoff,
+        "| Color scale:", color_scale
+      ),
+      x = paste(species_b, "developmental stage"),
+      y = paste(species_a, "developmental stage")
+    ) +
+    theme_classic() +
+    theme(
+      axis.text = element_text(size = 11, color = "black"),
+      axis.title = element_text(size = 12),
+      plot.title = element_text(size = 14, face = "bold"),
+      legend.title = element_text(size = 11),
+      legend.text = element_text(size = 10)
+    )
+}
+
+
+# Fixed 0–1 color scale
+plot_cross_stage_heatmap(
+  data = cross_stage_results,
+  species_a = "At",
+  species_b = "Sl",
+  metric = "Jaccard",
+  cutoff = 1,
+  color_scale = "fixed"
+)
+
+# Min–max color scale
+plot_cross_stage_heatmap(
+  data = cross_stage_results,
+  species_a = "At",
+  species_b = "Sl",
+  metric = "Jaccard",
+  cutoff = 1,
+  color_scale = "minmax"
+)
+
+
+
+plot_all_cross_stage_heatmaps <- function(
+    data,
+    metric = "Jaccard",
+    cutoff = 1,
+    color_scale = "minmax",
+    stage_order = c("Tetrad", "UM", "BM", "Pollen")
+) {
+
+  # Get all unique species pairs
+  species_pairs <- data %>%
+    distinct(Species1, Species2) %>%
+    arrange(Species1, Species2)
+
+  # Generate each heatmap
+  plots <- map2(
+    species_pairs$Species1,
+    species_pairs$Species2,
+    ~ plot_cross_stage_heatmap(
+      data = data,
+      species_a = .x,
+      species_b = .y,
+      metric = metric,
+      cutoff = cutoff,
+      stage_order = stage_order,
+      color_scale = color_scale
+    ) +
+      labs(title = paste(.x, "vs.", .y))
+  )
+
+  # Combine all panels
+  combined_plot <- wrap_plots(plots, ncol = 3)
+   combined_plot
+  }
+
+  library(patchwork)
+
+# All species pairs: Jaccard, min-max coloring
+all_jaccard <- plot_all_cross_stage_heatmaps(
+  data = cross_stage_results,
+  metric = "Jaccard",
+  cutoff = 100,
+  color_scale = "minmax"
+)
+
+all_jaccard
+
+
+# All species pairs: Jaccard, min-max coloring
+all_jaccard <- plot_all_cross_stage_heatmaps(
+  data = cross_stage_results,
+  metric = "Jaccard",
+  cutoff = 100,
+  color_scale = "fixed"
+)
+
+all_jaccard
+
+
+
+# All species pairs: Jaccard, min-max coloring
+all_cosine <- plot_all_cross_stage_heatmaps(
+  data = cross_stage_results,
+  metric = "Cosine",
+  cutoff = 100,
+  color_scale = "minmax"
+)
+
+all_cosine
+
+
+# All species pairs: Jaccard, min-max coloring
+all_cosine <- plot_all_cross_stage_heatmaps(
+  data = cross_stage_results,
+  metric = "Cosine",
+  cutoff = 100,
+  color_scale = "fixed"
+)
+
+all_cosine
+
+
+####End Newest code####
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####
+expression_list <- list(
+  At = as.data.frame(AtMeanExp),
+  Sl = as.data.frame(SlMeanExp),
+  Os = as.data.frame(OsMeanExp),
+  Zm = as.data.frame(ZmMeanExp)
+)
+
+
+
+GO_list <- list(
+  At = as.data.frame(At_GO),
+  Sl = as.data.frame(Sl_GO),
+  Os = as.data.frame(Os_GO),
+  Zm = as.data.frame(Zm_GO)
+)
+
+library(tidyverse)
+
+expression_long <- imap_dfr(
+  expression_list,
+  function(df, species) {
+
+    df %>%
+      rownames_to_column("Gene_ID") %>%
+      pivot_longer(
+        cols = -Gene_ID,
+        names_to = "Stage",
+        values_to = "TPM"
+      ) %>%
+      mutate(Species = species)
+  }
+)
+
+GO_long <- imap_dfr(
+  GO_list,
+  function(df, species) {
+
+    df %>%
+      transmute(
+        Gene_ID = as.character(
+          .data[[grep("geneID", names(df),
+                      ignore.case = TRUE,
+                      value = TRUE)[1]]]
+        ),
+        GO_ID = as.character(GO_ID),
+        GO_term = as.character(GO_term),
+        GO_domain = as.character(GO_domain),
+        Species = species
+      )
+  }
+) %>%
+  distinct(Species, Gene_ID, GO_ID, GO_domain, .keep_all = TRUE)
+
+expressed_genes <- expression_long %>%
+  filter(TPM >= 100)
+
+GO_long = GO_long[which(GO_long$GO_domain == "biological_process"),]
+
+expressed_GO <- expressed_genes %>%
+  inner_join(
+    GO_long,
+    by = c("Species", "Gene_ID")
+  ) %>%
+  distinct(Species, Stage, Gene_ID, GO_ID, GO_domain, GO_term)
+
+GO_profiles <- expressed_GO %>%
+  group_by(Species, Stage, GO_ID) %>%
+  summarise(
+    Gene_count = n_distinct(Gene_ID),
+    .groups = "drop"
+  )
+
+# Calculate the number of annotated expressed genes
+GO_denominators <- expressed_GO %>%
+  group_by(Species, Stage) %>%
+  summarise(
+    Total_annotated_genes = n_distinct(Gene_ID),
+    .groups = "drop"
+  )
+
+# Calculate the proportion of annotated expressed genes
+# associated with each GO term
+GO_profiles <- GO_profiles %>%
+  left_join(
+    GO_denominators,
+    by = c("Species", "Stage")
+  ) %>%
+  mutate(
+    GO_proportion = Gene_count / Total_annotated_genes
+  )
+
+
+species_pairs <- combn(
+  names(expression_list),
+  2,
+  simplify = FALSE
+)
+
+stages <- unique(expression_long$Stage)
+
+similarity_results <- map_dfr(stages, function(stage) {
+
+  map_dfr(species_pairs, function(pair) {
+
+    a <- GO_profiles %>%
+      filter(Species == pair[1], Stage == stage)
+
+    b <- GO_profiles %>%
+      filter(Species == pair[2], Stage == stage)
+
+    # Binary GO-term sets
+    go_a <- unique(a$GO_ID)
+    go_b <- unique(b$GO_ID)
+
+    jaccard <- length(intersect(go_a, go_b)) /
+      length(union(go_a, go_b))
+
+    # Proportional GO profiles
+    combined <- full_join(
+      a %>% select(GO_ID, prop_a = GO_proportion),
+      b %>% select(GO_ID, prop_b = GO_proportion),
+      by = "GO_ID"
+    ) %>%
+      mutate(
+        prop_a = replace_na(prop_a, 0),
+        prop_b = replace_na(prop_b, 0)
+      )
+
+    cosine <- with(
+      combined,
+      sum(prop_a * prop_b) /
+        (sqrt(sum(prop_a^2)) *
+         sqrt(sum(prop_b^2)))
+    )
+
+    tibble(
+      Stage = stage,
+      Species1 = pair[1],
+      Species2 = pair[2],
+      Jaccard = jaccard,
+      Cosine_similarity = cosine
+    )
+  })
+})
+
+similarity_results
+
+similarity_results$Stage = factor(similarity_results$Stage, levels = c("Tetrad", "UM", "BM", "Pollen"))
+
+
+ggplot(
+  similarity_results,
+  aes(
+    x = Stage,
+    y = paste(Species1, Species2, sep = " vs "),
+    fill = Jaccard
+  )
+) +
+  geom_tile(color = "white") + scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Jaccard",
+  na.value = "grey90"
+) +
+  labs(
+    title = "GO-term overlap across developmental stages",
+    x = "Developmental stage",
+    y = "Species comparison"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+
+
+ggplot(
+  similarity_results,
+  aes(
+    x = Stage,
+    y = paste(Species1, Species2, sep = " vs "),
+    fill = Cosine_similarity
+  )
+) +
+  geom_tile(color = "white") + scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Cosine similarity",
+  na.value = "grey90"
+) +
+  labs(
+    title = "Similarity in GO-term representation",
+    x = "Developmental stage",
+    y = "Species comparison"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+
+
+
+
+
+
+
+#####Using individual samples instead of mean Exp
+At_stages2 = as.character(At_stages)
+names(At_stages2) = names(At_stages)
+At_stages2[At_stages2 == "TP"] = "Pollen"
+At_stages2 = factor(At_stages2, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "Pollen"))
+
+Sl_stages2 = as.character(Sl_stages)
+names(Sl_stages2) = names(Sl_stages)
+Sl_stages2 = sub(" Mono", "", sub(" Bi", "", sub("BM_shed", "Pollen", Sl_stages2)))
+Sl_stages2 = factor(Sl_stages2, levels = c("Tetrad", "UM", "UM/BM", "BM", "Pollen"))
+
+Os_stages2 = as.character(Os_stages)
+names(Os_stages2) = names(Os_stages)
+Os_stages2 = sub(" Mono", "", sub(" Bi", "", sub("TP", "Pollen", Os_stages2)))
+Os_stages2 = factor(Os_stages2, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/Pollen", "Pollen", "Pollen_shed"))
+
+
+#Step 1
+library(tidyverse)
+library(purrr)
+library(vegan)
+library(ggplot2)
+#library(pheatmap)
+
+# Expression matrices
+TPM_list <- list(
+  Arabidopsis = At_TPM,
+  Tomato      = Sl_TPM,
+  Rice        = Os_TPM,
+  Maize       = Zm_merge_TPM
+)
+
+# Named stage vectors
+stage_list <- list(
+  Arabidopsis = At_stages2,
+  Tomato      = Sl_stages2,
+  Rice        = Os_stages2,
+  Maize       = Zm_merge_stages
+)
+
+# GO annotation tables
+GO_list <- list(
+  Arabidopsis = At_GO,
+  Tomato      = Sl_GO,
+  Rice        = Os_GO,
+  Maize       = Zm_GO
+)
+
+selected_stages <- c("Tetrad", "UM", "BM", "Pollen")
+
+# Expression threshold settings
+TPM_threshold <- 200
+prevalence_threshold <- 0.5
+
+# Bootstrap iterations
+n_boot <- 50
+
+set.seed(123)
+
+
+#Step 2
+TPM_list$Arabidopsis <- TPM_list$Arabidopsis %>%
+  as.matrix()
+
+rownames(TPM_list$Arabidopsis) <- sub(
+  "^ID=gene-", "",
+  rownames(TPM_list$Arabidopsis)
+)
+
+TPM_list <- map(TPM_list, as.matrix)
+
+# Convert TPM values to numeric
+TPM_list <- map(TPM_list, function(x) {
+  storage.mode(x) <- "numeric"
+  x
+})
+
+imap(TPM_list, function(x, species) {
+  cat(
+    species,
+    "\nGenes:", nrow(x),
+    "\nSamples:", ncol(x),
+    "\nMissing values:", sum(is.na(x)),
+    "\nDuplicated gene IDs:", sum(duplicated(rownames(x))),
+    "\n\n"
+  )
+})
+
+
+#Step 3
+sample_info <- imap_dfr(stage_list, function(stages, species) {
+
+  tibble(
+    Species = species,
+    Sample = names(stages),
+    Stage = as.character(stages)
+  )
+
+}) %>%
+  filter(Stage %in% selected_stages) %>%
+  mutate(
+    Stage = factor(Stage, levels = selected_stages)
+  )
+
+sample_check <- imap(stage_list, function(stages, species) {
+
+  list(
+    missing_in_stage_vector =
+      setdiff(colnames(TPM_list[[species]]), names(stages)),
+
+    extra_in_stage_vector =
+      setdiff(names(stages), colnames(TPM_list[[species]]))
+  )
+
+})
+
+sample_check
+
+sample_info %>%
+  count(Species, Stage)
+
+
+#Step 4
+GO_long <- imap_dfr(GO_list, function(df, species) {
+
+  gene_col <- grep(
+    "geneID",
+    names(df),
+    ignore.case = TRUE,
+    value = TRUE
+  )[1]
+
+  if (is.na(gene_col)) {
+    stop(paste("Cannot identify gene ID column in", species))
+  }
+
+  df %>%
+    transmute(
+      Species = species,
+      Gene_ID = as.character(.data[[gene_col]]),
+      GO_ID = as.character(GO_ID),
+      GO_term = as.character(GO_term),
+      GO_domain = tolower(as.character(GO_domain))
+    )
+
+}) %>%
+  filter(
+    !is.na(Gene_ID),
+    !is.na(GO_ID),
+    !is.na(GO_domain)
+  ) %>%
+  mutate(
+    Ontology = case_when(
+      GO_domain == "biological_process" ~ "BP",
+      GO_domain == "molecular_function" ~ "MF",
+      GO_domain == "cellular_component" ~ "CC",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(Ontology)) %>%
+  distinct(Species, Gene_ID, GO_ID, Ontology, .keep_all = TRUE)
+
+GO_long %>%
+  group_by(Species, Ontology) %>%
+  summarise(
+    Annotated_genes = n_distinct(Gene_ID),
+    Unique_GO_terms = n_distinct(GO_ID),
+    .groups = "drop"
+  )
+
+
+#Step 5
+TPM_long <- imap_dfr(TPM_list, function(mat, species) {
+
+  as.data.frame(mat) %>%
+    rownames_to_column("Gene_ID") %>%
+    pivot_longer(
+      cols = -Gene_ID,
+      names_to = "Sample",
+      values_to = "TPM"
+    ) %>%
+    mutate(
+      Species = species,
+      TPM = as.numeric(TPM)
+    )
+
+}) %>%
+  inner_join(
+    sample_info %>% mutate(Stage = as.character(Stage)),
+    by = c("Species", "Sample")
+  )
+
+expressed_genes <- TPM_long %>%
+  group_by(Species, Stage, Gene_ID) %>%
+  summarise(
+    Number_samples = n(),
+    Expressed_samples = sum(TPM >= TPM_threshold, na.rm = TRUE),
+
+    Expression_prevalence =
+      Expressed_samples / Number_samples,
+
+    Mean_TPM = mean(TPM, na.rm = TRUE),
+
+    .groups = "drop"
+  ) %>%
+  filter(
+    Expression_prevalence >= prevalence_threshold
+  )
+
+
+#Step 6
+overall_coverage <- expressed_genes %>%
+  group_by(Species, Stage) %>%
+  summarise(
+    Expressed_genes = n_distinct(Gene_ID),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    expressed_genes %>%
+      inner_join(
+        GO_long %>%
+          distinct(Species, Gene_ID),
+        by = c("Species", "Gene_ID")
+      ) %>%
+      group_by(Species, Stage) %>%
+      summarise(
+        Annotated_expressed_genes = n_distinct(Gene_ID),
+        .groups = "drop"
+      ),
+    by = c("Species", "Stage")
+  ) %>%
+  mutate(
+    Annotated_expressed_genes =
+      replace_na(Annotated_expressed_genes, 0L),
+
+    Annotation_coverage =
+      100 * Annotated_expressed_genes / Expressed_genes
+  )
+
+overall_coverage
+
+ontology_coverage <- expand_grid(
+  Species = names(TPM_list),
+  Stage = selected_stages,
+  Ontology = c("BP", "MF", "CC")
+) %>%
+  left_join(
+    expressed_genes %>%
+      distinct(Species, Stage, Gene_ID) %>%
+      count(Species, Stage, name = "Expressed_genes"),
+    by = c("Species", "Stage")
+  ) %>%
+  left_join(
+    expressed_genes %>%
+      inner_join(
+        GO_long %>% distinct(Species, Gene_ID, Ontology),
+        by = c("Species", "Gene_ID")
+      ) %>%
+      group_by(Species, Stage, Ontology) %>%
+      summarise(
+        Annotated_genes = n_distinct(Gene_ID),
+        .groups = "drop"
+      ),
+    by = c("Species", "Stage", "Ontology")
+  ) %>%
+  mutate(
+    Annotated_genes = replace_na(Annotated_genes, 0L),
+    Coverage_percent = 100 * Annotated_genes / Expressed_genes
+  )
+
+ontology_coverage
+
+
+#Step 7
+expressed_GO <- expressed_genes %>%
+  inner_join(
+    GO_long,
+    by = c("Species", "Gene_ID")
+  ) %>%
+  distinct(
+    Species, Stage, Gene_ID,
+    GO_ID, GO_term, Ontology
+  )
+
+jaccard <- function(a, b) {
+
+  a <- unique(a)
+  b <- unique(b)
+
+  denominator <- length(union(a, b))
+
+  if (denominator == 0) {
+    return(NA_real_)
+  }
+
+  length(intersect(a, b)) / denominator
+}
+
+species_pairs <- combn(
+  names(TPM_list),
+  2,
+  simplify = FALSE
+)
+
+calculate_jaccard <- function(data, ontology) {
+
+  d <- data %>%
+    filter(Ontology == ontology)
+
+  map_dfr(selected_stages, function(st) {
+
+    map_dfr(species_pairs, function(pair) {
+
+      go_a <- d %>%
+        filter(Species == pair[1], Stage == st) %>%
+        pull(GO_ID) %>%
+        unique()
+
+      go_b <- d %>%
+        filter(Species == pair[2], Stage == st) %>%
+        pull(GO_ID) %>%
+        unique()
+
+      tibble(
+        Stage = st,
+        Species1 = pair[1],
+        Species2 = pair[2],
+        Jaccard = jaccard(go_a, go_b),
+        Ontology = ontology
+      )
+
+    })
+
+  })
+}
+
+jaccard_results <- map_dfr(
+  c("BP", "MF", "CC"),
+  ~ calculate_jaccard(expressed_GO, .x)
+)
+
+
+#Step 8
+GO_profiles <- expressed_GO %>%
+  group_by(Species, Stage, Ontology, GO_ID) %>%
+  summarise(
+    Gene_count = n_distinct(Gene_ID),
+    .groups = "drop"
+  )
+
+GO_denominators <- expressed_GO %>%
+  group_by(Species, Stage, Ontology) %>%
+  summarise(
+    Total_annotated_genes = n_distinct(Gene_ID),
+    .groups = "drop"
+  )
+
+GO_profiles <- GO_profiles %>%
+  left_join(
+    GO_denominators,
+    by = c("Species", "Stage", "Ontology")
+  ) %>%
+  mutate(
+    GO_proportion = Gene_count / Total_annotated_genes
+  )
+
+cosine_similarity <- function(a, b) {
+
+  denominator <- sqrt(sum(a^2)) * sqrt(sum(b^2))
+
+  if (denominator == 0) {
+    return(NA_real_)
+  }
+
+  sum(a * b) / denominator
+}
+
+calculate_cosine <- function(data, ontology) {
+
+  d <- data %>%
+    filter(Ontology == ontology)
+
+  map_dfr(selected_stages, function(st) {
+
+    map_dfr(species_pairs, function(pair) {
+
+      a <- d %>%
+        filter(Species == pair[1], Stage == st) %>%
+        select(GO_ID, GO_proportion)
+
+      b <- d %>%
+        filter(Species == pair[2], Stage == st) %>%
+        select(GO_ID, GO_proportion)
+
+      combined <- full_join(
+        a, b,
+        by = "GO_ID",
+        suffix = c("_a", "_b")
+      ) %>%
+        mutate(
+          GO_proportion_a = replace_na(GO_proportion_a, 0),
+          GO_proportion_b = replace_na(GO_proportion_b, 0)
+        )
+
+      tibble(
+        Stage = st,
+        Species1 = pair[1],
+        Species2 = pair[2],
+        Cosine = cosine_similarity(
+          combined$GO_proportion_a,
+          combined$GO_proportion_b
+        ),
+        Ontology = ontology
+      )
+
+    })
+
+  })
+}
+
+cosine_results <- map_dfr(
+  c("BP", "MF", "CC"),
+  ~ calculate_cosine(GO_profiles, .x)
+)
+
+
+#Step 9
+ggplot(
+  jaccard_results %>%
+    mutate(
+      Stage = factor(Stage, levels = selected_stages),
+      Comparison = paste(Species1, Species2, sep = " vs ")
+    ),
+  aes(
+    x = Stage,
+    y = Comparison,
+    fill = Jaccard
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  facet_wrap(~ Ontology) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Jaccard",
+  na.value = "grey90"
+) +
+  labs(
+    title = "GO-term Jaccard similarity across developmental stages",
+    x = "Developmental stage",
+    y = "Species comparison",
+    fill = "Jaccard"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.background = element_blank()
+  )
+
+ggplot(
+  cosine_results %>%
+    mutate(
+      Stage = factor(Stage, levels = selected_stages),
+      Comparison = paste(Species1, Species2, sep = " vs ")
+    ),
+  aes(
+    x = Stage,
+    y = Comparison,
+    fill = Cosine
+  )
+) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  facet_wrap(~ Ontology) +
+  scale_fill_gradientn(
+  colours = colorRampPalette(
+    c('#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020')
+  )(100),
+  name = "Cosine similarity",
+  na.value = "grey90"
+) +
+  labs(
+    title = "GO-profile cosine similarity across developmental stages",
+    x = "Developmental stage",
+    y = "Species comparison",
+    fill = "Cosine"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.background = element_blank()
+  )
+
+
+#Step 10
+library(Matrix)
+library(dplyr)
+library(purrr)
+library(tibble)
+
+ontologies <- c("BP", "MF", "CC")
+
+# One sparse gene x GO-term matrix per species and ontology
+GO_matrix <- list()
+
+for (sp in names(TPM_list)) {
+
+  genes <- rownames(TPM_list[[sp]])
+
+  GO_matrix[[sp]] <- list()
+
+  for (ont in ontologies) {
+
+    go <- GO_long %>%
+      filter(
+        Species == sp,
+        Ontology == ont,
+        Gene_ID %in% genes
+      ) %>%
+      distinct(Gene_ID, GO_ID)
+
+    terms <- sort(unique(go$GO_ID))
+
+    if (length(terms) == 0) {
+      GO_matrix[[sp]][[ont]] <- Matrix(
+        0,
+        nrow = length(genes),
+        ncol = 0,
+        sparse = TRUE,
+        dimnames = list(genes, character())
+      )
+      next
+    }
+
+    GO_matrix[[sp]][[ont]] <- sparseMatrix(
+      i = match(go$Gene_ID, genes),
+      j = match(go$GO_ID, terms),
+      x = 1,
+      dims = c(length(genes), length(terms)),
+      dimnames = list(genes, terms)
+    )
+  }
+}
+
+fast_bootstrap_one <- function(stage, sampled_indices) {
+
+  # Store expressed-gene indices for each species
+  expressed_idx <- list()
+
+  for (sp in names(TPM_list)) {
+
+    mat <- TPM_list[[sp]]
+
+    idx <- sampled_indices[[sp]]
+
+    sampled_mat <- mat[, idx, drop = FALSE]
+
+    prevalence <- rowMeans(
+      sampled_mat >= TPM_threshold,
+      na.rm = TRUE
+    )
+
+    expressed_idx[[sp]] <- which(
+      prevalence >= prevalence_threshold
+    )
+  }
+
+  # Calculate GO profiles once per species and ontology
+  profiles <- list()
+
+  for (sp in names(TPM_list)) {
+
+    profiles[[sp]] <- list()
+
+    for (ont in ontologies) {
+
+      A <- GO_matrix[[sp]][[ont]]
+
+      expressed <- expressed_idx[[sp]]
+
+      if (length(expressed) == 0 || ncol(A) == 0) {
+
+        profiles[[sp]][[ont]] <- list(
+          terms = character(),
+          proportions = numeric()
+        )
+
+        next
+      }
+
+      A_expressed <- A[expressed, , drop = FALSE]
+
+      # Number of expressed genes assigned to each GO term
+      counts <- Matrix::colSums(A_expressed)
+
+      # Number of expressed genes annotated in this ontology
+      denominator <- sum(
+        Matrix::rowSums(A_expressed) > 0
+      )
+
+      present <- counts > 0
+
+      profiles[[sp]][[ont]] <- list(
+        terms = names(counts)[present],
+        proportions = counts[present] / denominator
+      )
+    }
+  }
+
+  # Compare all species pairs
+  map_dfr(ontologies, function(ont) {
+
+    map_dfr(species_pairs, function(pair) {
+
+      a <- profiles[[pair[1]]][[ont]]
+      b <- profiles[[pair[2]]][[ont]]
+
+      shared_terms <- intersect(a$terms, b$terms)
+      all_terms <- union(a$terms, b$terms)
+
+      jac <- if (length(all_terms) == 0) {
+        NA_real_
+      } else {
+        length(shared_terms) / length(all_terms)
+      }
+
+      # Align profile vectors by GO ID
+      all_profile_terms <- union(a$terms, b$terms)
+
+      vec_a <- setNames(
+        numeric(length(all_profile_terms)),
+        all_profile_terms
+      )
+
+      vec_b <- vec_a
+
+      vec_a[a$terms] <- a$proportions
+      vec_b[b$terms] <- b$proportions
+
+      denom <- sqrt(sum(vec_a^2)) * sqrt(sum(vec_b^2))
+
+      cos <- if (denom == 0) {
+        NA_real_
+      } else {
+        sum(vec_a * vec_b) / denom
+      }
+
+      tibble(
+        Stage = stage,
+        Species1 = pair[1],
+        Species2 = pair[2],
+        Ontology = ont,
+        Jaccard = jac,
+        Cosine = cos
+      )
+    })
+  })
+}
+
+
+n_boot <- 50
+
+set.seed(123)
+
+a1 = proc.time()
+bootstrap_results_list <- list()
+
+for (st in selected_stages) {
+
+  message("Starting stage: ", st)
+
+  # Find replicate column indices for each species
+  stage_indices <- imap(
+    stage_list,
+    function(stages, sp) {
+
+      samples <- names(stages)[
+        as.character(stages) == st
+      ]
+
+      match(samples, colnames(TPM_list[[sp]]))
+    }
+  )
+
+  stage_results <- vector("list", n_boot)
+
+  start_time <- Sys.time()
+
+  for (iter in seq_len(n_boot)) {
+
+    # Resample biological replicates independently
+    sampled_indices <- imap(
+      stage_indices,
+      function(idx, sp) {
+        sample(idx, size = length(idx), replace = TRUE)
+      }
+    )
+
+    stage_results[[iter]] <- fast_bootstrap_one(
+      stage = st,
+      sampled_indices = sampled_indices
+    ) %>%
+      mutate(Bootstrap = iter)
+
+    if (iter %% 100 == 0) {
+
+      elapsed <- as.numeric(
+        difftime(Sys.time(), start_time, units = "mins")
+      )
+
+      estimated_total <- elapsed / iter * n_boot
+
+      message(
+        "Stage: ", st,
+        " | Iteration: ", iter, "/", n_boot,
+        " | Elapsed: ", round(elapsed, 1), " min",
+        " | Estimated total: ", round(estimated_total, 1), " min"
+      )
+    }
+  }
+
+  bootstrap_results_list[[st]] <- bind_rows(stage_results)
+}
+
+bootstrap_results <- bind_rows(bootstrap_results_list)
+a2 = proc.time()
+a2-a1 #42.24 seconds for 50 bootstraps. Estimated 14 minutes for 1000 bootstraps
+
+bootstrap_summary <- bootstrap_results %>%
+  group_by(Stage, Species1, Species2, Ontology) %>%
+  summarise(
+    Jaccard_mean = mean(Jaccard, na.rm = TRUE),
+    Jaccard_lower = quantile(Jaccard, 0.025, na.rm = TRUE),
+    Jaccard_upper = quantile(Jaccard, 0.975, na.rm = TRUE),
+
+    Cosine_mean = mean(Cosine, na.rm = TRUE),
+    Cosine_lower = quantile(Cosine, 0.025, na.rm = TRUE),
+    Cosine_upper = quantile(Cosine, 0.975, na.rm = TRUE),
+
+    .groups = "drop"
+  )
+
+
+#Step 11. Test expression-threshold sensitivity
+
+
+#Step 12
+
+
+
+
+

@@ -1,18 +1,6 @@
 ###Ortholog comparison
 ###using Biomart to select which data I want, downloading the tsv file, and loading it in R
-
-Zm_Os_HomTab <- read.delim("Zm_Os_mart_export.txt")
-colnames(Zm_Os_HomTab) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Homology_type", "Percent_ID", "Confidence")
-HighConf = which(Zm_Os_HomTab$Confidence == 1)
-Zm_Os_ConfHom = Zm_Os_HomTab[HighConf,]
-
-dim(Zm_genes2)
-[1] 39756     3
-length(unique(Zm_Os_ConfHom$Zm_geneID))
-[1] 21398
-length(unique(Zm_Os_ConfHom$Os_geneID))
-[1] 16925
-
+setwd('C:/Users/julia/OneDrive/Desktop/Grad School/Nelms lab/Bioinformatics/R')
 
 HomTab4 <- read.delim("Zm_Os_At_Sl_mart_export.txt")
 colnames(HomTab4) = c("Zm_geneID", "Zm_gene_name", "Os_geneID", "Os_gene_name", "Os_homology_type", "Os_percent_ID", "Os_confidence", 
@@ -30,19 +18,1877 @@ length(unique(ConfHom4$At_geneID))
 length(unique(ConfHom4$Sl_geneID))
 [1] 3552
 
+one2oneRows = which(ConfHom4$Os_homology_type == "ortholog_one2one" & ConfHom4$At_homology_type == "ortholog_one2one" & ConfHom4$Sl_homology_type == "ortholog_one2one")
+One2one = ConfHom4[one2oneRows,]
+rownames(One2one) = One2one[,1]
+One2one = One2one[,c(1,3,8,13)]
 
 
-PanGeneTab = read.delim("pan-zea.v4.pan-genes_table.tsv")
-V5toV4tab = PanGeneTab[,6:7]
-V5toV4tab = V5toV4tab[which(rowSums(V5toV4tab == "NONE") == 0),]
-V5toV4tab$Zm00001d = sub("_.*", "", V5toV4tab$Zm00001d)
-V5toV4tab$Zm00001eb = sub("_.*", "", V5toV4tab$Zm00001eb)
 
-length(unique(V5toV4tab$Zm00001d))                       
-[1] 26928
-length(unique(V5toV4tab$Zm00001eb))
-[1] 26928
-dim(V5toV4tab)
-[1] 26928     2
-length(which(unique(ConfHom4$Zm_geneID) %in% V5toV4tab$Zm00001eb))
-[1] 3630
+table(ConfHom4$Os_homology_type)
+ortholog_many2many  ortholog_one2many   ortholog_one2one 
+               524               5480               4729
+
+table(ConfHom4$At_homology_type)
+ortholog_many2many  ortholog_one2many   ortholog_one2one 
+              6391               2956               1386 
+
+table(ConfHom4$Sl_homology_type)
+ortholog_many2many  ortholog_one2many   ortholog_one2one 
+              6031               3237               1465
+
+
+
+
+table(unlist(lapply(X, nrow)))
+
+X = list(A = ConfHom4[1,], B = ConfHom4[2:4,], C = ConfHom4[5:6,])
+X = list(A = ConfHom4[1,c(1,3,8,13)], B = ConfHom4[2:4,c(1,3,8,13)], C = ConfHom4[5:6,c(1,3,8,13)])
+lapply(X,nrow)
+unlist(lapply(X,nrow))
+table(unlist(lapply(X,nrow)))
+lapply(X, function(xx) { list(Zma = unique(xx[,1]), Os = unique(xx[,2]), Ath = unique(xx[,3])) })
+X[[1]]
+X[1]
+X[1:2]
+apply(X[[2]], 2, function(xx2) { length(unique(xx2)) })
+lapply(X, function(xx1) { apply(xx1, 2, function(xx2) { length(unique(xx2)) })})
+sapply(X, function(xx1) { apply(xx1, 2, function(xx2) { length(unique(xx2)) })})
+
+
+
+load('Rice.RData')
+riceIDtable = read.csv("riceIDtable.csv")
+riceIDtable = riceIDtable[,7:8]
+riceIDtable = riceIDtable[riceIDtable$rapdb %in% unique(ConfHom4$Os_geneID),]
+riceIDtable = riceIDtable[which(!duplicated(riceIDtable[,2])),] #eliminate duplicates. check using which(duplicated(riceIDtable[,1])) and which(duplicated(riceIDtable[,2]))
+rownames(riceIDtable) = riceIDtable[,1]
+ConfHom4 = ConfHom4[which(ConfHom4$Os_geneID %in% riceIDtable[,1]),]
+RiceConvert = function(x){ ConfHom4$Os_geneID[x] = riceIDtable[ConfHom4$Os_geneID[x],2] }
+ConfHom4$Os_geneID = sapply(1:length(ConfHom4$Os_geneID), RiceConvert)
+ConfHom4 = ConfHom4[which(ConfHom4$Os_geneID %in% rownames(Os_TPM)),]
+
+load("Tomato.RData")
+ConfHom4$Sl_geneID = sub("\\..*", "", ConfHom4$Sl_geneID)
+ConfHom4 = ConfHom4[which(ConfHom4$Sl_geneID %in% rownames(Sl_TPM)),]
+
+load("Arabidopsis.RData")
+ConfHom4$At_geneID = sub("AT", "ID=gene-AT", ConfHom4$At_geneID)
+ConfHom4 = ConfHom4[which(ConfHom4$At_geneID %in% rownames(At_TPM)),] #currently unnecessary as length(which(!ConfHom4$At_geneID %in% rownames(At_TPM))) is 0
+
+load("Maize.RData")
+ConfHom4 = ConfHom4[which(ConfHom4$Zm_geneID %in% rownames(Zm_TPM)),] #length(which(!ConfHom4$Zm_geneID %in% rownames(Zm_TPM))) is 1663
+
+OsExp = Os_TPM[unique(ConfHom4$Os_geneID),]
+SlExp = Sl_TPM[unique(ConfHom4$Sl_geneID),]
+AtExp = At_TPM[unique(ConfHom4$At_geneID),]
+ZmExp = cbind(Zm_TPM[unique(ConfHom4$Zm_geneID),], Zm2_TPM[unique(ConfHom4$Zm_geneID),])
+
+
+####Comparing 1-1 ortholog mean TPM per stage expression
+one2oneRows = which(ConfHom4$Os_homology_type == "ortholog_one2one" & ConfHom4$At_homology_type == "ortholog_one2one" & ConfHom4$Sl_homology_type == "ortholog_one2one")
+One2one = ConfHom4[one2oneRows,]
+rownames(One2one) = One2one[,1]
+One2one = One2one[,c(1,3,8,13)]
+
+load("Maize_merge.RData")
+ZmExpMean = sapply(levels(Zm_merge_stages), function(stage){
+  rowMeans(ZmExp[One2one$Zm_geneID,names(Zm_merge_stages[which(Zm_merge_stages == stage)])])
+  })
+  colnames(ZmExpMean) = paste0("Zm_", colnames(ZmExpMean))
+
+OsExpMean = sapply(levels(Os_stages), function(stage){
+  rowMeans(OsExp[One2one$Os_geneID,names(Os_stages[which(Os_stages == stage)])])
+  })
+  colnames(OsExpMean) = paste0("Os_", colnames(OsExpMean))
+
+SlExpMean = sapply(levels(Sl_stages), function(stage){
+  rowMeans(SlExp[One2one$Sl_geneID,names(Sl_stages[which(Sl_stages == stage)])])
+  })
+  colnames(SlExpMean) = paste0("Sl_", colnames(SlExpMean))
+
+AtExpMean = sapply(levels(At_stages), function(stage){
+  rowMeans(AtExp[One2one$At_geneID,names(At_stages[which(At_stages == stage)])])
+  })
+  colnames(AtExpMean) = paste0("At_", colnames(AtExpMean))
+
+ExpComp = as.data.frame(cbind(ZmExpMean, OsExpMean, SlExpMean, AtExpMean))
+save(ExpComp,ZmExpMean,OsExpMean,SlExpMean,AtExpMean,ZmExp,OsExp,SlExp,AtExp,One2one,
+  Zm_merge_stages,Os_stages,Sl_stages,At_stages, file="ExpComp.RData")
+
+load("ExpComp.RData")
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(patchwork)
+
+stage_order <- c("Tetrad", "UM", "BM", "Pollen")
+
+# Columns contributing to each species-stage
+stage_cols <- list(
+  Zm = list(
+    Tetrad = c("Zm_Tetrad"),
+    UM     = c("Zm_UM"),
+    BM     = c("Zm_BM"),
+    Pollen = c("Zm_Pollen")
+  ),
+
+  Os = list(
+    Tetrad = c("Os_Tetrad"),
+    UM     = c("Os_UM Bi", "Os_UM Mono"),
+    BM     = c("Os_BM"),
+    Pollen = c("Os_TP", "Os_TP_shed")
+  ),
+
+  Sl = list(
+    Tetrad = c("Sl_Tetrad"),
+    UM     = c("Sl_UM Bi", "Sl_UM Mono"),
+    BM     = c("Sl_BM"),
+    Pollen = c("Sl_BM_shed")
+  ),
+
+  At = list(
+    Tetrad = c("At_Tetrad"),
+    UM     = c("At_UM"),
+    BM     = c("At_BM"),
+    Pollen = c("At_TP")
+  )
+)
+
+# Convert expression data to numeric matrix
+ExpComp_mat <- as.matrix(ExpComp)
+storage.mode(ExpComp_mat) <- "numeric"
+
+# Calculate four-stage mean TPM for each species
+mean_stage_expr <- lapply(names(stage_cols), function(species) {
+
+  species_stages <- stage_cols[[species]]
+
+  stage_matrix <- sapply(stage_order, function(stage) {
+
+    cols <- species_stages[[stage]]
+
+    rowMeans(
+      ExpComp_mat[, cols, drop = FALSE],
+      na.rm = TRUE
+    )
+  })
+
+  colnames(stage_matrix) <- stage_order
+  rownames(stage_matrix) <- rownames(ExpComp_mat)
+
+  # rowMeans returns NaN when all contributing values are NA
+  stage_matrix[!is.finite(stage_matrix)] <- NA_real_
+
+  stage_matrix
+})
+
+names(mean_stage_expr) <- names(stage_cols)
+
+# Transform each species' expression matrix
+log_expr <- lapply(mean_stage_expr, function(x) {
+  log10(x + 100)
+})
+
+# All six species pairs
+species_pairs <- combn(
+  names(log_expr),
+  2,
+  simplify = FALSE
+)
+
+# Calculate all cross-stage correlations
+cross_species_cor <- map_dfr(species_pairs, function(pair) {
+
+  species_a <- pair[1]
+  species_b <- pair[2]
+
+  # Correlation between all stages in species A and species B
+  cor_matrix <- cor(
+    log_expr[[species_a]],
+    log_expr[[species_b]],
+    use = "pairwise.complete.obs",
+    method = "pearson"
+  )
+
+  # Convert to long format
+  as.data.frame(as.table(cor_matrix)) %>%
+    rename(
+      Stage1 = Var1,
+      Stage2 = Var2,
+      Correlation = Freq
+    ) %>%
+    mutate(
+      Species1 = species_a,
+      Species2 = species_b
+    ) %>%
+    select(
+      Species1,
+      Species2,
+      Stage1,
+      Stage2,
+      Correlation
+    )
+})
+
+# Inspect results
+head(cross_species_cor)
+
+heatmap_colors <- colorRampPalette(
+  c("#0571b0", "#92c5de", "#f7f7f7", "#f4a582", "#ca0020")
+)(100)
+
+
+plot_expression_cor_heatmap <- function(
+    data,
+    species_a,
+    species_b,
+    color_scale = "fixed"
+) {
+
+  plot_data <- data %>%
+    filter(
+      Species1 == species_a,
+      Species2 == species_b
+    ) %>%
+    mutate(
+      Stage1 = factor(Stage1, levels = stage_order),
+      Stage2 = factor(Stage2, levels = stage_order)
+    )
+
+  if (nrow(plot_data) == 0) {
+    stop("No data found for this species pair.")
+  }
+
+  # Color scale
+  if (color_scale == "fixed") {
+
+    color_limits <- c(-1, 1)
+
+  } else if (color_scale == "minmax") {
+
+    color_limits <- range(
+      plot_data$Correlation,
+      na.rm = TRUE
+    )
+
+    if (diff(color_limits) == 0) {
+      color_limits <- color_limits + c(-0.001, 0.001)
+    }
+
+  } else {
+    stop("color_scale must be 'fixed' or 'minmax'")
+  }
+
+  ggplot(
+    plot_data,
+    aes(
+      x = Stage2,
+      y = Stage1,
+      fill = Correlation
+    )
+  ) +
+
+    geom_tile(
+      color = "white",
+      linewidth = 0.8
+    ) +
+
+    geom_text(
+      aes(label = ifelse(
+        is.na(Correlation),
+        "",
+        sprintf("%.2f", Correlation)
+      )),
+      size = 4,
+      color = "black"
+    ) +
+
+    scale_fill_gradientn(
+      colors = heatmap_colors,
+      limits = color_limits,
+      na.value = "grey90",
+      name = "Pearson\ncorrelation"
+    ) +
+
+    scale_x_discrete(
+      limits = stage_order,
+      drop = FALSE
+    ) +
+
+    # First level is at the bottom of the y-axis
+    scale_y_discrete(
+      limits = stage_order,
+      drop = FALSE
+    ) +
+
+    coord_equal() +
+
+    labs(
+      title = paste(species_a, "vs.", species_b),
+      subtitle = paste("Color scale:", color_scale),
+      x = paste(species_b, "developmental stage"),
+      y = paste(species_a, "developmental stage")
+    ) +
+
+    theme_classic() +
+
+    theme(
+      axis.text = element_text(
+        size = 10,
+        color = "black"
+      ),
+      axis.text.x = element_text(
+        angle = 45,
+        hjust = 1
+      ),
+      axis.title = element_text(size = 11),
+      plot.title = element_text(
+        size = 13,
+        face = "bold"
+      ),
+      plot.subtitle = element_text(size = 9),
+      legend.title = element_text(size = 10),
+      legend.text = element_text(size = 9)
+    )
+}
+
+plot_all_expression_cor <- function(
+    data,
+    color_scale = "fixed",
+    ncol = 3
+) {
+
+  plots <- map(species_pairs, function(pair) {
+
+    plot_expression_cor_heatmap(
+      data = data,
+      species_a = pair[1],
+      species_b = pair[2],
+      color_scale = color_scale
+    )
+  })
+
+  wrap_plots(
+    plots,
+    ncol = ncol
+  )
+}
+
+# Fixed scale (-1 to 1)
+all_species_fixed <- plot_all_expression_cor(
+  cross_species_cor,
+  color_scale = "fixed"
+)
+
+all_species_fixed
+
+
+# Min-max coloring separately for each heatmap
+all_species_minmax <- plot_all_expression_cor(
+  cross_species_cor,
+  color_scale = "minmax"
+)
+
+all_species_minmax
+
+# Extract matched-stage correlations
+matched_cor <- cross_species_cor %>%
+  filter(Stage1 == Stage2) %>%
+  mutate(
+    Stage = factor(Stage1, levels = stage_order),
+    Species_pair = paste(Species1, Species2, sep = " vs.")
+  ) %>%
+  select(
+    Species_pair,
+    Stage,
+    Correlation
+  )
+
+# Set species-pair display order
+pair_order <- map_chr(
+  species_pairs,
+  ~ paste(.x[1], .x[2], sep = " vs.")
+)
+
+matched_cor$Species_pair <- factor(
+  matched_cor$Species_pair,
+  levels = rev(pair_order)
+)
+
+
+plot_matched_expression_cor <- function(
+    data,
+    color_scale = "fixed"
+) {
+
+  if (color_scale == "fixed") {
+
+    color_limits <- c(-1, 1)
+
+  } else if (color_scale == "minmax") {
+
+    color_limits <- range(
+      data$Correlation,
+      na.rm = TRUE
+    )
+
+    if (diff(color_limits) == 0) {
+      color_limits <- color_limits + c(-0.001, 0.001)
+    }
+
+  } else {
+    stop("color_scale must be 'fixed' or 'minmax'")
+  }
+
+  ggplot(
+    data,
+    aes(
+      x = Stage,
+      y = Species_pair,
+      fill = Correlation
+    )
+  ) +
+
+    geom_tile(
+      color = "white",
+      linewidth = 0.8
+    ) +
+
+    geom_text(
+      aes(label = sprintf("%.2f", Correlation)),
+      size = 4,
+      color = "black"
+    ) +
+
+    scale_fill_gradientn(
+      colors = heatmap_colors,
+      limits = color_limits,
+      na.value = "grey90",
+      name = "Pearson\ncorrelation"
+    ) +
+
+    scale_x_discrete(
+      limits = stage_order,
+      drop = FALSE
+    ) +
+
+    labs(
+      title = "Matched-stage expression correlations",
+      subtitle = paste("Color scale:", color_scale),
+      x = "Developmental stage",
+      y = "Species pair"
+    ) +
+
+    theme_classic() +
+
+    theme(
+      axis.text = element_text(
+        size = 11,
+        color = "black"
+      ),
+      axis.title = element_text(size = 12),
+      plot.title = element_text(
+        size = 14,
+        face = "bold"
+      ),
+      legend.title = element_text(size = 10)
+    )
+}
+
+
+matched_fixed <- plot_matched_expression_cor(
+  matched_cor,
+  color_scale = "fixed"
+)
+
+matched_fixed
+
+matched_minmax <- plot_matched_expression_cor(
+  matched_cor,
+  color_scale = "minmax"
+)
+
+matched_minmax
+
+
+
+
+#Using code from ChatGPT below. First must make the matrix m, which should be species (columns) by geneIDs (rows)
+m = ConfHom4[,c(1,3,8,13)]
+
+#install.packages('igraph')
+library(igraph)
+
+# Give every matrix cell a unique row/gene relationship
+edges <- do.call(rbind, lapply(seq_len(nrow(m)), function(i) {
+  
+  genes <- unique(m[i, ])
+  genes <- genes[!is.na(genes) & genes != ""]
+  
+  if (length(genes) < 2)
+    return(NULL)
+  
+  cbind(
+    paste0("row", i),
+    genes
+  )
+}))
+
+# Build graph:
+# row -> gene
+g <- graph_from_data_frame(
+  edges,
+  directed = FALSE
+)
+
+# Connected components
+comp <- components(g)
+
+# Row membership
+row_nodes <- paste0("row", seq_len(nrow(m)))
+group_id <- comp$membership[row_nodes]
+
+# Split matrix by connected component
+orthogroups <- split(
+  seq_len(nrow(m)),
+  group_id
+)
+
+orthogroups <- lapply(
+  orthogroups,
+  function(i) m[i, , drop = FALSE]
+)
+
+#end ChatGPT code
+# table(unlist(lapply(orthogroups,nrow)))
+#   1    2    3    4    5    6    7    8    9   10   11   12   14   15   16   17 
+#1105  518   81  238    8  106    1   89   14   16    4   47    2    5   12    1 
+#  18   20   21   22   24   25   26   27   30   32   36   38   50   54   56   60 
+#  20    5    1    1   13    1    2    3    5    4    2    1    2    1    1    1 
+#  72   76   96  108  252 
+#   1    1    1    1    1
+
+
+
+
+# table(sapply(1:length(orthogroups), function(x) {nrow(orthogroups[[x]])})) #prior to trimming ConfHom4 based on what genes are in my data tables
+#   1    2    3    4    5    6    7    8    9   10   11   12   14   15   16   17 
+# 1190  617  113  281   10  118    7  115   13   20    6   74    2    4   17    1 
+#  18   20   21   22   24   25   26   27   28   30   32   36   38   40   45   48 
+#  12   11    1    2   23    1    2    5    3    4    4    6    1    1    3    1 
+#  50   54   60   63   70   72   76   96  182  504 
+#   2    1    3    1    1    1    1    1    1    1
+#trimOrthogroups = orthogroups[which(sapply(1:length(orthogroups), function(x) {nrow(orthogroups[[x]])}) <= 10)]
+
+#table(sapply(1:length(trimOrthogroups), function(x) {nrow(trimOrthogroups[[x]])}))
+#table(sapply(1:length(trimOrthogroups), function(x) {length(which(is.na(trimOrthogroups[[x]])))})) #no NA values
+
+#filter out non expressed genes prior to taking pearson correlation of paralogs, require some correlation to include
+#use 5 tpm in 5% of sample cutoff.
+
+
+###More ChatGPT code
+process_orthogroups <- function(
+    orthogroups,
+    expr,
+    min_tpm = 5,
+    min_fraction = 0.05,
+    min_cor = 0.7
+) {
+
+  # ------------------------------------------------------------
+  # Explicit mapping between orthology columns and expression
+  # matrices
+  # ------------------------------------------------------------
+  og_to_expr <- c(
+    Zm_geneID = "maize",
+    Os_geneID = "rice",
+    At_geneID = "Arabidopsis",
+    Sl_geneID = "tomato"
+  )
+
+  species_order <- c(
+    "maize",
+    "rice",
+    "tomato",
+    "Arabidopsis"
+  )
+
+  # Check expression matrices
+  if (!all(species_order %in% names(expr))) {
+    stop(
+      "expr must contain: ",
+      paste(species_order, collapse = ", ")
+    )
+  }
+
+  # ------------------------------------------------------------
+  # Expression filter for each species
+  # ------------------------------------------------------------
+  expressed <- list()
+
+  for (sp in species_order) {
+
+    x <- as.matrix(expr[[sp]])
+
+    n_required <- ceiling(ncol(x) * min_fraction)
+
+    keep <- rowSums(
+      x >= min_tpm,
+      na.rm = TRUE
+    ) >= n_required
+
+    expressed[[sp]] <- keep
+    names(expressed[[sp]]) <- rownames(x)
+  }
+
+  # ------------------------------------------------------------
+  # Containers
+  # ------------------------------------------------------------
+  result_matrices <- list()
+  metadata_list <- list()
+  diagnostics_list <- list()
+
+  # ------------------------------------------------------------
+  # Process each orthogroup
+  # ------------------------------------------------------------
+  for (i in seq_along(orthogroups)) {
+
+    og <- orthogroups[[i]]
+
+    # Make sure required columns exist
+    required_cols <- names(og_to_expr)
+
+    if (!all(required_cols %in% colnames(og))) {
+
+      diagnostics_list[[i]] <- data.frame(
+        orthogroup = i,
+        status = "MISSING_ORTHOLOGY_COLUMNS",
+        species = NA_character_,
+        n_genes = NA_integer_,
+        min_cor = NA_real_,
+        stringsAsFactors = FALSE
+      )
+
+      next
+    }
+
+    # Storage for this orthogroup
+    species_profiles <- list()
+    species_genes <- list()
+
+    group_failed <- FALSE
+    failure_status <- NA_character_
+    failure_species <- NA_character_
+
+    # ----------------------------------------------------------
+    # Process each species according to the explicit mapping
+    # ----------------------------------------------------------
+    for (og_col in names(og_to_expr)) {
+
+      sp <- og_to_expr[[og_col]]
+      x <- as.matrix(expr[[sp]])
+
+      # Genes listed in this orthogroup
+      genes <- unique(as.character(og[[og_col]]))
+
+      genes <- genes[
+        !is.na(genes) &
+        genes != ""
+      ]
+
+      # Genes actually present in expression matrix
+      genes <- intersect(
+        genes,
+        rownames(x)
+      )
+
+      if (length(genes) == 0) {
+
+        group_failed <- TRUE
+        failure_status <- paste0(
+          "NO_EXPRESSION_GENE_",
+          sp
+        )
+        failure_species <- sp
+
+        break
+      }
+
+      # Apply expression filter
+      genes_expressed <- genes[
+        expressed[[sp]][genes]
+      ]
+
+      if (length(genes_expressed) == 0) {
+
+        group_failed <- TRUE
+        failure_status <- paste0(
+          "NO_EXPRESSED_GENE_",
+          sp
+        )
+        failure_species <- sp
+
+        break
+      }
+
+      # --------------------------------------------------------
+      # One expressed gene = no correlation test needed
+      # --------------------------------------------------------
+      if (length(genes_expressed) == 1) {
+
+        profile <- x[
+          genes_expressed,
+          ,
+          drop = FALSE
+        ]
+
+        species_profiles[[sp]] <- as.numeric(profile[1, ])
+        species_genes[[sp]] <- genes_expressed
+
+      } else {
+
+        # ------------------------------------------------------
+        # Multiple expressed paralogs
+        # ------------------------------------------------------
+        paralog_expr <- x[
+          genes_expressed,
+          ,
+          drop = FALSE
+        ]
+
+        cor_mat <- cor(
+          t(paralog_expr),
+          use = "pairwise.complete.obs",
+          method = "pearson"
+        )
+
+        # Extract upper-triangle correlations
+        upper_idx <- upper.tri(cor_mat)
+
+        pairwise_cor <- cor_mat[upper_idx]
+
+        # Require all pairwise correlations to pass
+        cor_pass <- (
+          length(pairwise_cor) > 0 &&
+          all(
+            !is.na(pairwise_cor) &
+            pairwise_cor >= min_cor
+          )
+        )
+
+        if (!cor_pass) {
+
+          group_failed <- TRUE
+          failure_status <- paste0(
+            "LOW_PARALOG_CORRELATION_",
+            sp
+          )
+          failure_species <- sp
+
+          break
+        }
+
+        # Sum correlated paralogs
+        species_profiles[[sp]] <- colSums(
+          paralog_expr,
+          na.rm = TRUE
+        )
+
+        species_genes[[sp]] <- genes_expressed
+      }
+    }
+
+    # ----------------------------------------------------------
+    # Failed orthogroup
+    # ----------------------------------------------------------
+    if (group_failed) {
+
+      diagnostics_list[[i]] <- data.frame(
+        orthogroup = i,
+        status = failure_status,
+        species = failure_species,
+        n_genes = NA_integer_,
+        min_cor = NA_real_,
+        stringsAsFactors = FALSE
+      )
+
+      next
+    }
+
+    # ----------------------------------------------------------
+    # Make sure every species has a profile
+    # ----------------------------------------------------------
+    if (!all(species_order %in% names(species_profiles))) {
+
+      diagnostics_list[[i]] <- data.frame(
+        orthogroup = i,
+        status = "MISSING_SPECIES_PROFILE",
+        species = NA_character_,
+        n_genes = NA_integer_,
+        min_cor = NA_real_,
+        stringsAsFactors = FALSE
+      )
+
+      next
+    }
+
+    # ----------------------------------------------------------
+    # Combine species profiles
+    # ----------------------------------------------------------
+    combined <- c(
+      species_profiles$maize,
+      species_profiles$rice,
+      species_profiles$tomato,
+      species_profiles$Arabidopsis
+    )
+
+    combined <- matrix(
+      combined,
+      nrow = 1
+    )
+    if (anyNA(combined) || any(!is.finite(combined))) {
+
+      diagnostics_list[[i]] <- data.frame(
+        orthogroup = i,
+        status = "NA_OR_NONFINITE_EXPRESSION",
+        species = NA_character_,
+        n_genes = NA_integer_,
+        min_cor = NA_real_,
+        stringsAsFactors = FALSE
+      )
+
+      next
+    }
+    # Give each sample a species prefix
+    colnames(combined) <- c(
+      paste0(
+        "maize_",
+        colnames(expr$maize)
+      ),
+
+      paste0(
+        "rice_",
+        colnames(expr$rice)
+      ),
+
+      paste0(
+        "tomato_",
+        colnames(expr$tomato)
+      ),
+
+      paste0(
+        "Arabidopsis_",
+        colnames(expr$Arabidopsis)
+      )
+    )
+    maize_genes <- species_genes$maize
+
+    group_id <- paste(
+      maize_genes,
+      collapse = ";"
+    )
+
+    rownames(combined) <- group_id
+
+    result_matrices[[length(result_matrices) + 1]] <- combined
+    # ----------------------------------------------------------
+    # Create maize-based row name
+    # ----------------------------------------------------------
+    maize_genes <- species_genes$maize
+
+    group_id <- paste(
+      maize_genes,
+      collapse = ";"
+    )
+
+    rownames(combined) <- group_id
+
+    # Store expression matrix
+    result_matrices[[length(result_matrices) + 1]] <- combined
+
+    # ----------------------------------------------------------
+    # Metadata
+    # ----------------------------------------------------------
+    metadata_list[[length(metadata_list) + 1]] <- data.frame(
+      orthogroup = i,
+      orthogroup_id = group_id,
+
+      maize_genes =
+        paste(species_genes$maize, collapse = ";"),
+
+      rice_genes =
+        paste(species_genes$rice, collapse = ";"),
+
+      tomato_genes =
+        paste(species_genes$tomato, collapse = ";"),
+
+      Arabidopsis_genes =
+        paste(species_genes$Arabidopsis, collapse = ";"),
+
+      n_maize =
+        length(species_genes$maize),
+
+      n_rice =
+        length(species_genes$rice),
+
+      n_tomato =
+        length(species_genes$tomato),
+
+      n_Arabidopsis =
+        length(species_genes$Arabidopsis),
+
+      stringsAsFactors = FALSE
+    )
+
+    # ----------------------------------------------------------
+    # Successful orthogroup diagnostic
+    # ----------------------------------------------------------
+    diagnostics_list[[i]] <- data.frame(
+      orthogroup = i,
+      status = "PASS",
+      species = NA_character_,
+      n_genes = sum(
+        lengths(species_genes)
+      ),
+      min_cor = NA_real_,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  # ------------------------------------------------------------
+  # Combine diagnostics safely
+  # ------------------------------------------------------------
+  diagnostics <- do.call(
+    rbind,
+    diagnostics_list
+  )
+
+  rownames(diagnostics) <- NULL
+
+  # ------------------------------------------------------------
+  # No groups passed
+  # ------------------------------------------------------------
+  if (length(result_matrices) == 0) {
+
+    return(
+      list(
+        expression = NULL,
+        metadata = NULL,
+        diagnostics = diagnostics
+      )
+    )
+  }
+
+  # ------------------------------------------------------------
+  # Combine all orthogroups
+  # ------------------------------------------------------------
+  expression_matrix <- do.call(
+    rbind,
+    result_matrices
+  )
+
+  metadata <- do.call(
+    rbind,
+    metadata_list
+  )
+
+  rownames(metadata) <- metadata$orthogroup_id
+
+  # ------------------------------------------------------------
+  # Final safety check: no NA/Inf
+  # ------------------------------------------------------------
+  expression_matrix[
+    !is.finite(expression_matrix)
+  ] <- NA_real_
+
+  # Remove groups containing NA
+  keep_rows <- complete.cases(
+    expression_matrix
+  )
+
+  expression_matrix <- expression_matrix[
+    keep_rows,
+    ,
+    drop = FALSE
+  ]
+
+  metadata <- metadata[
+    metadata$orthogroup_id %in%
+      rownames(expression_matrix),
+    ,
+    drop = FALSE
+  ]
+
+  rownames(metadata) <- metadata$orthogroup_id
+
+  # ------------------------------------------------------------
+  # Return
+  # ------------------------------------------------------------
+  return(
+    list(
+      expression = expression_matrix,
+      metadata = metadata,
+      diagnostics = diagnostics
+    )
+  )
+}
+
+expr <- list(
+  maize = ZmExp,
+  rice = OsExp,
+  tomato = SlExp,
+  Arabidopsis = AtExp
+)
+
+result <- process_orthogroups(
+  orthogroups = orthogroups,
+  expr = expr,
+  min_tpm = 5,
+  min_fraction = 0.05,
+  min_cor = 0.7
+)
+
+orthogroup_expr <- result$expression
+orthogroup_metadata <- result$metadata
+
+orthogroup_expr <- orthogroup_expr[
+  apply(orthogroup_expr, 1, sd) > 0,
+  ,
+  drop = FALSE
+]
+
+####Noticed it looks like there are possibly actually 827 orthogroups, and they were each listed twice
+
+stages = c(Zm_stages, Zm2_stages, Os_stages, Sl_stages, At_stages)
+stages = sub("Early", "UM", sub("Middle", "UM", sub("Late", "UM", sub("UM .*", "UM", sub(".*_shed", "Shed", stages)))))
+stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "Shed"))
+names(stages) = colnames(orthogroup_expr)
+species = sub("L", "Zm", sub("M", "Zm2", sub("R", "Os", sub("S", "Sl", sub("A", "At", substr(c(colnames(Zm_TPM), colnames(Zm2_TPM), colnames(Os_TPM), colnames(Sl_TPM), colnames(At_TPM)), 1,1))))))
+
+
+#1626 orthogroups
+
+library(ggplot2)
+library(dplyr)
+
+#Individual samples PCA
+pca_result <- prcomp(t(orthogroup_expr), center = TRUE, scale = TRUE)
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, stage = stages, species = species)
+
+# 3. Create the ggplot
+svg("TPMPCA_orthogroups.svg", width=8, height=5)
+ggplot(pca_data, aes(x = PC1, y = PC2, color = stage, shape = species)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "Shed" = "#BBC9E5")) + scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20))
+dev.off()
+
+
+
+
+pca_result <- prcomp(t(log(orthogroup_expr+100,10)), center = TRUE, scale = FALSE)
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, stage = stages, species = species)
+
+# 3. Create the ggplot
+svg("LogPCA_orthogroups.svg", width=8, height=5)
+p = ggplot(pca_data, aes(x = PC1, y = PC2, color = stage, shape = species)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "Shed" = "#BBC9E5")) + scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20)) + coord_fixed(ratio = pc2_var / pc1_var)
+dev.off()
+
+
+####First version from ChatGPT, which exports svg with dimensions matching the pc variance amounts
+pc1_var <- var_explained[1]
+pc2_var <- var_explained[2]
+
+# Choose a base height
+height <- 5
+width <- height * (pc1_var / pc2_var)
+
+ggsave(
+  "PCA_PC1_PC2.svg",
+  plot = p,
+  width = width,
+  height = height,
+  units = "in"
+)
+####
+
+####Second version form ChatGPT, which forces axis dimensions to match the pc variance amounts and exports in matching size
+pca_result <- prcomp(t(log(orthogroup_expr+100,10)), center = TRUE, scale = FALSE)
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+pc1_var <- var_explained[1]
+pc2_var <- var_explained[2]
+
+#Change TP and Shed to Pollen
+stages = c(Zm_stages, Zm2_stages, Os_stages, Sl_stages, At_stages)
+stages = sub("Early", "UM", sub("Middle", "UM", sub("Late", "UM", sub("UM .*", "UM", sub(".*_shed", "Shed", stages)))))
+stages[which(stages == "TP" | stages == "Shed")] = "Pollen"
+stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "Pollen"))
+names(stages) = colnames(orthogroup_expr)
+species = sub("L", "Zm", sub("M", "Zm2", sub("R", "Os", sub("S", "Sl", sub("A", "At", substr(c(colnames(Zm_TPM), colnames(Zm2_TPM), colnames(Os_TPM), colnames(Sl_TPM), colnames(At_TPM)), 1,1))))))
+
+#Combine PCA scores with original data labels
+pca_result$x[,2] = -pca_result$x[,2]
+pca_data <- data.frame(pca_result$x, stage = stages, species = species)
+
+
+cols = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "Pollen" = "#A4A4D5")
+
+randomSamp = sample(length(stages))
+
+# 3. Create the ggplot
+p = function(col, samp) {
+  ggplot(pca_data[samp,], aes(x = PC1, y = PC2, color = stage, size = species, shape = species)) +
+  geom_point() +
+  theme_classic() +
+  theme(legend.position='none') +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = col) + scale_x_continuous(limits = c(-4.985, 3.575)) +
+    scale_y_continuous(limits = c(-3.92, 2.935)) +
+    scale_size_manual(values = 1.1*c("At" = .8, "Os" = .8, "Sl" = 1.05, "Zm" = .6, "Zm2" = .6)) +
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 19))
+}
+
+x_range <- diff(range(pca_data$PC1))
+y_range <- diff(range(pca_data$PC2))
+
+# Physical aspect ratio needed to preserve coord_fixed()
+plot_aspect <- x_range / y_range * (pc2_var / pc1_var)
+
+height <- 4
+width <- height*.6 #* plot_aspect
+ggsave("LogPCA_orthogroups_v2.svg", p(cols, randomSamp), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_Zm_only.svg", p(cols, randomSamp[grep("Zm", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_Os_only.svg", p(cols, randomSamp[grep("Os", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_Sl_only.svg", p(cols, randomSamp[grep("Sl", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_At_only.svg", p(cols, randomSamp[grep("At", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+
+rownames(pca_data) = sub("maize_", "", sub("rice_", "", sub("tomato_", "", sub("Arabidopsis_", "", rownames(pca_data)))))
+pca_data$hapfrac = c(Zm_FracMono, Zm2_FracMono, Os_FracMono, Sl_FracMono, At_HapFrac)[rownames(pca_data)]
+
+p2 = function(samp) {
+  ggplot(pca_data[samp,], aes(x = PC1, y = PC2, color = hapfrac, size = species, shape = species)) +
+  geom_point() +
+  theme_classic() +
+  theme(legend.position='none') +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_gradient(low = "#999", high = "#B10318") +
+    scale_x_continuous(limits = c(-4.985, 3.575)) +
+    scale_y_continuous(limits = c(-3.92, 2.935)) +
+    scale_size_manual(values = 1.1*c("At" = .8, "Os" = .8, "Sl" = 1.05, "Zm" = .6, "Zm2" = .6)) +
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 19))
+}
+
+ggsave("LogPCA_orthogroups_v2_hapfrac.svg", p2(randomSamp), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_Zm_only_hapfrac.svg", p2(randomSamp[grep("Zm", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_Os_only_hapfrac.svg", p2(randomSamp[grep("Os", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_Sl_only_hapfrac.svg", p2(randomSamp[grep("Sl", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+ggsave("LogPCA_orthogroups_v2_At_only_hapfrac.svg", p2(randomSamp[grep("At", pca_data$species[randomSamp])]), width = 2.5, height = 2, units = "in")
+
+
+FracMono = c(Zm_FracMono, Zm2_FracMono, Os_FracMono, Sl_FracMono, At_HapFrac)
+names(FracMono) = names(stages)
+FracMono_col = colorRamp2(c(-5, 100), c("white", "purple4"))
+species = sub("L", "Zm", sub("M", "Zm", sub("R", "Os", sub("S", "Sl", sub("A", "At", substr(c(colnames(Zm_TPM), colnames(Zm2_TPM), colnames(Os_TPM), colnames(Sl_TPM), colnames(At_TPM)), 1,1))))))
+species = factor(species, levels = c("Zm", "Os", "Sl", "At"))
+
+
+svg('CorHmap_orthogroups_species_FracMono.svg', width=5, height=4)
+Heatmap(cor(log(orthogroup_expr[,order(species, FracMono)]+100,10), use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(Stage = stages[order(species, FracMono)], Species = species[order(species, FracMono)],
+    "% Monoallelic" = FracMono[order(species, FracMono)],
+    col = list(Stage = cols, Species = c("Zm" = "blue2", "Zm2" = "blue2", "Os" = "#999", 
+    "Sl" = "red2", "At" = "green2"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    show_row_names = FALSE, show_column_names = FALSE, use_raster=F, cluster_columns=F, cluster_rows=F)
+dev.off()
+
+svg('CorHmap_orthogroups_FracMono.svg', width=5, height=4)
+Heatmap(cor(log(orthogroup_expr[,order(FracMono)]+100,10), use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(Stage = stages[order(FracMono)], Species = species[order(FracMono)],
+    "% Monoallelic" = FracMono[order(FracMono)],
+    col = list(Stage = cols, Species = c("Zm" = "blue2", "Zm2" = "blue2", "Os" = "#999", 
+    "Sl" = "red2", "At" = "green2"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    show_row_names = FALSE, show_column_names = FALSE, use_raster=F, cluster_columns=F, cluster_rows=F)
+dev.off()
+
+svg('CorHmap_orthogroups_species_stage.svg', width=5, height=4)
+Heatmap(cor(log(orthogroup_expr[,order(species, stages)]+100,10), use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(Stage = stages[order(species, stages)], Species = species[order(species, stages)],
+    "% Monoallelic" = FracMono[order(species, stages)],
+    col = list(Stage = cols, Species = c("Zm" = "blue2", "Zm2" = "blue2", "Os" = "#999", 
+    "Sl" = "red2", "At" = "green2"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    show_row_names = FALSE, show_column_names = FALSE, use_raster=F, cluster_columns=F, cluster_rows=F)
+dev.off()
+
+svg('CorHmap_orthogroups_stage_species.svg', width=5, height=4)
+Heatmap(cor(log(orthogroup_expr[,order(stages, species)]+100,10), use = 'pairwise.complete.obs', method = 'pearson'), name = 'cor', 
+    top_annotation = HeatmapAnnotation(Stage = stages[order(stages, species)], Species = species[order(stages, species)],
+    "% Monoallelic" = FracMono[order(stages, species)],
+    col = list(Stage = cols, Species = c("Zm" = "blue2", "Zm2" = "blue2", "Os" = "#999", 
+    "Sl" = "red2", "At" = "green2"), "% Monoallelic" = FracMono_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    show_row_names = FALSE, show_column_names = FALSE, use_raster=F, cluster_columns=F, cluster_rows=F)
+dev.off()
+
+
+###not using
+pca_data$stage2 <- paste(pca_data$species, pca_data$stage, sep="_")
+pca_data$stage2 = factor(pca_data$stage2, levels = c("Zm_Tetrad", "Zm_UM", "Zm_BM", "Zm_Pollen",
+  "Zm2_UM", "Zm2_UM/BM", "Zm2_BM", "Zm2_BM/TP", "Zm2_Pollen",
+  "Os_Tetrad", "Os_UM", "Os_UM/BM", "Os_BM", "Os_BM/TP", "Os_Pollen",
+  "Sl_Tetrad", "Sl_UM", "Sl_UM/BM", "Sl_BM", "Sl_Pollen",
+  "At_Tetrad", "At_UM", "At_UM/BM", "At_BM", "At_BM/TP", "At_Pollen"))
+
+cols2 = c("Zm_Tetrad" = "#EB1E2C", "Zm_UM" = "#F9A729", "Zm_BM" = "#5FBB68", "Zm_Pollen" = "#A4A4D5",
+  "Zm2_UM" = "#F9A729", "Zm2_UM/BM" = "#F9D23C", "Zm2_BM" = "#5FBB68", "Zm2_BM/TP" = "#64CDCC", "Zm2_Pollen" = "#A4A4D5",
+  "Os_Tetrad" = "#EB1E2C", "Os_UM" = "#F9A729", "Os_UM/BM" = "#F9D23C", "Os_BM" = "#5FBB68", "Os_BM/TP" = "#64CDCC", "Os_Pollen" = "#A4A4D5",
+  "Sl_Tetrad" = "#EB1E2C", "Sl_UM" = "#F9A729", "Sl_UM/BM" = "#F9D23C", "Sl_BM" = "#5FBB68", "Sl_Pollen" = "#A4A4D5",
+  "At_Tetrad" = "#EB1E2C", "At_UM" = "#F9A729", "At_UM/BM" = "#F9D23C", "At_BM" = "#5FBB68", "At_BM/TP" = "#64CDCC", "At_Pollen" = "#A4A4D5")
+
+#cols2 = levels(pca_data$stage2)
+#names(cols2) = cols2
+#cols2 = sapply(1:length(cols), function(x){cols2[grep(names(cols)[x], cols2)] = cols[[x]]}) #didn't work...
+
+colsZm = cols2
+colsZm[!grepl('Zm',names(colsZm))] = "#bbb"
+ZmSampOrd = c(randomSamp[-grep("Zm", pca_data$species[randomSamp])], randomSamp[grep("Zm", pca_data$species[randomSamp])])
+
+colsOs = cols2
+colsOs[!grepl('Os',names(colsOs))] = "#bbb"
+OsSampOrd = c(randomSamp[-grep("Os", pca_data$species[randomSamp])], randomSamp[grep("Os", pca_data$species[randomSamp])])
+
+colsSl = cols2
+colsSl[!grepl('Sl',names(colsSl))] = "#bbb"
+SlSampOrd = c(randomSamp[-grep("Sl", pca_data$species[randomSamp])], randomSamp[grep("Sl", pca_data$species[randomSamp])])
+
+colsAt = cols2
+colsAt[!grepl('At',names(colsAt))] = "#bbb"
+AtSampOrd = c(randomSamp[-grep("At", pca_data$species[randomSamp])], randomSamp[grep("At", pca_data$species[randomSamp])])
+
+p2 = function(col, ord) {
+  ggplot(pca_data[ord,], aes(x = PC1, y = PC2, color = stage2, shape = species)) +
+  geom_point(size = 0.8, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = col) + guides(color = "none") +
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 23, "Zm" = 19, "Zm2" = 19)) + coord_fixed(ratio = pc2_var / pc1_var)
+}
+
+ggsave("LogPCA_orthogroups_v2_Zm.svg", p2(colsZm, ZmSampOrd), width = width, height = height, units = "in")
+ggsave("LogPCA_orthogroups_v2_Os.svg", p2(colsOs, OsSampOrd), width = width, height = height, units = "in")
+ggsave("LogPCA_orthogroups_v2_Sl.svg", p2(colsSl, SlSampOrd), width = width, height = height, units = "in")
+ggsave("LogPCA_orthogroups_v2_At.svg", p2(colsAt, AtSampOrd), width = width, height = height, units = "in")
+
+####
+
+
+####Third version from ChatGPT, which uses svd to plot with axes in the original PCA score units, rather than standardized/scaled PC units
+pca_result <- prcomp(t(log(orthogroup_expr+100,10)), center = TRUE, scale = FALSE)
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+#Change TP and Shed to Pollen
+stages = c(Zm_stages, Zm2_stages, Os_stages, Sl_stages, At_stages)
+stages = sub("Early", "UM", sub("Middle", "UM", sub("Late", "UM", sub("UM .*", "UM", sub(".*_shed", "Shed", stages)))))
+stages[which(stages == "TP" | stages == "Shed")] = "Pollen"
+stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "Pollen"))
+names(stages) = colnames(orthogroup_expr)
+species = sub("L", "Zm", sub("M", "Zm2", sub("R", "Os", sub("S", "Sl", sub("A", "At", substr(c(colnames(Zm_TPM), colnames(Zm2_TPM), colnames(Os_TPM), colnames(Sl_TPM), colnames(At_TPM)), 1,1))))))
+
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, stage = stages, species = species)
+
+X_centered <- scale(t(log(orthogroup_expr+100,10)), center = TRUE, scale = FALSE)
+
+s <- svd(X_centered)
+
+scores <- sweep(
+  s$u,
+  2,
+  s$d,
+  "*"
+)
+
+
+cols = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "Pollen" = "#A4A4D5")
+
+randomSamp = sample(length(stages))
+p = ggplot(
+  data.frame(PC1 = scores[,1][randomSamp], PC2 = scores[,2][randomSamp], stage = stages[randomSamp], species = species[randomSamp]),
+  aes(x = PC1, y = PC2, color = stage, shape = species)) +
+  geom_point(size = 0.8, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "Pollen" = "#A4A4D5")) + 
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 23, "Zm" = 19, "Zm2" = 19)) + coord_fixed()
+
+
+pc1_var <- var_explained[1]
+pc2_var <- var_explained[2]
+
+x_range <- diff(range(scores[,1]))
+y_range <- diff(range(scores[,2]))
+
+# Physical aspect ratio needed to preserve coord_fixed()
+plot_aspect <- x_range / y_range * (pc2_var / pc1_var)
+
+height <- 6
+width <- height * plot_aspect
+
+ggsave(
+  "LogPCA_orthogroups_v3.svg",
+  p,
+  width = width,
+  height = height,
+  units = "in"
+)
+
+cols[!grepl('At',names(cols))] = 'gray'
+
+
+
+
+
+
+
+
+pca_data$stage2 <- paste(pca_data$species, pca_data$stage, sep="_")
+pca_data$stage2 = factor(pca_data$stage2, levels = c("Zm_Tetrad", "Zm_UM", "Zm_BM", "Zm_TP",
+  "Zm2_UM", "Zm2_UM/BM", "Zm2_BM", "Zm2_BM/TP", "Zm2_TP", "Zm2_Shed",
+  "Os_Tetrad", "Os_UM", "Os_UM/BM", "Os_BM", "Os_BM/TP", "Os_TP", "Os_Shed",
+  "Sl_Tetrad", "Sl_UM", "Sl_UM/BM", "Sl_BM", "Sl_Shed",
+  "At_Tetrad", "At_UM", "At_UM/BM", "At_BM", "At_BM/TP", "At_TP", "At_Shed"))
+#library(RColorBrewer)
+#brewer.pal(n = 7, name = "Greens")
+
+svg("LogPCA_orthogroups_color_species.svg", width=8, height=5)
+ggplot(pca_data, aes(x = PC1, y = PC2, color = stage2, shape=species)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20)) + 
+    scale_color_manual(values = c("Zm_Tetrad" = "#9ECAE1","Zm_UM" = "#4292C6","Zm_BM" = "#08519C", "Zm_TP" = "#08306B",
+    "Zm2_UM" = "#C7E9C0","Zm2_UM/BM" = "#A1D99B","Zm2_BM" = "#74C476","Zm2_BM/TP" = "#41AB5D","Zm2_TP" = "#238B45", "Zm2_Shed" = "#005A32",
+    "Os_Tetrad" = "#D9D9D9","Os_UM" = "#BDBDBD", "Os_UM/BM" = "#969696","Os_BM" = "#737373","Os_BM/TP" = "#525252","Os_TP" = "#252525","Os_Shed" = "#000000",
+    "Sl_Tetrad" = "#FCBBA1","Sl_UM" = "#FC9272","Sl_UM/BM" = "#FB6A4A","Sl_BM" = "#EF3B2C","Sl_Shed" = "#99000D",
+    "At_Tetrad" = "#DADAEB","At_UM" = "#BCBDDC","At_UM/BM" = "#9E9AC8","At_BM" = "#807DBA","At_BM/TP" = "#6A51A3","At_TP" = "#54278F","At_Shed" = "#3F007D"))
+dev.off()
+
+
+cols = c("Zm_Tetrad" = "#9ECAE1","Zm_UM" = "#4292C6","Zm_BM" = "#08519C", "Zm_TP" = "#08306B",
+    "Zm2_UM" = "#C7E9C0","Zm2_UM/BM" = "#A1D99B","Zm2_BM" = "#74C476","Zm2_BM/TP" = "#41AB5D","Zm2_TP" = "#238B45", "Zm2_Shed" = "#005A32",
+    "Os_Tetrad" = "#D9D9D9","Os_UM" = "#BDBDBD", "Os_UM/BM" = "#969696","Os_BM" = "#737373","Os_BM/TP" = "#525252","Os_TP" = "#252525","Os_Shed" = "#000000",
+    "Sl_Tetrad" = "#FCBBA1","Sl_UM" = "#FC9272","Sl_UM/BM" = "#FB6A4A","Sl_BM" = "#EF3B2C","Sl_Shed" = "#99000D",
+    "At_Tetrad" = "#DADAEB","At_UM" = "#BCBDDC","At_UM/BM" = "#9E9AC8","At_BM" = "#807DBA","At_BM/TP" = "#6A51A3","At_TP" = "#54278F","At_Shed" = "#3F007D")
+cols[!grepl('At',names(cols))] = 'gray'
+
+
+ggplot(pca_data, aes(x = PC1, y = PC2, color = stage2, shape=species)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20)) + 
+    scale_color_manual(values = cols)
+
+
+
+#tmpCol = function(x) { ColorRampPallete()(x) }
+#cols = levels(pca_data$stage2)
+#cols = c(tmpCol(sum(grepl('Zm_',cols))))
+#names(cols) = levels(pca_data$stage2)
+
+
+cols = c(ColorRampPalette())
+
+
+
+svg("LogPCA_orthogroups_Zm.svg", width=8, height=5)
+ggplot(pca_data, aes(x = PC1, y = PC2, color = stage2, shape=species)) +
+  geom_point(size = 1, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20)) + 
+    scale_color_manual(values = c("Zm_Tetrad" = "#9ECAE1","Zm_UM" = "#4292C6","Zm_BM" = "#08519C", "Zm_TP" = "#08306B",
+    "Zm2_UM" = "#C7E9C0","Zm2_UM/BM" = "#A1D99B","Zm2_BM" = "#74C476","Zm2_BM/TP" = "#41AB5D","Zm2_TP" = "#238B45", "Zm2_Shed" = "#005A32",
+    "Os_Tetrad" = "#D9D9D9","Os_UM" = "#BDBDBD", "Os_UM/BM" = "#969696","Os_BM" = "#737373","Os_BM/TP" = "#525252","Os_TP" = "#252525","Os_Shed" = "#000000",
+    "Sl_Tetrad" = "#FCBBA1","Sl_UM" = "#FC9272","Sl_UM/BM" = "#FB6A4A","Sl_BM" = "#EF3B2C","Sl_Shed" = "#99000D",
+    "At_Tetrad" = "#DADAEB","At_UM" = "#BCBDDC","At_UM/BM" = "#9E9AC8","At_BM" = "#807DBA","At_BM/TP" = "#6A51A3","At_TP" = "#54278F","At_Shed" = "#3F007D"))
+dev.off()
+
+#export as a square, singular value decomposition ->udw, plot dw instead which means not scaling pcs
+
+
+hmapTPM = TPM #used in TPM heatmap as minmax(hmapTPM)
+hmapLOG = log(TPM+100,10) #used in TPM heatmap as minmax(hmapLOG)
+
+
+TPM2 = TPM[rank(-apply(log10(TPM+100),1,sd)) <= 100,]
+hmapTPM = TPM2 #used in TPM heatmap as minmax(hmapTPM)
+hmapLOG = log10(TPM2+100) #used in TPM heatmap as minmax(hmapLOG)
+o1 = seriate(dist(t(scale(t(hmapLOG)))), method = "OLO") #used to cluster rows in both heatmaps
+o2log = seriate(dist(scale(t(hmapLOG))), method = "OLO") #used to cluster columns in logTPM heatmap
+o2tpm = seriate(dist(scale(t(hmapTPM))), method = "OLO") #used to cluster columns in TPM heatmap
+
+FracMono = c(Zm_FracMono, Zm2_FracMono, Os_FracMono, Sl_FracMono, At_HapFrac)
+FracMono_col = colorRamp2(c(-5, 100), c("white", "purple4"))
+TPM_col = colorRamp2(c(1505, 22232), c("white", "forestgreen")) #summary(colSums(TPM)) #to choose min and max
+stages_col = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+"BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "Shed" = "#BBC9E5")
+species_col = c("At" = "purple", "Os" = "gray", "Sl" = "red", "Zm" = "blue", "Zm2" = "green")
+ExpGenes_col = colorRamp2(c(15, 358), c("white", "forestgreen")) #summary(colSums(TPM >0),10) #to choose min and max
+MaxTPM_col = colorRamp2(c(95, 8084), c("white", "forestgreen")) #summary(apply(TPM,1, max)) #to choose min and max
+
+pc = 100
+minmax2 = function(x) {
+	sweep(x - log(pc, 10), 1, apply(x - log(pc, 10), 1, max), '/')
+}
+
+
+svg("LogExpHmap.svg", width=8, height=6)
+Heatmap(minmax2(hmapLOG), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")), 
+    right_annotation = rowAnnotation("MaxTPM" = apply(TPM[rownames(hmapLOG),],1, max), col = list("MaxTPM" = MaxTPM_col)),
+    top_annotation = HeatmapAnnotation(Stage = stages, Species = species, "TPM" = colSums(TPM),
+    "% Monoallelic" = FracMono, "ExpGs" = colSums(TPM >0),
+    col = list(Stage = stages_col, Species = species_col, "TPM" = TPM_col, "% Monoallelic" = FracMono_col, 
+    "ExpGs" = ExpGenes_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_columns = as.dendrogram(o2log[[1]]), cluster_rows=as.dendrogram(o1[[1]]), show_row_names = FALSE, 
+    show_column_names = FALSE, use_raster=F)
+dev.off()
+
+svg("TPMExpHmap.svg", width=8, height=6)
+Heatmap(minmax2(hmapLOG), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    right_annotation = rowAnnotation("MaxTPM" = apply(TPM[rownames(hmapLOG),],1, max), col = list("MaxTPM" = MaxTPM_col)),
+    top_annotation = HeatmapAnnotation(Stage = stages, Species = species, "TPM" = colSums(TPM),
+    "% Monoallelic" = FracMono, "ExpGs" = colSums(TPM >0),
+    col = list(Stage = stages_col, Species = species_col, "TPM" = TPM_col, "% Monoallelic" = FracMono_col, 
+    "ExpGs" = ExpGenes_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_columns = as.dendrogram(o2tpm[[1]]), cluster_rows=as.dendrogram(o1[[1]]), show_row_names = FALSE, 
+    show_column_names = FALSE, use_raster=F)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+load('Rice.RData')
+riceIDtable = read.csv("riceIDtable.csv")
+riceIDtable = riceIDtable[,7:8]
+riceIDtable = riceIDtable[riceIDtable$rapdb %in% One2one$Os_geneID,]
+riceIDtable = riceIDtable[which(!duplicated(riceIDtable[,2])),] #eliminate duplicates. check using which(duplicated(riceIDtable[,1])) and which(duplicated(riceIDtable[,2]))
+rownames(riceIDtable) = riceIDtable[,1]
+One2one = One2one[which(One2one$Os_geneID %in% riceIDtable[,1]),]
+riceIDtable = riceIDtable[One2one$Os_geneID,] #check that identical(One2one$Os_geneID, riceIDtable[,1]) is true
+One2one$Os_geneID = riceIDtable[,2]
+#length(which(!One2one$Os_geneID %in% rownames(Os_meanExp))) = 1
+Os_meanExp2 = Os_meanExp[One2one$Os_geneID[One2one$Os_geneID %in% rownames(Os_meanExp)],]
+Os_meanExpL2 = Os_meanExpL[rownames(Os_meanExp2),]
+One2one = One2one[which(One2one$Os_geneID %in% rownames(Os_meanExp)),] 
+#check that identical(rownames(Os_meanExp2), One2one$Os_geneID) is true (also for Os_meanExpL2)
+rownames(Os_meanExp2) = rownames(One2one)
+rownames(Os_meanExpL2) = rownames(One2one)
+
+
+load("Tomato.RData")
+One2one$Sl_geneID = sub("\\..*", "", One2one$Sl_geneID)
+One2one = One2one[which(One2one$Sl_geneID %in% rownames(Sl_meanExp)),] #may be skippable, check
+#length(which(!One2one$Sl_geneID %in% rownames(Sl_meanExp))) is 0
+Sl_meanExp2 = Sl_meanExp[One2one$Sl_geneID,] 
+Sl_meanExpL2 = Sl_meanExpL[rownames(Sl_meanExp2),]
+#check that identical(rownames(Sl_meanExp2), One2one$Sl_geneID) is true (also for Sl_meanExpL2)
+rownames(Sl_meanExp2) = rownames(One2one)
+rownames(Sl_meanExpL2) = rownames(One2one)
+
+
+load("Arabidopsis.RData")
+One2one$At_geneID = sub("AT", "ID=gene-AT", One2one$At_geneID)
+#length(which(!One2one$At_geneID %in% rownames(At_meanExp))) = 0
+At_meanExp2 = At_meanExp[One2one$At_geneID,]
+At_meanExpL2 = At_meanExpL[rownames(At_meanExp2),]
+#check that identical(rownames(At_meanExp2), One2one$At_geneID) is true
+rownames(At_meanExp2) = rownames(One2one)
+rownames(At_meanExpL2) = rownames(One2one)
+
+
+load("Maize.RData")
+#length(which(!One2one$Zm_geneID %in% rownames(Zm_meanExp))) = 111
+Zm_meanExp2 = Zm_meanExp[One2one$Zm_geneID[One2one$Zm_geneID %in% rownames(Zm_meanExp)],]
+Zm_meanExpL2 = Zm_meanExpL[rownames(Zm_meanExp2),]
+Zm2_meanExp2 = Zm2_meanExp[rownames(Zm_meanExp2),]
+Zm2_meanExpL2 = Zm2_meanExpL[rownames(Zm_meanExp2),]
+
+One2one = One2one[rownames(Zm_meanExp2),]
+
+par(mfrow = c(2,3))
+hist(rowSums(Zm_UMIs[One2one$Zm_geneID,]>0)/length(colnames(Zm_UMIs)),breaks=50)
+hist(rowSums(Zm2_UMIs[One2one$Zm_geneID,]>0)/length(colnames(Zm2_UMIs)),breaks=50)
+hist(rowSums(Os_UMIs[One2one$Os_geneID,]>0)/length(colnames(Os_UMIs)),breaks=50)
+hist(rowSums(Sl_UMIs[One2one$Sl_geneID,]>0)/length(colnames(Sl_UMIs)),breaks=50)
+hist(rowSums(At_UMIs[One2one$At_geneID,]>0)/length(colnames(At_UMIs)),breaks=50)
+
+ZmExpGs = names(which(rowSums(Zm_UMIs[One2one$Zm_geneID,]>0)/length(colnames(Zm_UMIs))  > 0.05))
+#Zm2ExpGs = names(which(rowSums(Zm2_UMIs[One2one$Zm_geneID,]>0)/length(colnames(Zm2_UMIs))  > 0.05))
+OsExpGs = names(which(rowSums(Os_UMIs[One2one$Os_geneID,]>0)/length(colnames(Os_UMIs))  > 0.05))
+OsExpGs2 = One2one[One2one$Os_geneID %in% OsExpGs,1]
+SlExpGs = names(which(rowSums(Sl_UMIs[One2one$Sl_geneID,]>0)/length(colnames(Sl_UMIs))  > 0.05))
+SlExpGs2 = One2one[One2one$Sl_geneID %in% SlExpGs,1]
+AtExpGs = names(which(rowSums(At_UMIs[One2one$At_geneID,]>0)/length(colnames(At_UMIs))  > 0.05))
+AtExpGs2 = One2one[One2one$At_geneID %in% AtExpGs,1]
+
+
+ZmExpGs = names(which(rowSums(Zm_TPM[One2one$Zm_geneID,]>20)/length(colnames(Zm_UMIs))  > 0.05))
+#Zm2ExpGs = names(which(rowSums(Zm2_TPM[One2one$Zm_geneID,]>20)/length(colnames(Zm2_UMIs))  > 0.05))
+OsExpGs = names(which(rowSums(Os_TPM[One2one$Os_geneID,]>20)/length(colnames(Os_UMIs))  > 0.05))
+OsExpGs2 = One2one[One2one$Os_geneID %in% OsExpGs,1]
+SlExpGs = names(which(rowSums(Sl_TPM[One2one$Sl_geneID,]>20)/length(colnames(Sl_UMIs))  > 0.05))
+SlExpGs2 = One2one[One2one$Sl_geneID %in% SlExpGs,1]
+AtExpGs = names(which(rowSums(At_TPM[One2one$At_geneID,]>20)/length(colnames(At_UMIs))  > 0.05))
+AtExpGs2 = One2one[One2one$At_geneID %in% AtExpGs,1]
+
+ExpGs = ZmExpGs[ZmExpGs %in% OsExpGs2 & ZmExpGs %in% SlExpGs2 & ZmExpGs %in% AtExpGs2] 
+#550 genes with >0 TPM in all species, 493 genes with >10 TPM in all species, 20 genes with >100 TPM in all species,
+#387 genes with >20 TPM 5%, 319 genes with >50 2%
+One2one2 = One2one[ExpGs,]
+#sum of TPM, number UMIs, number expressed genes, in big heatmap with expression heatmap
+Zm_TPM2 = Zm_TPM[ExpGs,]
+Zm2_TPM2 = Zm2_TPM[ExpGs,]
+Os_TPM2 = Os_TPM[One2one2$Os_geneID,]
+rownames(Os_TPM2) = ExpGs
+Sl_TPM2 = Sl_TPM[One2one2$Sl_geneID,]
+rownames(Sl_TPM2) = ExpGs
+At_TPM2 = At_TPM[One2one2$At_geneID,]
+rownames(At_TPM2) = ExpGs
+TPM = cbind(Zm_TPM2, Zm2_TPM2, Os_TPM2, Sl_TPM2, At_TPM2)
+stages = c(Zm_stages, Zm2_stages, Os_stages, Sl_stages, At_stages)
+stages = sub("Early", "UM", sub("Middle", "UM", sub("Late", "UM", sub("UM .*", "UM", sub(".*_shed", "Shed", stages)))))
+stages = factor(stages, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "Shed"))
+names(stages) = colnames(TPM)
+species = sub("L", "Zm", sub("M", "Zm2", sub("R", "Os", sub("S", "Sl", sub("A", "At", substr(colnames(TPM), 1,1))))))
+
+
+par(mfrow = c(2,3))
+hist(rowSums(Zm_UMIs[One2one$Zm_geneID,]>0),breaks=50)
+hist(rowSums(Zm2_UMIs[One2one$Zm_geneID,]>0),breaks=50)
+hist(rowSums(Os_UMIs[One2one$Os_geneID,]>0),breaks=50)
+hist(rowSums(Sl_UMIs[One2one$Sl_geneID,]>0),breaks=50)
+hist(rowSums(At_UMIs[One2one$At_geneID,]>0),breaks=50)
+par(mfrow = c(1,1))
+
+#identical(rownames(Zm_meanExp2), rownames(Zm2_meanExp2)) is TRUE
+#identical(rownames(Zm_meanExp2), rownames(Zm_meanExpL2)) is TRUE
+
+MeanExp = cbind(Zm_meanExp2,Zm2_meanExp2, Os_meanExp2[rownames(Zm_meanExp2),], Sl_meanExp2[rownames(Zm_meanExp2),], At_meanExp2[rownames(Zm_meanExp2),])
+MeanExp2 = MeanExp[ExpGs,]
+MeanExpL = cbind(Zm_meanExpL2,Zm2_meanExpL2, Os_meanExpL2[rownames(Zm_meanExp2),], Sl_meanExpL2[rownames(Zm_meanExp2),], At_meanExpL2[rownames(Zm_meanExp2),])
+MeanExpL2 = MeanExpL[ExpGs,]
+
+Heatmap(cor(MeanExp, use = 'pairwise.complete.obs', method = 'pearson'), 
+name = 'Expression_cor', col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100))
+
+
+
+#prcomp(t(MeanExpL2),scale=T/F?)
+#prcomp(t(MeanExp),scale=T)
+
+
+Species = sub("_", "", substr(colnames(MeanExp), 1,3))
+StageGroup = substr(colnames(MeanExp), 4,11)
+sub("_BM", "BM", sub("1", "", sub("2", "", sub("3", "", sub("4", "",StageGroup)))))
+StageGroup = sub(".*shed", "Shed", sub("_BM", "BM", sub("1", "", sub("2", "", sub("3", "", sub("4", "", sub("_TP", "TP", sub("UMb.*", "UM", sub("UMe", "UM", sub("UMl", "UM", sub("UMm.*", "UM", StageGroup)))))))))))
+StageGroup = factor(StageGroup, levels = c("Tetrad", "UM", "UM/BM", "BM", "BM/TP", "TP", "Shed"))
+
+#pca_result <- prcomp(scale(t(MeanExpL)), center = TRUE, scale = FALSE)
+#pca_result <- prcomp(t(MeanExp2), center = TRUE, scale = TRUE)
+#pca_result <- prcomp(t(MeanExpL2), center = TRUE, scale = FALSE)
+
+ScaleByGroup = function(x){
+    scale(t(MeanExp2[,which(Species == unique(Species)[x])]))
+}
+ScaleByGroupL = function(x){
+    scale(t(MeanExpL2[,which(Species == unique(Species)[x])]))
+}
+
+
+MeanExpSbyG = rbind(ScaleByGroup(1), ScaleByGroup(2), ScaleByGroup(3), ScaleByGroup(4), ScaleByGroup(5))
+MeanExpSbyG = MeanExpSbyG[,which(colSums(is.na(MeanExpSbyG))==0)]
+pca_result <- prcomp(MeanExpSbyG, center = TRUE, scale = TRUE)
+
+
+MeanExpSbyGL = rbind(ScaleByGroupL(1), ScaleByGroupL(2), ScaleByGroupL(3), ScaleByGroupL(4), ScaleByGroupL(5))
+MeanExpSbyGL = MeanExpSbyGL[,which(colSums(is.na(MeanExpSbyGL))==0)]
+pca_result <- prcomp(MeanExpSbyGL, center = TRUE, scale = FALSE)
+
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, StageGroup = StageGroup, Species = Species)
+
+# 3. Create the ggplot
+ggplot(pca_data, aes(x = PC1, y = PC2, color = StageGroup, shape = Species)) +
+  geom_point(size = 10, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "Shed" = "#BBC9E5")) + scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20))
+
+
+
+
+#Individual samples PCA
+#pca_result <- prcomp(t(TPM), center = TRUE, scale = TRUE)
+pca_result <- prcomp(t(log(TPM+100,10)), center = TRUE, scale = FALSE)
+
+
+ScaleByGroup2 = function(x){
+    scale(t(TPM[,which(species == unique(species)[x])]))
+}
+
+TPMSbyG = rbind(ScaleByGroup2(1), ScaleByGroup2(2), ScaleByGroup2(3), ScaleByGroup2(4), ScaleByGroup2(5))
+TPMSbyG = TPMSbyG[,which(colSums(is.na(TPMSbyG))==0)] #4 genes lost here
+pca_result <- prcomp(TPMSbyG, center = TRUE, scale = FALSE)
+
+
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, stage = stages, species = species)
+
+# 3. Create the ggplot
+ggplot(pca_data, aes(x = PC1, y = PC2, color = stage, shape = species)) +
+  geom_point(size = 3, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729",
+     "UM/BM" = "#F9D23C", "BM" = "#5FBB68", "BM/TP" = "#64CDCC", "TP" = "#A4A4D5", 
+    "Shed" = "#BBC9E5")) + scale_shape_manual(values = c("At" = 15, "Os" = 17, "Sl" = 18, "Zm" = 19, "Zm2" = 20))
+
+
+
+
+hmapTPM = TPM #used in TPM heatmap as minmax(hmapTPM)
+hmapLOG = log(TPM+100,10) #used in TPM heatmap as minmax(hmapLOG)
+
+
+TPM2 = TPM[rank(-apply(log10(TPM+100),1,sd)) <= 100,]
+hmapTPM = TPM2 #used in TPM heatmap as minmax(hmapTPM)
+hmapLOG = log10(TPM2+100) #used in TPM heatmap as minmax(hmapLOG)
+o1 = seriate(dist(t(scale(t(hmapLOG)))), method = "OLO") #used to cluster rows in both heatmaps
+o2log = seriate(dist(scale(t(hmapLOG))), method = "OLO") #used to cluster columns in logTPM heatmap
+o2tpm = seriate(dist(scale(t(hmapTPM))), method = "OLO") #used to cluster columns in TPM heatmap
+
+FracMono = c(Zm_FracMono, Zm2_FracMono, Os_FracMono, Sl_FracMono, At_HapFrac)
+FracMono_col = colorRamp2(c(-5, 100), c("white", "purple4"))
+TPM_col = colorRamp2(c(1505, 22232), c("white", "forestgreen")) #summary(colSums(TPM)) #to choose min and max
+stages_col = c("Tetrad" = "#EB1E2C", "UM" = "#F9A729", "UM/BM" = "#F9D23C", "BM" = "#5FBB68", 
+"BM/TP" = "#64CDCC", "TP" = "#A4A4D5", "Shed" = "#BBC9E5")
+species_col = c("At" = "purple", "Os" = "gray", "Sl" = "red", "Zm" = "blue", "Zm2" = "green")
+ExpGenes_col = colorRamp2(c(15, 358), c("white", "forestgreen")) #summary(colSums(TPM >0),10) #to choose min and max
+MaxTPM_col = colorRamp2(c(95, 8084), c("white", "forestgreen")) #summary(apply(TPM,1, max)) #to choose min and max
+
+pc = 100
+minmax2 = function(x) {
+	sweep(x - log(pc, 10), 1, apply(x - log(pc, 10), 1, max), '/')
+}
+
+
+svg("LogExpHmap.svg", width=8, height=6)
+Heatmap(minmax2(hmapLOG), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")), 
+    right_annotation = rowAnnotation("MaxTPM" = apply(TPM[rownames(hmapLOG),],1, max), col = list("MaxTPM" = MaxTPM_col)),
+    top_annotation = HeatmapAnnotation(Stage = stages, Species = species, "TPM" = colSums(TPM),
+    "% Monoallelic" = FracMono, "ExpGs" = colSums(TPM >0),
+    col = list(Stage = stages_col, Species = species_col, "TPM" = TPM_col, "% Monoallelic" = FracMono_col, 
+    "ExpGs" = ExpGenes_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_columns = as.dendrogram(o2log[[1]]), cluster_rows=as.dendrogram(o1[[1]]), show_row_names = FALSE, 
+    show_column_names = FALSE, use_raster=F)
+dev.off()
+
+svg("TPMExpHmap.svg", width=8, height=6)
+Heatmap(minmax2(hmapLOG), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    right_annotation = rowAnnotation("MaxTPM" = apply(TPM[rownames(hmapLOG),],1, max), col = list("MaxTPM" = MaxTPM_col)),
+    top_annotation = HeatmapAnnotation(Stage = stages, Species = species, "TPM" = colSums(TPM),
+    "% Monoallelic" = FracMono, "ExpGs" = colSums(TPM >0),
+    col = list(Stage = stages_col, Species = species_col, "TPM" = TPM_col, "% Monoallelic" = FracMono_col, 
+    "ExpGs" = ExpGenes_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_columns = as.dendrogram(o2tpm[[1]]), cluster_rows=as.dendrogram(o1[[1]]), show_row_names = FALSE, 
+    show_column_names = FALSE, use_raster=F)
+dev.off()
+
+svg("HmapClusterExpHmap.svg", width=8, height=6)
+Heatmap(minmax2(hmapLOG), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")),
+    top_annotation = HeatmapAnnotation(Stage = stages, Species = species, "TPM" = colSums(TPM),
+    "% Monoallelic" = FracMono, "ExpGs" = colSums(TPM >0),
+    col = list(Stage = stages_col, Species = species_col, "TPM" = TPM_col, "% Monoallelic" = FracMono_col, "ExpGs" = ExpGenes_col)),
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_columns = T, cluster_rows=as.dendrogram(o1[[1]]), show_row_names = FALSE, 
+    show_column_names = FALSE, use_raster=F)
+dev.off()
+
+
+#Downloaded gene model and GO term data from MaizeGDB: https://download.maizegdb.org/Zm-B73-REFERENCE-NAM-5.0/
+ZmGannots = read.csv('Zm-B73-REFERENCE-NAM-5.0-GMs-GOTerms.csv')[,c(1,4,5,6,13:17)] 
+ZmGannots2 = ZmGannots[,c(1:6,9)]
+ZmGannots2[,7] = unlist(lapply(strsplit(ZmGannots2[,7], ','), function(xx) { xx[1] }))
+ZmGannots2[,7] = sub('.*:', '', gsub('"', '', ZmGannots2[,7]))
+ZmGannots2 = ZmGannots2[-which(duplicated(ZmGannots2[,1])),]
+rownames(ZmGannots2) = ZmGannots2[,1] 
+
+
+
+
+
+ZmGsGo = read.delim('Zm-B73-REFERENCE-NAM.UniProt.GO.tab')
+ZmGsGo2 = ZmGsGo[-which(duplicated(ZmGsGo[,1])),]
+
+
+hmapLOG2 = hmapLOG
+rownames(hmapLOG2) = paste(sub("Zm00001eb", "", rownames(hmapLOG)), ZmGannots2[rownames(hmapLOG),7], sep=", ")
+
+rownames(hmapLOG2) = paste(sub("Zm00001eb", "", rownames(hmapLOG)), ZmGannots2[rownames(hmapLOG),5], ZmGannots2[rownames(hmapLOG),6], sep=", ")
+
+svg("LogExpHmapAnnot.svg", width=14, height=16)
+Heatmap(minmax2(hmapLOG2), name = 'expression
+level', heatmap_legend_param = list(at = c(0, 1), labels = c(0, "max")), 
+    right_annotation = rowAnnotation("MaxTPM" = apply(TPM[rownames(hmapLOG),],1, max), col = list("MaxTPM" = MaxTPM_col)),
+    top_annotation = HeatmapAnnotation(Stage = stages, Species = species, "TPM" = colSums(TPM),
+    "% Monoallelic" = FracMono, "ExpGs" = colSums(TPM >0),
+    col = list(Stage = stages_col, Species = species_col, "TPM" = TPM_col, "% Monoallelic" = FracMono_col, 
+    "ExpGs" = ExpGenes_col)), 
+    col = colorRampPalette(c('#0571b0','#92c5de','#f7f7f7','#f4a582','#ca0020'))(100), 
+    cluster_columns = as.dendrogram(o2log[[1]]), cluster_rows=as.dendrogram(o1[[1]]), show_row_names = TRUE, 
+    show_column_names = FALSE, use_raster=F)
+dev.off()
+
+
+
+
+
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, Group = fct_inorder(colnames(MeanExp)))
+
+# 3. Create the ggplot
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 10, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c("Zm_Tetrad" = "#9ECAE1", "Zm_UMe1" = "#4292C6", "Zm_UMe2" = "#4292C6", "Zm_UMm1" = "#4292C6", "Zm_UMm2" = "#4292C6", "Zm_UMm3" = "#4292C6", "Zm_UMl" = "#4292C6", "Zm_BM" = "#08519C", "Zm_TP" = "#08306B",
+    "Zm2_BM1" = "#A1D99B", "Zm2_BM2" = "#A1D99B", "Zm2_BM/TP" = "#74C476", "Zm2_TP" = "#31A354", "Zm2_TP_shed" = "#006D2C",
+    "Os_Tetrad1" = "#D9D9D9", "Os_Tetrad2" = "#D9D9D9", "Os_UMbi1" = "#BDBDBD", "Os_UMbi2" = "#BDBDBD", "Os_UMbi3" = "#BDBDBD", "Os_UMmono" = "#BDBDBD", "Os_UM/BM" = "#969696", "Os_BM" = "#737373", "Os_BM/TP" = "#525252", "Os_TP" = "#252525", "Os_TP_shed" = "#000000",
+    "Sl_Tetrad" = "#FCBBA1", "Sl_UMb" = "#FC9272", "Sl_UMm" = "#FC9272", "Sl_UM/BM" = "#FB6A4A", "Sl_BM1" = "#EF3B2C", "Sl_BM2" = "#EF3B2C", "Sl_BM_shed" = "#99000D",
+    "At_Tetrad" = "#DADAEB", "At_UM1" = "#BCBDDC", "At_UM2" = "#BCBDDC", "At_UM3" = "#BCBDDC", "At_UM/BM" = "#9E9AC8", "At_BM" = "#807DBA", "At_BM/TP" = "#6A51A3", "At_TP1" = "#54278F", "At_TP2" = "#54278F", "At_TP3" = "#54278F", "At_TP4" = "#54278F", "At_TP_shed" = "#3F007D"))
+
+library(RColorBrewer)
+cat(paste('"', colnames(MeanExp)[1:9], '" = "', brewer.pal(n = 9, name = "Blues"), '",', sep = "")) #using this to help with coloring
+cat(paste('"', colnames(MeanExp)[10:15], '" = "', brewer.pal(n = 6, name = "Greens"), '",', sep = "")) #using this to help with coloring
+cat(paste('"', colnames(MeanExp)[16:29], '" = "', brewer.pal(n = 14, name = "Greys"), '",', sep = "")) #using this to help with coloring
+cat(paste('"', colnames(MeanExp)[30:36], '" = "', brewer.pal(n = 7, name = "Reds"), '",', sep = "")) #using this to help with coloring
+cat(paste('"', colnames(MeanExp)[37:48], '" = "', brewer.pal(n = 12, name = "Purples"), '",', sep = "")) #using this to help with coloring
+
+pca_result <- prcomp(t(MeanExpL[,10:44]), center = TRUE, scale = TRUE)
+
+#Calculate the percentage of variance for the axis labels
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+#Combine PCA scores with original data labels
+pca_data <- data.frame(pca_result$x, Group = fct_inorder(colnames(MeanExp[,10:44])))
+
+# 3. Create the ggplot
+ggplot(pca_data, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 10, alpha = 0.8) +
+  theme_minimal() +
+  labs(
+    title = "PCA",
+    x = paste0("PC1 (", round(var_explained[1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(var_explained[2] * 100, 1), "%)")) +
+    scale_color_manual(values = c(#"Zm_Tetrad" = "#9ECAE1", "Zm_UMe1" = "#4292C6", "Zm_UMe2" = "#4292C6", "Zm_UMm1" = "#4292C6", "Zm_UMm2" = "#4292C6", "Zm_UMm3" = "#4292C6", "Zm_UMl" = "#4292C6", "Zm_BM" = "#08519C", "Zm_TP" = "#08306B",
+    "Zm2_BM1" = "#A1D99B", "Zm2_BM2" = "#A1D99B", "Zm2_BM/TP" = "#74C476", "Zm2_TP" = "#31A354", "Zm2_TP_shed" = "#006D2C",
+    "Os_Tetrad1" = "#D9D9D9", "Os_Tetrad2" = "#D9D9D9", "Os_UMbi1" = "#BDBDBD", "Os_UMbi2" = "#BDBDBD", "Os_UMbi3" = "#BDBDBD", "Os_UMmono" = "#BDBDBD", "Os_UM/BM" = "#969696", "Os_BM" = "#737373", "Os_BM/TP" = "#525252", "Os_TP" = "#252525", "Os_TP_shed" = "#000000",
+    "Sl_Tetrad" = "#FCBBA1", "Sl_UMb" = "#FC9272", "Sl_UMm" = "#FC9272", "Sl_UM/BM" = "#FB6A4A", "Sl_BM1" = "#EF3B2C", "Sl_BM2" = "#EF3B2C", "Sl_BM_shed" = "#99000D",
+    "At_Tetrad" = "#DADAEB", "At_UM1" = "#BCBDDC", "At_UM2" = "#BCBDDC", "At_UM3" = "#BCBDDC", "At_UM/BM" = "#9E9AC8", "At_BM" = "#807DBA", "At_BM/TP" = "#6A51A3", "At_TP1" = "#54278F", "At_TP2" = "#54278F", "At_TP3" = "#54278F", "At_TP4" = "#54278F", "At_TP_shed" = "#3F007D"))
+
